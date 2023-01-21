@@ -2,12 +2,15 @@ import sentry_sdk
 import os
 import sys
 
+from datetime import timedelta
 from pathlib import Path
 from corsheaders.defaults import default_headers
+from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv()
 
 TESTING = sys.argv[1:2] == ['test']
 
@@ -24,14 +27,20 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'django_filters',
     'drf_yasg',  # another way to swagger
+    'rest_framework_simplejwt.token_blacklist',
+    'channels',
     'corsheaders',  # Cross Origin
-
+    'easy_thumbnails',  # image lib
+    'social_django',  # django social auth
+    'rest_social_auth',  # this package
 ]
 
 LOCAL_APPS = [
     'ausers.apps.AusersConfig',
-    # 'notifications.apps.NotificationsConfig',
+    'common.apps.CommonConfig',
+    'notifications.apps.NotificationsConfig',
 
 ]
 
@@ -125,19 +134,19 @@ CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
 CORS_ALLOW_CREDENTIALS = bool(os.getenv('CORS_ALLOW_CREDENTIALS', True))
 CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', False))
 CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
-
-CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
-CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
-CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
-
-CORS_ALLOW_METHODS = (
-    'GET',
-    'POST',
-    'PUT',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
-)
+#
+# CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
+# CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
+# CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
+#
+# CORS_ALLOW_METHODS = (
+#     'GET',
+#     'POST',
+#     'PUT',
+#     'PATCH',
+#     'DELETE',
+#     'OPTIONS'
+# )
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'X-CSRFToken',
@@ -219,7 +228,31 @@ LOGGING = {
 }
 
 # Custom user app
-AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'users.User')
+AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'ausers.User')
+
+# Social login
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+
+REST_SOCIAL_OAUTH_REDIRECT_URI = '/'
+REST_SOCIAL_DOMAIN_FROM_ORIGIN = True
+
+# Facebook
+SOCIAL_AUTH_FACEBOOK_KEY = os.getenv('FACEBOOK_KEY')
+SOCIAL_AUTH_FACEBOOK_SECRET = os.getenv('FACEBOOK_SECRET')
+SOCIAL_AUTH_FACEBOOK_SCOPE = ['email', ]  # optional
+# SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {'locale': 'ru_RU'}  # optional
+
+# Google
+SOCIAL_AUTH_GOOGLE_OAUTH_KEY = os.getenv('GOOGLE_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH_SECRET = os.getenv('GOOGLE_SECRET')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', ]  # optional
+
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.facebook.FacebookOAuth2',
+    'social_core.backends.google.GoogleOAuth2',
+    # and maybe some others ...
+    'django.contrib.auth.backends.ModelBackend',
+)
 
 # Django Rest Framework
 REST_FRAMEWORK = {
@@ -247,30 +280,30 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {'anon': '100/second', 'user': '1000/second', 'subscribe': '60/minute'},
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
-#
-# # JWT configuration
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=3),
-#     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-#     'ROTATE_REFRESH_TOKENS': False,
-#     'BLACKLIST_AFTER_ROTATION': True,
-#     'UPDATE_LAST_LOGIN': True,
-#     'ALGORITHM': 'HS256',
-#     'SIGNING_KEY': SECRET_KEY,
-#     'VERIFYING_KEY': None,
-#     'AUDIENCE': None,
-#     'ISSUER': None,
-#     'AUTH_HEADER_TYPES': ('Bearer',),
-#     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-#     'USER_ID_FIELD': 'id',
-#     'USER_ID_CLAIM': 'user_id',
-#     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-#     'TOKEN_TYPE_CLAIM': 'token_type',
-#     'JTI_CLAIM': 'jti',
-#     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-#     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
-#     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-# }
+
+# JWT configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=3),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'JTI_CLAIM': 'jti',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+}
 
 # summernote configuration
 SUMMERNOTE_CONFIG = {
