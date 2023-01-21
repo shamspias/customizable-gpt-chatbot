@@ -5,3 +5,4 @@ django-cors-headers
 rest-social-auth
 celery
 openai
+sentry-sdk
