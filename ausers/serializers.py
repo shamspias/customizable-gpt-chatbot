@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from users.models import User, Customer
+from ausers.models import User, Customer
 from common.serializers import ThumbnailerJSONSerializer
 
 
