@@ -9,7 +9,7 @@ def chatbot_response(user_input, conversation_id):
     openai.api_key = settings
     prompt = f"{user_input}"
     completions = openai.Completion.create(
-        engine="text-davinci-002",
+        engine="text-davinci-003",
         prompt=prompt,
         max_tokens=1024,
         n=1,
