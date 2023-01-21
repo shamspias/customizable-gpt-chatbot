@@ -231,9 +231,28 @@ LOGGING = {
 AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'ausers.User')
 
 # Social login
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
 
 REST_SOCIAL_OAUTH_REDIRECT_URI = '/'
 REST_SOCIAL_DOMAIN_FROM_ORIGIN = True
+
+# Facebook
+SOCIAL_AUTH_FACEBOOK_KEY = os.getenv('FACEBOOK_KEY')
+SOCIAL_AUTH_FACEBOOK_SECRET = os.getenv('FACEBOOK_SECRET')
+SOCIAL_AUTH_FACEBOOK_SCOPE = ['email', ]  # optional
+# SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {'locale': 'ru_RU'}  # optional
+
+# Google
+SOCIAL_AUTH_GOOGLE_OAUTH_KEY = os.getenv('GOOGLE_KEY')
+SOCIAL_AUTH_GOOGLE_OAUTH_SECRET = os.getenv('GOOGLE_SECRET')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', ]  # optional
+
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.facebook.FacebookOAuth2',
+    'social_core.backends.google.GoogleOAuth2',
+    # and maybe some others ...
+    'django.contrib.auth.backends.ModelBackend',
+)
 
 # Django Rest Framework
 REST_FRAMEWORK = {
