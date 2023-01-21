@@ -8,3 +8,6 @@ openai
 sentry-sdk
 gunicorn
 django-storages
+easy-thumbnails
+django-rest-passwordreset
+django-activity-stream
