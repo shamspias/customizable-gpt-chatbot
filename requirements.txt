@@ -6,3 +6,5 @@ rest-social-auth
 celery
 openai
 sentry-sdk
+gunicorn
+django-storages
