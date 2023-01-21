@@ -13,7 +13,7 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 - Hugging Face's transformers library
 - NLTK/spaCy
 - googletrans or PyTranslate
-- 
+
 ## Requirements
 - Python 3.6 or above
 - Django 3.1 or above
