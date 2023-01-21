@@ -3,7 +3,6 @@ import os
 import sys
 
 from pathlib import Path
-from datetime import timedelta
 from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
 
