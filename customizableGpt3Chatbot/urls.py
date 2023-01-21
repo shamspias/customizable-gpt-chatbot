@@ -38,6 +38,9 @@ urlpatterns = [
                   # api
                   path('api/v1/', include(router.urls)),
 
+                  # Chatbot
+                  path('api/v1/chatbot/', include('askchatbot.urls'), name="chatbot"),  # chatbot
+
                   # auth
                   path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
                   path('api/v1/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
