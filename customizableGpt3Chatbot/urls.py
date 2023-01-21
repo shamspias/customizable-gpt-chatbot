@@ -43,6 +43,7 @@ urlpatterns = [
                   path('api/v1/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
                   path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
                   path('api/v1/auth/logout/', TokenBlacklistView.as_view(), name='token_blacklisted'),
+                  path('api/v1/auth/social-login/', include('rest_social_auth.urls_jwt_pair')),  # social log
 
                   # swagger docs
                   re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0),
