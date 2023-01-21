@@ -6,7 +6,7 @@ from .models import ConversationHistory
 
 @Celery.task
 def chatbot_response(user_input, conversation_id):
-    openai.api_key = settings
+    openai.api_key = settings.OPEN_AI_KEY
     prompt = f"{user_input}"
     completions = openai.Completion.create(
         engine="text-davinci-003",
