@@ -32,8 +32,9 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'channels',
     'corsheaders',  # Cross Origin
-
     'easy_thumbnails',  # image lib
+    'social_django',  # django social auth
+    'rest_social_auth',  # this package
 ]
 
 LOCAL_APPS = [
@@ -228,6 +229,11 @@ LOGGING = {
 
 # Custom user app
 AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'ausers.User')
+
+# Social login
+
+REST_SOCIAL_OAUTH_REDIRECT_URI = '/'
+REST_SOCIAL_DOMAIN_FROM_ORIGIN = True
 
 # Django Rest Framework
 REST_FRAMEWORK = {
