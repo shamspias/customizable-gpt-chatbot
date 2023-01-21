@@ -131,19 +131,19 @@ CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
 CORS_ALLOW_CREDENTIALS = bool(os.getenv('CORS_ALLOW_CREDENTIALS', True))
 CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', False))
 CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
-
-CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
-CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
-CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
-
-CORS_ALLOW_METHODS = (
-    'GET',
-    'POST',
-    'PUT',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
-)
+#
+# CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
+# CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
+# CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
+#
+# CORS_ALLOW_METHODS = (
+#     'GET',
+#     'POST',
+#     'PUT',
+#     'PATCH',
+#     'DELETE',
+#     'OPTIONS'
+# )
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'X-CSRFToken',
@@ -225,7 +225,7 @@ LOGGING = {
 }
 
 # Custom user app
-AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'users.User')
+AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'ausers.User')
 
 # Django Rest Framework
 REST_FRAMEWORK = {
