@@ -41,6 +41,7 @@ LOCAL_APPS = [
     'ausers.apps.AusersConfig',
     'common.apps.CommonConfig',
     'notifications.apps.NotificationsConfig',
+    'askchatbot.apps.AskchatbotConfig',
 
 ]
 
