@@ -24,9 +24,13 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'django_filters',
     'drf_yasg',  # another way to swagger
+    'rest_framework_simplejwt.token_blacklist',
+    'channels',
     'corsheaders',  # Cross Origin
 
+    'easy_thumbnails',  # image lib
 ]
 
 LOCAL_APPS = [
