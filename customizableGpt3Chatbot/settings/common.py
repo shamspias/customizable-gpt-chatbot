@@ -333,7 +333,7 @@ BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
     access_key=AWS_ACCESS_KEY,
     secret_key=AWS_SECRET_KEY,
 )
-RESULT_BACKEND = '{}{}/{}'.format(BROKER_URL, REGION_NAME, QUEUE_NAME)
+RESULT_BACKEND = '{}{}/{}celery'.format(BROKER_URL, REGION_NAME, QUEUE_NAME)
 
 BROKER_TRANSPORT_OPTIONS = {
     'region': REGION_NAME,
