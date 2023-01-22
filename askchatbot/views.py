@@ -22,9 +22,7 @@ class ChatbotEndpoint(APIView):
         task_id = request.GET.get('task_id')
         if task_id is None:
             return Response({"error": "No Task ID"})
-        print(task_id)
         response = chatbot_response.AsyncResult(task_id).get()
-        print(response)
         return Response({"data": response})
 
 
