@@ -29,6 +29,10 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 - Run the command `python manage.py runserver`
 - Open `http://127.0.0.1:8000/` in your browser
 
+In linux need to install `pycurl`
+1. `sudo apt install libcurl4-gnutls-dev librtmp-dev`
+2. `pip install pycurl`
+
 ## Deployment
 The chatbot can be deployed on Heroku or AWS by following the standard procedures for Django deployment on these platforms.
 
