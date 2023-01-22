@@ -23,10 +23,11 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 - API key from OpenAI
 
 ## How to run
-Clone the repository.
-Install the required packages by running `pip install -r requirements.txt`
-Run the command `python manage.py runserver`
-Open `http://127.0.0.1:8000/` in your browser
+- Clone the repository.
+- Install the required packages by running `pip install -r requirements.txt`
+- Run celery `celery -A customizableGpt3Chatbot worker --loglevel=info`
+- Run the command `python manage.py runserver`
+- Open `http://127.0.0.1:8000/` in your browser
 
 ## Deployment
 The chatbot can be deployed on Heroku or AWS by following the standard procedures for Django deployment on these platforms.
