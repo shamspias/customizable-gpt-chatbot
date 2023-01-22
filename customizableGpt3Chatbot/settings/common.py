@@ -150,12 +150,6 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
-# CELERY
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-
 # GENERALS
 APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
 
@@ -336,7 +330,7 @@ QUEUE_NAME = quote(os.getenv('QUEUE_NAME'), safe='')
 AWS celery configuration
 """
 
-SQS_BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
+BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
     access_key=AWS_ACCESS_KEY,
     secret_key=AWS_SECRET_KEY,
 )
@@ -349,10 +343,15 @@ BROKER_TRANSPORT_OPTIONS = {
 }
 
 # CELERY namespaced
-CELERY_BROKER_URL = SQS_BROKER_URL
+CELERY_BROKER_URL = BROKER_URL
 CELERY_BROKER_TRANSPORT_OPTIONS = BROKER_TRANSPORT_OPTIONS
-CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_DEFAULT_QUEUE = QUEUE_NAME
 
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_RESULT_BACKEND = None
 # Celery
 # BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
 # CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
