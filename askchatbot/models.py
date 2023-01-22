@@ -17,3 +17,13 @@ class ConversationHistory(models.Model):
 
     def __str__(self):
         return self.conversation_id
+
+    def last_conversation_id(self):
+        """
+        to retrieve the last conversation id
+        """
+        try:
+            last_conversation = self.objects.latest('conversation_id')
+            return last_conversation.conversation_id
+        except self.DoesNotExist:
+            return None
