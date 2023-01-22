@@ -30,7 +30,7 @@ app = Celery('customizableGpt3Chatbot')
 session = Session(
     aws_access_key_id=settings.AWS_ACCESS_KEY,
     aws_secret_access_key=settings.AWS_SECRET_KEY,
-    region_name='us-east-1'
+    region_name=settings.REGION_NAME
 )
 sqs = session.resource('sqs', region_name='us-east-1')
 queue = sqs.get_queue_by_name(QueueName='your_queue_name')
