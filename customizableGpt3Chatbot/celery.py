@@ -32,8 +32,8 @@ session = Session(
     aws_secret_access_key=settings.AWS_SECRET_KEY,
     region_name=settings.REGION_NAME
 )
-sqs = session.resource('sqs', region_name='us-east-1')
-queue = sqs.get_queue_by_name(QueueName='your_queue_name')
+sqs = session.resource('sqs', region_name=settings.REGION_NAME)
+queue = sqs.get_queue_by_name(QueueName=settings.QUEUE_NAME)
 app.conf.broker_url = queue.url
 app.conf.result_backend = None
 
