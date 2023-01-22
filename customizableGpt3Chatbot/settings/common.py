@@ -11,7 +11,6 @@ from sentry_sdk.integrations.django import DjangoIntegration
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-
 TESTING = sys.argv[1:2] == ['test']
 
 SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
@@ -334,6 +333,7 @@ BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
     access_key=AWS_ACCESS_KEY,
     secret_key=AWS_SECRET_KEY,
 )
+RESULT_BACKEND = '{}{}/{}'.format(BROKER_URL, REGION_NAME, QUEUE_NAME)
 
 BROKER_TRANSPORT_OPTIONS = {
     'region': REGION_NAME,
@@ -351,7 +351,7 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_RESULT_BACKEND = None
+CELERY_RESULT_BACKEND = RESULT_BACKEND
 # Celery
 # BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
 # CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
