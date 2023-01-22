@@ -5,8 +5,10 @@ from .models import ConversationHistory
 
 
 @shared_task
-def chatbot_response(user_input, conversation_id):
+def chatbot_response(user_input):
     openai.api_key = settings.OPEN_AI_KEY
+    # todo
+    # need to change the prompt with last 10 or 20 conversation target is under 500 token
     prompt = f"{user_input}"
     completions = openai.Completion.create(
         engine="text-davinci-003",
@@ -17,10 +19,4 @@ def chatbot_response(user_input, conversation_id):
         temperature=0.5,
     )
     message = completions.choices[0].text
-    conversation_history = ConversationHistory(
-        conversation_id=conversation_id,
-        user_input=user_input,
-        chatbot_response=message
-    )
-    conversation_history.save()
     return message
