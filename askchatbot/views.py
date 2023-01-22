@@ -12,14 +12,20 @@ class ChatbotEndpoint(APIView):
 
     def post(self, request):
         user_input = request.data.get('user_input')
-        conversation_id = request.data.get('conversation_id')
+        conversation_id = request.data.get('conversation_id', 1)
+        if user_input is None:
+            return Response({"error": "No input values"})
         task = chatbot_response.apply_async(args=[user_input, conversation_id])
         return Response({"task_id": task.id})
 
-    def get(self, request):
-        task_id = request.data.get('task_id')
+    def get(self, request, format=None):
+        task_id = request.GET.get('task_id')
+        if task_id is None:
+            return Response({"error": "No Task ID"})
+        print(task_id)
         response = chatbot_response.AsyncResult(task_id).get()
-        return Response({"data": response['choices'][0]['text']})
+        print(response)
+        return Response({"data": response})
 
 
 def get_conversation_history(conversation_id):
