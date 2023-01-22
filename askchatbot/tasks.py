@@ -19,4 +19,4 @@ def chatbot_response(user_input):
         temperature=0.5,
     )
     message = completions.choices[0].text
-    return message
+    return [message, user_input]
