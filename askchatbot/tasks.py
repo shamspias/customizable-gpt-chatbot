@@ -1,10 +1,10 @@
 import openai
-from celery import Celery
+from celery import shared_task
 from django.conf import settings
 from .models import ConversationHistory
 
 
-@Celery.task
+@shared_task
 def chatbot_response(user_input, conversation_id):
     openai.api_key = settings.OPEN_AI_KEY
     prompt = f"{user_input}"
