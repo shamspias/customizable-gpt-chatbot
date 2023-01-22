@@ -41,6 +41,8 @@ class ChatbotEndpoint(APIView):
         task_id = request.GET.get('task_id')
         if task_id is None:
             return Response({"error": "No Task ID"})
+
+        # return response from openAI and the user input as a List
         response = chatbot_response.AsyncResult(task_id).get()
 
         conversation_id = ConversationHistory.last_conversation_id
