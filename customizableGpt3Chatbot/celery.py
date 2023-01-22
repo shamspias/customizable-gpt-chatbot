@@ -1,3 +1,5 @@
+# Start Celery with Redis
+
 # from __future__ import absolute_import
 #
 # import os
@@ -13,6 +15,10 @@
 # app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 # tasks can be added below
+
+# End Celery with Redis
+
+# start Celery with SQS
 
 from django.conf import settings
 from boto3.session import Session
@@ -30,3 +36,5 @@ sqs = session.resource('sqs', region_name='us-east-1')
 queue = sqs.get_queue_by_name(QueueName='your_queue_name')
 app.conf.broker_url = queue.url
 app.conf.result_backend = None
+
+# End Celery with SQS
