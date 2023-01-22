@@ -17,3 +17,4 @@ django-storages
 easy-thumbnails
 django-activity-stream
 python-dotenv
+boto3
