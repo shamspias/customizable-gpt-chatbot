@@ -16,6 +16,11 @@ class ChatbotEndpoint(APIView):
         task = chatbot_response.apply_async(args=[user_input, conversation_id])
         return Response({"task_id": task.id})
 
+    def get(self, request):
+        task_id = request.data.get('task_id')
+        response = chatbot_response.AsyncResult(task_id).get()
+        return Response({"data": response['choices'][0]['text']})
+
 
 def get_conversation_history(conversation_id):
     conversation_history = ConversationHistory.objects.filter(conversation_id=conversation_id)
