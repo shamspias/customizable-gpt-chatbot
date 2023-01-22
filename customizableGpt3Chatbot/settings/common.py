@@ -113,7 +113,7 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'shamspias0!@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'password')
 
 # Celery
-BROKER_URL = os.getenv('BROKER_URL', 'redis://redis:6379')
+BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
 
 ADMINS = ()
