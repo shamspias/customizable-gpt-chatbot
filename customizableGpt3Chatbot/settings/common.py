@@ -112,10 +112,6 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', True)
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'shamspias0!@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'password')
 
-# Celery
-BROKER_URL = os.getenv('BROKER_URL', 'redis://redis:6379')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
-
 ADMINS = ()
 
 # Sentry
@@ -153,12 +149,6 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     'X-CSRFToken',
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-
-# CELERY
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
 
 # GENERALS
 APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
@@ -327,3 +317,41 @@ SUMMERNOTE_CONFIG = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 OPEN_AI_KEY = os.getenv('OPEN_AI_KEY')
+
+from urllib.parse import quote
+
+# AWS
+AWS_ACCESS_KEY = quote(os.getenv('AWS_ACCESS_KEY'), safe='')
+AWS_SECRET_KEY = quote(os.getenv('AWS_SECRET_KEY'), safe='')
+REGION_NAME = quote(os.getenv('REGION_NAME'), safe='')
+QUEUE_NAME = quote(os.getenv('QUEUE_NAME'), safe='')
+
+"""
+AWS celery configuration
+"""
+
+BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
+    access_key=AWS_ACCESS_KEY,
+    secret_key=AWS_SECRET_KEY,
+)
+
+BROKER_TRANSPORT_OPTIONS = {
+    'region': REGION_NAME,
+    'visibility_timeout': 60,  # 1 minutes
+    'polling_interval': 5,  # 5 seconds
+    'queue_name_prefix': QUEUE_NAME
+}
+
+# CELERY namespaced
+CELERY_BROKER_URL = BROKER_URL
+CELERY_BROKER_TRANSPORT_OPTIONS = BROKER_TRANSPORT_OPTIONS
+# CELERY_TASK_DEFAULT_QUEUE = QUEUE_NAME
+
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_RESULT_BACKEND = None
+# Celery
+# BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
+# CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')

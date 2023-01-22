@@ -1,14 +1,29 @@
 from django.db import models
+from ausers.models import User
 
 
 class ConversationHistory(models.Model):
     """
     To store the conversation history
     """
-    conversation_id = models.CharField(max_length=100)
-    user_input = models.TextField()
-    chatbot_response = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    conversation_id = models.CharField(max_length=100, unique=True)
+    user_input = models.TextField(blank=True, null=True)
+    chatbot_response = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at',)
 
     def __str__(self):
         return self.conversation_id
+
+    def last_conversation_id(self):
+        """
+        to retrieve the last conversation id
+        """
+        try:
+            last_conversation = self.objects.latest('conversation_id')
+            return last_conversation.conversation_id
+        except self.DoesNotExist:
+            return None

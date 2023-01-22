@@ -8,6 +8,7 @@ django-rest-passwordreset
 rest-social-auth
 channels
 celery
+redis
 psycopg2-binary
 openai
 sentry-sdk
@@ -16,3 +17,4 @@ django-storages
 easy-thumbnails
 django-activity-stream
 python-dotenv
+boto3
