@@ -7,7 +7,7 @@ djangorestframework-simplejwt
 django-rest-passwordreset
 rest-social-auth
 channels
-celery
+celery[sqs]
 redis
 psycopg2-binary
 openai
