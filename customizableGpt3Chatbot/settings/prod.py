@@ -21,10 +21,6 @@ DATABASES = {
     }
 }
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 # http://django-storages.readthedocs.org/en/latest/index.html
@@ -46,9 +42,10 @@ AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 AWS_LOCATION = 'static'
 STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
-
 # STATIC_URL = 'https://{}.s3.{}.amazonaws.com/'.format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 MEDIA_URL = 'https://{}.s3.{}.amazonaws.com/'.format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+
+STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 
 # https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching#cache-control
 # Response can be cached by browser and any intermediary caches (i.e. it is "public") for up to 1 day
