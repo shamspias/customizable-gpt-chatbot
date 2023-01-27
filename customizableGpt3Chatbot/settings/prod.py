@@ -37,8 +37,8 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 AWS_AUTO_CREATE_BUCKET = True
 AWS_QUERYSTRING_AUTH = False
-STATIC_URL = 'https://%s.s3.%s.amazonaws.com/' % AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME
-MEDIA_URL = 'https://%s.s3.%s.amazonaws.com/' % AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME
+STATIC_URL = 'https://{}.s3.{}.amazonaws.com/'.format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+MEDIA_URL = 'https://{}.s3.{}.amazonaws.com/'.format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 
 # https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching#cache-control
 # Response can be cached by browser and any intermediary caches (i.e. it is "public") for up to 1 day
