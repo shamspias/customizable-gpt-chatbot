@@ -28,3 +28,8 @@ STATICFILES_DIRS = (
 )
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "static_cdn", "media_root")
+
+# Static files (CSS, JavaScript, Images)
+
+STATIC_URL = 'static/'
+MEDIA_URL = 'media/'

@@ -169,11 +169,6 @@ LOGIN_REDIRECT_URL = '/'
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Static files (CSS, JavaScript, Images)
-
-STATIC_URL = 'static/'
-MEDIA_URL = 'media/'
-
 # Logging
 LOGGING = {
     'version': 1,
@@ -355,7 +350,6 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_RESULT_BACKEND = 'django-db'  # using django-celery-results
 CELERY_CACHE_BACKEND = 'django-cache'
-
 
 # Celery
 # BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
