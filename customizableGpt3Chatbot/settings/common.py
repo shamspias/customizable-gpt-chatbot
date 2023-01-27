@@ -34,6 +34,8 @@ THIRD_PARTY_APPS = [
     'easy_thumbnails',  # image lib
     'social_django',  # django social auth
     'rest_social_auth',  # this package
+
+    'django_celery_results',  # Store Celery Result and cache
 ]
 
 LOCAL_APPS = [
@@ -333,7 +335,7 @@ BROKER_URL = 'sqs://{access_key}:{secret_key}@'.format(
     access_key=AWS_ACCESS_KEY,
     secret_key=AWS_SECRET_KEY,
 )
-RESULT_BACKEND = '{}{}/{}celery'.format(BROKER_URL, REGION_NAME, QUEUE_NAME)
+# RESULT_BACKEND = '{}{}/{}celery'.format(BROKER_URL, REGION_NAME, QUEUE_NAME)
 
 BROKER_TRANSPORT_OPTIONS = {
     'region': REGION_NAME,
@@ -351,7 +353,10 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_RESULT_BACKEND = RESULT_BACKEND
+CELERY_RESULT_BACKEND = 'django-db'  # using django-celery-results
+CELERY_CACHE_BACKEND = 'django-cache'
+
+
 # Celery
 # BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
 # CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
