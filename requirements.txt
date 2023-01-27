@@ -8,6 +8,7 @@ django-rest-passwordreset
 rest-social-auth
 channels
 celery[sqs]
+django-celery-results
 redis
 psycopg2-binary
 openai
