@@ -38,7 +38,6 @@ class ChatbotEndpoint(APIView):
         conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')[:10]
         for conversation in conversations:
             chatbot_prompt += "user:" + conversation.user_input + "\nbot:" + conversation.chatbot_response + "\n"
-            print(conversation.user_input, conversation.chatbot_response, conversation.created_at)
 
         chatbot_prompt += "user:" + user_input + "\nbot:"
         task = chatbot_response.apply_async(args=[chatbot_prompt])
