@@ -28,6 +28,7 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_KEY')
 AWS_S3_REGION_NAME = os.getenv('REGION_NAME')
 AWS_STORAGE_BUCKET_NAME = os.getenv('DJANGO_AWS_STORAGE_BUCKET_NAME')
+
 # By default files with the same name will overwrite each other.
 # Set this to False to have extra characters appended.
 AWS_S3_FILE_OVERWRITE = False
@@ -35,12 +36,13 @@ AWS_DEFAULT_ACL = 'public-read'
 AWS_AUTO_CREATE_BUCKET = True
 AWS_QUERYSTRING_AUTH = False
 
+
 # AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 # AWS_LOCATION = 'static'
 # STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
 STATIC_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 MEDIA_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -50,8 +52,8 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 # https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching#cache-control
 # Response can be cached by browser and any intermediary caches (i.e. it is "public") for up to 1 day
 # 86400 = (60 seconds x 60 minutes x 24 hours)
-AWS_HEADERS = {
-    'Cache-Control': 'max-age=86400, s-maxage=86400, must-revalidate',
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400, s-maxage=86400, must-revalidate',
 }
 
 # Social
