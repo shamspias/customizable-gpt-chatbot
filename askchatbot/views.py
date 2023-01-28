@@ -45,14 +45,21 @@ class ChatbotEndpoint(APIView):
         # return response from openAI and the user input as a List
         response = chatbot_response.AsyncResult(task_id).get()
 
-        conversation_id = ConversationHistory.last_conversation_id
+        try:
+            conversation_obj = ConversationHistory.objects.filter(user=request.user).latest()
+        except:
+            conversation_obj = ConversationHistory.objects.create(user=request.user)
+
+        conversation_id = conversation_obj.last_conversation_id
         if conversation_id is None:
             conversation_id = 0
         else:
             conversation_id += 1
 
         if response[0]:
-            conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
-                                                              user_input=response[1], chatbot_response=response[0])
-            conversation.save()
+            conversation_obj.conversation_id = conversation_id,
+            conversation_obj.user_input = response[1],
+            conversation_obj.chatbot_response = response[0],
+
+            conversation_obj.save()
         return Response({"data": response[0]})
