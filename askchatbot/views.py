@@ -46,7 +46,7 @@ class ChatbotEndpoint(APIView):
         response = chatbot_response.AsyncResult(task_id).get()
 
         try:
-            conversation_obj = ConversationHistory.objects.filter(user=request.user).order_by('-conversation_id').last()
+            conversation_obj = ConversationHistory.objects.filter(user=request.user).latest()
         except:
             conversation_obj = ConversationHistory.objects.create(user=request.user)
 
