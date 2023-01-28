@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from .models import ConversationHistory
 from .tasks import chatbot_response
 
@@ -21,7 +20,6 @@ class ChatbotEndpoint(APIView):
     """
     APIView for chatbot return task ID for celery
     """
-    permission_classes = (AllowAny,)
 
     def post(self, request):
         """
@@ -57,7 +55,7 @@ class ChatbotEndpoint(APIView):
             conversation.save()
 
         task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id])
-        return Response({"task_id": task.id})
+        return Response({"task_id": task.id, "status": status.HTTP_200_OK})
 
     def get(self, request, format=None):
         """
@@ -78,4 +76,4 @@ class ChatbotEndpoint(APIView):
         conversation_obj.chatbot_response = response[0]
         conversation_obj.save()
 
-        return Response({"data": response[0]})
+        return Response({"data": response[0], "status": status.HTTP_200_OK})
