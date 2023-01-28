@@ -36,6 +36,7 @@ AWS_DEFAULT_ACL = 'public-read'
 AWS_AUTO_CREATE_BUCKET = True
 AWS_QUERYSTRING_AUTH = False
 
+# Must set AWS_S3_CUSTOM_DOMAIN to get static files
 AWS_S3_CUSTOM_DOMAIN = "{}.s3.{}.amazonaws.com".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 
 # AWS_LOCATION = 'static'
