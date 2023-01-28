@@ -40,7 +40,21 @@ class ChatbotEndpoint(APIView):
             chatbot_prompt += "user:" + conversation.user_input + "\nbot:" + conversation.chatbot_response + "\n"
 
         chatbot_prompt += "user:" + user_input + "\nbot:"
-        task = chatbot_response.apply_async(args=[chatbot_prompt])
+
+        # save the user input into database
+        try:
+            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('conversation_id')
+            conversation_id = last_conversation.conversation_id
+            conversation_id += 1
+        except:
+            conversation_id = 0
+
+        if user_input:
+            conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
+                                                              user_input=user_input)
+            conversation.save()
+
+        task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id])
         return Response({"task_id": task.id})
 
     def get(self, request, format=None):
@@ -58,16 +72,8 @@ class ChatbotEndpoint(APIView):
         # return response from openAI and the user input as a List
         response = chatbot_response.AsyncResult(task_id).get()
 
-        # conversation_obj = ConversationHistory.objects.get_or_create(user=request.user)
-        try:
-            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('conversation_id')
-            conversation_id = last_conversation.conversation_id
-            conversation_id += 1
-        except:
-            conversation_id = 0
+        conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
+        conversation_obj.chatbot_response = response[0]
+        conversation_obj.save()
 
-        if response[0]:
-            conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
-                                                              user_input=response[1], chatbot_response=response[0])
-            conversation.save()
         return Response({"data": response[0]})
