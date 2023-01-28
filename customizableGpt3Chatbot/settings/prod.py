@@ -41,10 +41,10 @@ AWS_S3_CUSTOM_DOMAIN = "https://{}.s3.{}.amazonaws.com".format(AWS_STORAGE_BUCKE
 # AWS_LOCATION = 'static'
 # STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
-STATIC_URL = "https://{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
+STATIC_URL = "{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
 STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-MEDIA_URL = "https://{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
+MEDIA_URL = "{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
