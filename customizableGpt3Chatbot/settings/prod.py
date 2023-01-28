@@ -36,15 +36,15 @@ AWS_DEFAULT_ACL = 'public-read'
 AWS_AUTO_CREATE_BUCKET = True
 AWS_QUERYSTRING_AUTH = False
 
+AWS_S3_CUSTOM_DOMAIN = "https://{}.s3.{}.amazonaws.com".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 
-# AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 # AWS_LOCATION = 'static'
 # STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
-STATIC_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+STATIC_URL = "https://{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
 STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-MEDIA_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
+MEDIA_URL = "https://{}/".format(AWS_S3_CUSTOM_DOMAIN, AWS_S3_REGION_NAME)
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
@@ -53,9 +53,8 @@ STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 # Response can be cached by browser and any intermediary caches (i.e. it is "public") for up to 1 day
 # 86400 = (60 seconds x 60 minutes x 24 hours)
 AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400, s-maxage=86400, must-revalidate',
+    'CacheControl': 'max-age=86400',
 }
-
 # Social
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
