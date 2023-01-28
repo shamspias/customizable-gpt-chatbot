@@ -44,7 +44,7 @@ STATIC_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, A
 
 MEDIA_URL = "https://{}.s3.{}.amazonaws.com/".format(AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME)
 
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
 # MEDIAFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
