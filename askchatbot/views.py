@@ -43,7 +43,7 @@ class ChatbotEndpoint(APIView):
 
         # save the user input into database
         try:
-            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('conversation_id')
+            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('-conversation_id')
             conversation_id = last_conversation.conversation_id
             conversation_id += 1
         except:
