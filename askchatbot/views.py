@@ -54,6 +54,8 @@ class ChatbotEndpoint(APIView):
                                                               user_input=user_input)
             conversation.save()
 
+        print(chatbot_prompt)
+
         task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id])
         return Response({"task_id": task.id})
 
