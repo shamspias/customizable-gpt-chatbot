@@ -354,3 +354,8 @@ CELERY_CACHE_BACKEND = 'django-cache'
 # Celery
 # BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379')
 # CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379')
+
+# Admin Site Config
+ADMIN_SITE_HEADER = os.getenv('ADMIN_SITE_HEADER')
+ADMIN_SITE_TITLE = os.getenv('ADMIN_SITE_TITLE')
+ADMIN_SITE_INDEX = os.getenv('ADMIN_SITE_INDEX')
