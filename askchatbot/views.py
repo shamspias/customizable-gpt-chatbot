@@ -62,4 +62,5 @@ class ChatbotEndpoint(APIView):
         #     conversation_obj.chatbot_response = response[0],
         #
         #     conversation_obj.save()
-        return Response({"data": response[0], "conversation_id": conversation_id})
+        print(response[0])
+        return Response({"data": "response[0]", "user_input": response[1], "conversation_id": conversation_id})
