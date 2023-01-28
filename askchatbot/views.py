@@ -33,9 +33,9 @@ class ChatbotEndpoint(APIView):
         if user_input is None:
             return Response({"error": "No input values"})
 
-        # get last 10 or 20 conversation and pass to chatbot response
+        # get last 15 conversation and pass to chatbot response
         chatbot_prompt = ""
-        conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')[:10]
+        conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')[:15]
         for conversation in conversations:
             chatbot_prompt += "user:" + conversation.user_input + "\nbot:" + conversation.chatbot_response + "\n"
 
@@ -43,7 +43,7 @@ class ChatbotEndpoint(APIView):
 
         # save the user input into database
         try:
-            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('-conversation_id')
+            last_conversation = ConversationHistory.objects.filter(user=request.user).latest('conversation_id')
             conversation_id = last_conversation.conversation_id
             conversation_id += 1
         except:
@@ -53,8 +53,6 @@ class ChatbotEndpoint(APIView):
             conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
                                                               user_input=user_input)
             conversation.save()
-
-        print(chatbot_prompt)
 
         task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id])
         return Response({"task_id": task.id})
