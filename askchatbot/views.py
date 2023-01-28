@@ -57,7 +57,7 @@ class ChatbotEndpoint(APIView):
         #     conversation_id += 1
         #
         if response[0]:
-            conversation_obj.conversation_id = conversation_id,
+            # conversation_obj.conversation_id = conversation_id,
             conversation_obj.user_input = response[1],
             conversation_obj.chatbot_response = response[0],
 
