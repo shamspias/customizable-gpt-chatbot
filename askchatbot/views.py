@@ -50,7 +50,7 @@ class ChatbotEndpoint(APIView):
         except:
             conversation_obj = ConversationHistory.objects.create(user=request.user)
 
-        conversation_id = conversation_obj.conversation_id
+        conversation_id = conversation_obj.last_conversation_id
         # if conversation_id is None:
         #     conversation_id = 0
         # else:
@@ -64,4 +64,4 @@ class ChatbotEndpoint(APIView):
         #     conversation_obj.save()
         print(conversation_id)
         print(type(conversation_id))
-        return Response({"data": response[0], "conversation_id": "conversation_id"})
+        return Response({"data": response[0], "conversation_id": conversation_id})
