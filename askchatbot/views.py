@@ -33,9 +33,15 @@ class ChatbotEndpoint(APIView):
         if user_input is None:
             return Response({"error": "No input values"})
 
-        # todo
-        # need to get last 10 or 20 conversation and pass to chatbot response
-        task = chatbot_response.apply_async(args=[user_input])
+        # get last 10 or 20 conversation and pass to chatbot response
+        chatbot_prompt = ""
+        conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')[:10]
+        for conversation in conversations:
+            chatbot_prompt += "user:" + conversation.user_input + "\nbot:" + conversation.chatbot_response + "\n"
+            print(conversation.user_input, conversation.chatbot_response, conversation.created_at)
+
+        chatbot_prompt += "user:" + user_input + "\nbot:"
+        task = chatbot_response.apply_async(args=[chatbot_prompt])
         return Response({"task_id": task.id})
 
     def get(self, request, format=None):
