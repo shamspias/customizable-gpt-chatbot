@@ -48,16 +48,18 @@ class ChatbotEndpoint(APIView):
         try:
             conversation_obj = ConversationHistory.objects.filter(user=request.user).latest()
         except:
-            conversation_obj = ConversationHistory.objects.create(user=request.user, conversation_id=0)
+            conversation_obj = ConversationHistory.objects.create(user=request.user)
 
         conversation_id = conversation_obj.last_conversation_id
-        if not conversation_id == 0:
-            conversation_id += 1
-
-        if response[0]:
-            conversation_obj.conversation_id = conversation_id,
-            conversation_obj.user_input = response[1],
-            conversation_obj.chatbot_response = response[0],
-
-            conversation_obj.save()
-        return Response({"data": response[0]})
+        # if conversation_id is None:
+        #     conversation_id = 0
+        # else:
+        #     conversation_id += 1
+        #
+        # if response[0]:
+        #     conversation_obj.conversation_id = conversation_id,
+        #     conversation_obj.user_input = response[1],
+        #     conversation_obj.chatbot_response = response[0],
+        #
+        #     conversation_obj.save()
+        return Response({"data": response[0], "conversation_id": conversation_id})
