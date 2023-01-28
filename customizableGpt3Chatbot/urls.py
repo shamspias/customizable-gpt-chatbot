@@ -55,3 +55,8 @@ urlpatterns = [
                   path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Admin Site Config
+admin.sites.AdminSite.site_header = settings.ADMIN_SITE_HEADER
+admin.sites.AdminSite.site_title = settings.ADMIN_SITE_TITLE
+admin.sites.AdminSite.index_title = settings.ADMIN_SITE_INDEX

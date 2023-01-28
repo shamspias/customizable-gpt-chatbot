@@ -24,6 +24,10 @@ class ChatbotEndpoint(APIView):
     def post(self, request):
         """
         Send the data to chatbot
+        example:
+        {
+            "user_input": "Hey there! how are you"
+        }
         """
         user_input = request.data.get('user_input')
         if user_input is None:
@@ -37,6 +41,10 @@ class ChatbotEndpoint(APIView):
     def get(self, request, format=None):
         """
         Retrieve the data from conversation history
+
+        example:
+        URL/chatbot?task_id=task_id
+
         """
         task_id = request.GET.get('task_id')
         if task_id is None:
