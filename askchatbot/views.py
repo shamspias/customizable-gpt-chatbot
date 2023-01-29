@@ -26,10 +26,12 @@ class ChatbotEndpoint(APIView):
         Send the data to chatbot
         example:
         {
-            "user_input": "Hey there! how are you"
+            "user_input": "Hey there! how are you",
+            "language": "English"
         }
         """
         user_input = request.data.get('user_input')
+        language = request.data.get('language', "English")
         if user_input is None:
             return Response({"error": "No input values"})
 
@@ -54,7 +56,7 @@ class ChatbotEndpoint(APIView):
                                                               user_input=user_input)
             conversation.save()
 
-        task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id])
+        task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
         return Response({"task_id": task.id, "status": status.HTTP_200_OK})
 
     def get(self, request, format=None):
