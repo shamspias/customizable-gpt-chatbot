@@ -5,12 +5,12 @@ from .models import ConversationHistory
 
 
 @shared_task
-def chatbot_response(chatbot_prompt, conversation_id):
+def chatbot_response(chatbot_prompt, conversation_id, language):
     openai.api_key = settings.OPEN_AI_KEY
     prompt = f"{chatbot_prompt}"
     completions = openai.Completion.create(
         engine="text-davinci-003",
-        prompt="Conversational friendly chatbot\n" + prompt,
+        prompt="Customer support chatbot talk in " + language + "\n" + prompt,
         max_tokens=1024,
         n=1,
         stop="user",
