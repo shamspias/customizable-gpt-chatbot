@@ -16,6 +16,21 @@ def get_conversation_history(conversation_id):
     return conversation_history
 
 
+class ConversationalHistory(APIView):
+    """
+    APIView to get all the conversational history from a user
+    """
+
+    def get(self, request):
+        conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')
+        user_conv = []
+        bot_conv = []
+        for conversation in conversations:
+            user_conv.append(conversation.user_input)
+            bot_conv.append(conversation.chatbot_response)
+        return Response({"botMsgArr": bot_conv, "userMsgArr": user_conv, "status": status.HTTP_200_OK})
+
+
 class ChatbotEndpoint(APIView):
     """
     APIView for chatbot return task ID for celery
