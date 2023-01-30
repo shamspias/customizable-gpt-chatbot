@@ -7,6 +7,9 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 - Natural Language Processing (NLP) using NLTK/spaCy/GPT-3 
 - Conversational speech with OpenAI whisper
 - User-friendly interface
+- Social Authentication System
+- Track Record of every conversation for specific users
+- Give answer based on last 15 conversations
 - Easy deployment on Heroku or AWS
 
 ## Technologies
