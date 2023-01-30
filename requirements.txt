@@ -20,3 +20,4 @@ django-activity-stream
 python-dotenv
 boto3
 pycurl
+SpeechRecognition
