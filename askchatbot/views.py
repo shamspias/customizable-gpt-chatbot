@@ -102,10 +102,16 @@ class SpeechToText(APIView):
     """
     API View to Voice to Text
     """
+
     def post(self, request):
         recognizer = sr.Recognizer()
-        # audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2, endpoint=sr.AudioFile.AudioData)
-        audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2)
-        text = recognizer.recognize_google(audio_file)
+        try:
+            # audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2,
+            # endpoint=sr.AudioFile.AudioData)
+            audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2)
+            text = recognizer.recognize_google(audio_file)
 
-        return Response({'text': text}, status=status.HTTP_200_OK)
+            return Response({"text": text}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": e}, status=status.HTTP_400_BAD_REQUEST)
