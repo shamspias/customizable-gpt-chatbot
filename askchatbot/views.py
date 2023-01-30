@@ -56,6 +56,10 @@ class ChatbotEndpoint(APIView):
         chatbot_prompt = ""
         conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')[:15]
         for conversation in conversations:
+            if conversation.user_input is None:
+                conversation.user_input = ""
+            if conversation.chatbot_response is None:
+                conversation.chatbot_response = ""
             chatbot_prompt += "user:" + conversation.user_input + "\nbot:" + conversation.chatbot_response + "\n"
 
         chatbot_prompt += "user:" + user_input + "\nbot:"
