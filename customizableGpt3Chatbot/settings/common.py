@@ -120,18 +120,18 @@ sentry_sdk.init(dsn=os.getenv('SENTRY_DSN', ''), integrations=[DjangoIntegration
 
 # CORS
 
-# CSRF_COOKIE_SECURE = bool(os.getenv('CSRF_COOKIE_SECURE', True))
-# SESSION_COOKIE_SECURE = bool(os.getenv('SESSION_COOKIE_SECURE', True))
+CSRF_COOKIE_SECURE = bool(os.getenv('CSRF_COOKIE_SECURE', True))
+SESSION_COOKIE_SECURE = bool(os.getenv('SESSION_COOKIE_SECURE', True))
 
 # False since we will grab it via universal-cookies
-# CSRF_COOKIE_HTTPONLY = bool(os.getenv('CSRF_COOKIE_HTTPONLY', False))
-#
-# SESSION_COOKIE_HTTPONLY = bool(os.getenv('SESSION_COOKIE_HTTPONLY', True))
-# SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', "None")
-# CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
+CSRF_COOKIE_HTTPONLY = bool(os.getenv('CSRF_COOKIE_HTTPONLY', False))
+
+SESSION_COOKIE_HTTPONLY = bool(os.getenv('SESSION_COOKIE_HTTPONLY', True))
+SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', "None")
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
 CORS_ALLOW_CREDENTIALS = bool(os.getenv('CORS_ALLOW_CREDENTIALS', True))
 CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', True))
-# CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
+CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
 #
 # CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
 # CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
@@ -146,10 +146,10 @@ CORS_ALLOW_METHODS = (
     'OPTIONS'
 )
 
-# CORS_ALLOW_HEADERS = list(default_headers) + [
-#     'X-CSRFToken',
-# ]
-# CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'X-CSRFToken',
+]
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 # GENERALS
 # APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
