@@ -137,14 +137,14 @@ CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
 # CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
 # CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
 #
-# CORS_ALLOW_METHODS = (
-#     'GET',
-#     'POST',
-#     'PUT',
-#     'PATCH',
-#     'DELETE',
-#     'OPTIONS'
-# )
+CORS_ALLOW_METHODS = (
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+)
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'X-CSRFToken',
