@@ -1,7 +1,6 @@
 import openai
 from celery import shared_task
 from django.conf import settings
-from .models import ConversationHistory
 
 
 @shared_task
