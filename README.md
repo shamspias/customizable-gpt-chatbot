@@ -4,22 +4,23 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 ## Features
 - Customizable learning capabilities with GPT-3
 - Multi-language support
-- Natural Language Processing (NLP) using NLTK/spaCy
+- Natural Language Processing (NLP) using NLTK/spaCy/GPT-3 
+- Conversational speech with OpenAI whisper
 - User-friendly interface
 - Easy deployment on Heroku or AWS
-- 
+
 ## Technologies
-- Django
+- Django & Django Rest Framework
+- Celery
 - Hugging Face's transformers library
 - NLTK/spaCy
-- googletrans or PyTranslate
+- OpenAI GPT-3 & Whisper
 
 ## Requirements
 - Python 3.6 or above
 - Django 3.1 or above
 - Hugging Face's transformers library
 - NLTK or spaCy
-- googletrans or PyTranslate
 - API key from OpenAI
 
 ## How to run
