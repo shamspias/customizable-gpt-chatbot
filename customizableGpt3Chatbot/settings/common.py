@@ -5,7 +5,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 from corsheaders.defaults import default_headers
-
+from urllib.parse import quote
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -120,18 +120,18 @@ sentry_sdk.init(dsn=os.getenv('SENTRY_DSN', ''), integrations=[DjangoIntegration
 
 # CORS
 
-CSRF_COOKIE_SECURE = bool(os.getenv('CSRF_COOKIE_SECURE', True))
-SESSION_COOKIE_SECURE = bool(os.getenv('SESSION_COOKIE_SECURE', True))
+# CSRF_COOKIE_SECURE = bool(os.getenv('CSRF_COOKIE_SECURE', True))
+# SESSION_COOKIE_SECURE = bool(os.getenv('SESSION_COOKIE_SECURE', True))
 
 # False since we will grab it via universal-cookies
-CSRF_COOKIE_HTTPONLY = bool(os.getenv('CSRF_COOKIE_HTTPONLY', False))
-
-SESSION_COOKIE_HTTPONLY = bool(os.getenv('SESSION_COOKIE_HTTPONLY', True))
-SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', "None")
-CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
+# CSRF_COOKIE_HTTPONLY = bool(os.getenv('CSRF_COOKIE_HTTPONLY', False))
+#
+# SESSION_COOKIE_HTTPONLY = bool(os.getenv('SESSION_COOKIE_HTTPONLY', True))
+# SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', "None")
+# CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
 CORS_ALLOW_CREDENTIALS = bool(os.getenv('CORS_ALLOW_CREDENTIALS', True))
 CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', True))
-CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
+# CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
 #
 # CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
 # CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
@@ -313,8 +313,6 @@ SUMMERNOTE_CONFIG = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 OPEN_AI_KEY = os.getenv('OPEN_AI_KEY')
-
-from urllib.parse import quote
 
 # AWS
 AWS_ACCESS_KEY = quote(os.getenv('AWS_ACCESS_KEY'), safe='')
