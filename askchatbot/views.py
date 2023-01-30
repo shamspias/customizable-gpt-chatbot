@@ -1,6 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+import speech_recognition as sr
+
 from .models import ConversationHistory
 from .tasks import chatbot_response
 
@@ -28,7 +30,7 @@ class ConversationalHistory(APIView):
         for conversation in conversations:
             user_conv.append(conversation.user_input)
             bot_conv.append(conversation.chatbot_response)
-        return Response({"botMsgArr": bot_conv, "userMsgArr": user_conv, "status": status.HTTP_200_OK})
+        return Response({"botMsgArr": bot_conv, "userMsgArr": user_conv}, status=status.HTTP_200_OK)
 
 
 class ChatbotEndpoint(APIView):
@@ -72,7 +74,7 @@ class ChatbotEndpoint(APIView):
             conversation.save()
 
         task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
-        return Response({"task_id": task.id, "status": status.HTTP_200_OK})
+        return Response({"task_id": task.id}, status=status.HTTP_200_OK)
 
     def get(self, request, format=None):
         """
@@ -93,4 +95,17 @@ class ChatbotEndpoint(APIView):
         conversation_obj.chatbot_response = response[0]
         conversation_obj.save()
 
-        return Response({"data": response[0], "status": status.HTTP_200_OK})
+        return Response({"data": response[0]}, status=status.HTTP_200_OK)
+
+
+class SpeechToText(APIView):
+    """
+    API View to Voice to Text
+    """
+    def post(self, request):
+        recognizer = sr.Recognizer()
+        # audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2, endpoint=sr.AudioFile.AudioData)
+        audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2)
+        text = recognizer.recognize_google(audio_file)
+
+        return Response({'text': text}, status=status.HTTP_200_OK)
