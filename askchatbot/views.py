@@ -102,7 +102,6 @@ class SpeechToText(APIView):
     """
     API View to Voice to Text
     """
-
     def post(self, request):
         recognizer = sr.Recognizer()
         # audio_file = sr.AudioData(request.body, sample_rate=44100, sample_width=2, endpoint=sr.AudioFile.AudioData)
