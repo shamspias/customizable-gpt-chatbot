@@ -152,7 +152,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 # GENERALS
-# APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
+APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
