@@ -1,6 +1,18 @@
 import openai
+import requests
 from celery import shared_task
 from django.conf import settings
+
+RASA_API = settings.RASA_API_URL
+
+
+def get_intent(text):
+    response = requests.post(RASA_API, json={
+        "text": text
+    })
+    intent = response.json()["intent"]
+    confidence = response.json()["confidence"]
+    return intent, confidence
 
 
 @shared_task

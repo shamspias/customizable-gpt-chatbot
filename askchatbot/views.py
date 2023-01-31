@@ -2,23 +2,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import speech_recognition as sr
-import requests
-import json
 from django.conf import settings
 
 from .models import ConversationHistory
 from .tasks import chatbot_response
 
 RASA_API = settings.RASA_API_URL
-
-
-def get_intent(text):
-    response = requests.post(RASA_API, json={
-        "text": text
-    })
-    intent = response.json()["intent"]
-    confidence = response.json()["confidence"]
-    return intent, confidence
 
 
 def get_conversation_history(conversation_id):
