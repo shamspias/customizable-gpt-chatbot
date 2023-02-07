@@ -36,6 +36,16 @@ class ConversationalHistory(APIView):
         return Response({"botMsgArr": bot_conv, "userMsgArr": user_conv}, status=status.HTTP_200_OK)
 
 
+class DeleteConversationalHistory(APIView):
+    """
+    API View to delete all the conversation history
+    """
+
+    def get(self, request):
+        ConversationHistory.objects.filter(user=request.user).delete()
+        return Response({"message": "Deleted"}, status=status.HTTP_200_OK)
+
+
 class ChatbotEndpoint(APIView):
     """
     APIView for chatbot return task ID for celery
