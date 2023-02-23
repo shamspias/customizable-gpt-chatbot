@@ -28,12 +28,15 @@ class ConversationalHistory(APIView):
 
     def get(self, request):
         conversations = ConversationHistory.objects.filter(user=request.user).order_by('-created_at')
-        user_conv = []
-        bot_conv = []
+        data = []
         for conversation in conversations:
-            user_conv.append(conversation.user_input)
-            bot_conv.append(conversation.chatbot_response)
-        return Response({"botMsgArr": bot_conv, "userMsgArr": user_conv}, status=status.HTTP_200_OK)
+            data.append({
+                "user_message": conversation.user_input,
+                "bot_response": conversation.chatbot_response,
+                "createdAt": conversation.created_at,
+                "conversation_id": conversation.conversation_id,
+            })
+        return Response({"data": data}, status=status.HTTP_200_OK)
 
 
 class DeleteConversationalHistory(APIView):
