@@ -5,7 +5,6 @@ drf-yasg
 django-cors-headers
 djangorestframework-simplejwt
 django-rest-passwordreset
-rest-social-auth
 channels
 celery[sqs]
 django-celery-results
