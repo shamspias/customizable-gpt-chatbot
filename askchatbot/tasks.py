@@ -6,15 +6,6 @@ from django.conf import settings
 RASA_API = settings.RASA_API_URL
 
 
-def get_intent(text):
-    response = requests.post(RASA_API, json={
-        "text": text
-    })
-    intent = response.json()["intent"]
-    confidence = response.json()["confidence"]
-    return intent, confidence
-
-
 @shared_task
 def chatbot_response(chatbot_prompt, conversation_id, language):
     openai.api_key = settings.OPEN_AI_KEY
@@ -29,3 +20,22 @@ def chatbot_response(chatbot_prompt, conversation_id, language):
     )
     message = completions.choices[0].text
     return [message, conversation_id]
+
+
+@shared_task
+def get_rasa_response(message, conversation_id, language, chatbot_prompt):
+    url = RASA_API
+    data = {'sender': 'user', 'message': message}
+    response = requests.post(url, json=data)
+    if response.status_code == 200:
+        json_response = response.json()
+        if json_response and len(json_response) > 0:
+            first_response = json_response[0]
+            confidence = first_response.get('confidence', 0.0)
+            if confidence >= 0.5:
+                replay = first_response.get('text', 'no answer')
+                return [replay, conversation_id]
+            else:
+                task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
+                response = task.get()
+                return response

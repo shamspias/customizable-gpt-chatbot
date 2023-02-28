@@ -5,7 +5,7 @@ import speech_recognition as sr
 from django.conf import settings
 
 from .models import ConversationHistory
-from .tasks import chatbot_response
+from .tasks import chatbot_response, get_rasa_response
 
 RASA_API = settings.RASA_API_URL
 
@@ -87,14 +87,18 @@ class ChatbotEndpoint(APIView):
             conversation_id += 1
         except:
             conversation_id = 0
-
         if user_input:
             conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
                                                               user_input=user_input)
             conversation.save()
 
-        task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
-        return Response({"task_id": task.id}, status=status.HTTP_200_OK)
+        try:
+            task = get_rasa_response.apply_async(args=[user_input, conversation_id, language, chatbot_prompt])
+            return Response({"task_id": task.id}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
+            return Response({"task_id": task.id}, status=status.HTTP_200_OK)
 
     def get(self, request, format=None):
         """
@@ -109,7 +113,11 @@ class ChatbotEndpoint(APIView):
             return Response({"error": "No Task ID"})
 
         # return response from openAI and the user input as a List
-        response = chatbot_response.AsyncResult(task_id).get()
+        try:
+            response = get_rasa_response.AsyncResult(task_id).get()
+        except Exception as e:
+            print(e)
+            response = chatbot_response.AsyncResult(task_id).get()
 
         conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
         conversation_obj.chatbot_response = response[0]
