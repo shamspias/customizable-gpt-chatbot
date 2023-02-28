@@ -120,7 +120,7 @@ class ChatbotEndpoint(APIView):
             if response[0] is None:
                 response[0] = ""
 
-            elif response[0] == "lf":
+            elif response[0] == "lf" or response[0] == "error":
                 task = chatbot_response.apply_async(args=[response[2], response[1], response[3]])
                 response = task.get()
         except Exception as e:

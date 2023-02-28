@@ -37,3 +37,5 @@ def get_rasa_response(message, conversation_id, language, chatbot_prompt):
                 return [replay, conversation_id]
             else:
                 return ["lc", conversation_id, chatbot_prompt, language]  # less confidante
+    else:
+        return ["error", conversation_id, chatbot_prompt, language]  # error to fetch API
