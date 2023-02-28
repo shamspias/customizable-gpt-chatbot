@@ -35,7 +35,7 @@ def get_rasa_response(message, conversation_id, language, chatbot_prompt):
         'Content-Type': 'application/json'
     }
     try:
-        response = requests.post(url, headers=headers, data=payload)
+        response = requests.request("POST", url, headers=headers, data=payload)
         if response.status_code == 200:
             json_response = response.json()
             if json_response and len(json_response) > 0:
