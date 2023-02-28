@@ -1,5 +1,6 @@
 import openai
 import requests
+import json
 from celery import shared_task
 from django.conf import settings
 
@@ -26,9 +27,15 @@ def chatbot_response(chatbot_prompt, conversation_id, language):
 def get_rasa_response(message, conversation_id, language, chatbot_prompt):
     url = RASA_API
     # data = {'sender': 'user', 'message': message}
-    data = {'message': message}
+    payload = json.dumps({
+        "sender": "test_user",
+        "message": message
+    })
+    headers = {
+        'Content-Type': 'application/json'
+    }
     try:
-        response = requests.post(url, json=data)
+        response = requests.post(url, headers=headers, data=payload)
         if response.status_code == 200:
             json_response = response.json()
             if json_response and len(json_response) > 0:
