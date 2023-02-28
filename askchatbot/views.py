@@ -127,6 +127,9 @@ class ChatbotEndpoint(APIView):
             print(e)
             response = chatbot_response.AsyncResult(task_id).get()
 
+        print("______________")
+        print(response)
+        print("______________")
         conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
         conversation_obj.chatbot_response = response[0]
         conversation_obj.save()
