@@ -36,6 +36,4 @@ def get_rasa_response(message, conversation_id, language, chatbot_prompt):
                 replay = first_response.get('text', 'no answer')
                 return [replay, conversation_id]
             else:
-                task = chatbot_response.apply_async(args=[chatbot_prompt, conversation_id, language])
-                response = task.get()
-                return response
+                return ["lc", conversation_id, chatbot_prompt, language]  # less confidante
