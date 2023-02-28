@@ -39,7 +39,8 @@ def get_rasa_response(message, conversation_id, language, chatbot_prompt):
                 else:
                     return ["lc", conversation_id, chatbot_prompt, language]  # less confidante
             else:
-                return ["error", conversation_id, chatbot_prompt, language, "Not get json response"]
+                return ["error", conversation_id, chatbot_prompt, language,
+                        "Not get json response: response: {}".format(json_response)]
         else:
             return ["error", conversation_id, chatbot_prompt, language, "error status code"]
     except Exception as e:
