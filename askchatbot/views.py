@@ -94,6 +94,7 @@ class ChatbotEndpoint(APIView):
 
         try:
             task = get_rasa_response.apply_async(args=[user_input, conversation_id, language, chatbot_prompt])
+            print("Test Rasa working")
             return Response({"task_id": task.id}, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)
@@ -115,17 +116,16 @@ class ChatbotEndpoint(APIView):
         # return response from openAI and the user input as a List
         try:
             response = get_rasa_response.AsyncResult(task_id).get()
+            print(response)
+            if response[0] is None:
+                response[0] = ""
+
+            elif response[0] == "lf":
+                task = chatbot_response.apply_async(args=[response[2], response[1], response[3]])
+                response = task.get()
         except Exception as e:
             print(e)
             response = chatbot_response.AsyncResult(task_id).get()
-
-        print(response)
-        if response[0] is None:
-            response[0] = ""
-
-        elif response[0] == "lf":
-            task = chatbot_response.apply_async(args=[response[2], response[1], response[3]])
-            response = task.get()
 
         conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
         conversation_obj.chatbot_response = response[0]
