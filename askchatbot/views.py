@@ -85,7 +85,8 @@ class ChatbotEndpoint(APIView):
             last_conversation = ConversationHistory.objects.filter(user=request.user).latest('conversation_id')
             conversation_id = last_conversation.conversation_id
             conversation_id += 1
-        except:
+        except Exception as e:
+            print(e)
             conversation_id = 0
         if user_input:
             conversation = ConversationHistory.objects.create(user=request.user, conversation_id=conversation_id,
@@ -94,7 +95,6 @@ class ChatbotEndpoint(APIView):
 
         try:
             task = get_rasa_response.apply_async(args=[user_input, conversation_id, language, chatbot_prompt])
-            print("Test Rasa working")
             return Response({"task_id": task.id}, status=status.HTTP_200_OK)
         except Exception as e:
             print(e)

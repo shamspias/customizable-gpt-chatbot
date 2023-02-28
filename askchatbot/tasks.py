@@ -25,7 +25,8 @@ def chatbot_response(chatbot_prompt, conversation_id, language):
 @shared_task
 def get_rasa_response(message, conversation_id, language, chatbot_prompt):
     url = RASA_API
-    data = {'sender': 'user', 'message': message}
+    # data = {'sender': 'user', 'message': message}
+    data = {'message': message}
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
