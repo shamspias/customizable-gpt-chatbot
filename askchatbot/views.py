@@ -116,15 +116,20 @@ class ChatbotEndpoint(APIView):
         # return response from openAI and the user input as a List
         try:
             response = get_rasa_response.AsyncResult(task_id).get()
-            if response[0] is None:
-                response[0] = ""
+            if response is None:
+                print("ERRORRRRRRRR still response null")
 
             elif response[0] == "lf" or response[0] == "error":
                 if response[0] == "error":
                     print("-------Error-------")
                     print(response[4])
+                else:
+                    print("-------Error-------")
+                    print(response)
+
                 task = chatbot_response.apply_async(args=[response[2], response[1], response[3]])
                 response = task.get()
+
         except Exception as e:
             print(e)
             response = chatbot_response.AsyncResult(task_id).get()
@@ -132,11 +137,13 @@ class ChatbotEndpoint(APIView):
         print("______________")
         print(response)
         print("______________")
-        conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
-        conversation_obj.chatbot_response = response[0]
-        conversation_obj.save()
-
-        return Response({"data": response[0]}, status=status.HTTP_200_OK)
+        if response is not None:
+            conversation_obj = ConversationHistory.objects.get(user=request.user, conversation_id=response[1])
+            conversation_obj.chatbot_response = response[0]
+            conversation_obj.save()
+            return Response({"data": response[0]}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error: Null Response"}, status=status.HTTP_403_FORBIDDEN)
 
 
 class SpeechToText(APIView):
