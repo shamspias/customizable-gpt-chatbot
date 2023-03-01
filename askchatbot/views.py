@@ -1,10 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, status
 import speech_recognition as sr
 from django.conf import settings
 
-from .models import ConversationHistory
+from .models import ConversationHistory, ChatbotBasic, Language, Ads, ChatbotSuggestions, ChatbotSuggestionsOptions
+from .serializers import ChatbotBasicSerializer, LanguageSerializer, AdsSerializer, ChatbotSuggestionsSerializer
 from .tasks import chatbot_response, get_rasa_response
 
 RASA_API = settings.RASA_API_URL
@@ -164,3 +165,23 @@ class SpeechToText(APIView):
             return Response({'error': 'Speech recognition could not understand the audio'}, status=400)
         except sr.RequestError as e:
             return Response({'error': f'Speech recognition error: {e}'}, status=500)
+
+
+class ChatbotBasicListCreateAPIView(generics.ListCreateAPIView):
+    queryset = ChatbotBasic.objects.all()
+    serializer_class = ChatbotBasicSerializer
+
+
+class LanguageListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Language.objects.all()
+    serializer_class = LanguageSerializer
+
+
+class AdsListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Ads.objects.all()
+    serializer_class = AdsSerializer
+
+
+class ChatbotSuggestionsListCreateAPIView(generics.ListCreateAPIView):
+    queryset = ChatbotSuggestions.objects.all()
+    serializer_class = ChatbotSuggestionsSerializer
