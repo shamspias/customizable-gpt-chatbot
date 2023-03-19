@@ -1,29 +1,27 @@
 from django.db import models
-from ausers.models import User
 
 
-class ConversationHistory(models.Model):
+class Conversation(models.Model):
     """
-    To store the conversation history
+    Model for Conversation and check archive or not
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    conversation_id = models.PositiveIntegerField(default=0)
-    user_input = models.TextField(blank=True, null=True)
-    chatbot_response = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_archived = models.BooleanField(default=False)
+
+
+class Message(models.Model):
+    """
+    Model for conversation message and get from user
+    """
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE)
+    text = models.TextField()
+    is_user = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        ordering = ('-created_at',)
 
-    def __str__(self):
-        return self.user.email
-
-    def last_conversation_id(self):
-        """
-        to retrieve the last conversation id
-        """
-        try:
-            last_conversation = self.objects.latest('conversation_id')
-            return last_conversation.conversation_id
-        except self.DoesNotExist:
-            return None
+class FavoriteConversation(models.Model):
+    """
+    Model to add favorite conversation
+    """
+    conversation = models.OneToOneField(Conversation, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
