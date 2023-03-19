@@ -1,40 +1,43 @@
 from django.contrib import admin
+from .models import Conversation, Message, FavoriteConversation
 
-from .models import ConversationHistory, ChatbotBasic, Language, Ads, ChatbotSuggestions, ChatbotSuggestionsOptions
 
-
-class ConversationHistoryAdmin(admin.ModelAdmin):
+class MessageInline(admin.TabularInline):
     """
-    Model admin for conversation
+    Inline admin class to display messages within a conversation.
     """
-    list_display = ('user', 'conversation_id', 'user_input', 'chatbot_response', 'created_at')
-    list_filter = ('user', 'conversation_id',)
-    search_fields = ('user_input', 'chatbot_response', 'user')
+    model = Message
+    extra = 0
+    readonly_fields = ('text', 'is_user', 'created_at')
 
 
-@admin.register(ChatbotBasic)
-class ChatbotBasicAdmin(admin.ModelAdmin):
-    list_display = ('name', 'logo', 'short_logo', 'back_ground')
+class ConversationAdmin(admin.ModelAdmin):
+    """
+    Admin class for Conversation model.
+    """
+    list_display = ('id', 'created_at', 'is_archived')
+    list_filter = ('is_archived',)
+    search_fields = ('id',)
+    inlines = [MessageInline]
 
 
-@admin.register(Language)
-class LanguageAdmin(admin.ModelAdmin):
-    list_display = ('name', 'short_name')
+class MessageAdmin(admin.ModelAdmin):
+    """
+    Admin class for Message model.
+    """
+    list_display = ('id', 'conversation', 'text', 'is_user', 'created_at')
+    list_filter = ('is_user',)
+    search_fields = ('text', 'conversation__id')
 
 
-@admin.register(Ads)
-class AdsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'ads_image')
+class FavoriteConversationAdmin(admin.ModelAdmin):
+    """
+    Admin class for FavoriteConversation model.
+    """
+    list_display = ('id', 'conversation', 'created_at')
+    search_fields = ('conversation__id',)
 
 
-@admin.register(ChatbotSuggestions)
-class ChatbotSuggestionsAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-
-
-@admin.register(ChatbotSuggestionsOptions)
-class ChatbotSuggestionsOptionsAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-
-
-admin.site.register(ConversationHistory, ConversationHistoryAdmin)
+admin.site.register(Conversation, ConversationAdmin)
+admin.site.register(Message, MessageAdmin)
+admin.site.register(FavoriteConversation, FavoriteConversationAdmin)
