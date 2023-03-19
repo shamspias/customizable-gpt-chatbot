@@ -1,11 +1,10 @@
 import openai
 from celery import shared_task
 from django.conf import settings
-from .models import ConversationHistory
 
 
 @shared_task
-def chatbot_response(chatbot_prompt, conversation_id, language):
+def chatbot_response(chatbot_prompt, language):
     openai.api_key = settings.OPEN_AI_KEY
     prompt = f"{chatbot_prompt}"
     completions = openai.Completion.create(
@@ -17,4 +16,4 @@ def chatbot_response(chatbot_prompt, conversation_id, language):
         temperature=0.9,
     )
     message = completions.choices[0].text
-    return [message, conversation_id]
+    return message
