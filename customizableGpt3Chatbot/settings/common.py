@@ -5,7 +5,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 from corsheaders.defaults import default_headers
-
+from urllib.parse import quote
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,8 +32,6 @@ THIRD_PARTY_APPS = [
     'channels',
     'corsheaders',  # Cross Origin
     'easy_thumbnails',  # image lib
-    'social_django',  # django social auth
-    'rest_social_auth',  # this package
 
     'django_celery_results',  # Store Celery Result and cache
 ]
@@ -130,21 +128,21 @@ SESSION_COOKIE_HTTPONLY = bool(os.getenv('SESSION_COOKIE_HTTPONLY', True))
 SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', "None")
 CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', "None")
 CORS_ALLOW_CREDENTIALS = bool(os.getenv('CORS_ALLOW_CREDENTIALS', True))
-CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', False))
+CORS_ORIGIN_ALLOW_ALL = bool(os.getenv('CORS_ORIGIN_ALLOW_ALL', True))
 CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
 #
 # CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
 # CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
 # CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
 #
-# CORS_ALLOW_METHODS = (
-#     'GET',
-#     'POST',
-#     'PUT',
-#     'PATCH',
-#     'DELETE',
-#     'OPTIONS'
-# )
+CORS_ALLOW_METHODS = (
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+)
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'X-CSRFToken',
@@ -217,26 +215,8 @@ LOGGING = {
 # Custom user app
 AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'ausers.User')
 
-# Social login
-SOCIAL_AUTH_JSONFIELD_ENABLED = True
-
-REST_SOCIAL_OAUTH_REDIRECT_URI = '/'
-REST_SOCIAL_DOMAIN_FROM_ORIGIN = True
-
-# Facebook
-SOCIAL_AUTH_FACEBOOK_KEY = os.getenv('FACEBOOK_KEY')
-SOCIAL_AUTH_FACEBOOK_SECRET = os.getenv('FACEBOOK_SECRET')
-SOCIAL_AUTH_FACEBOOK_SCOPE = ['email', ]  # optional
-# SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {'locale': 'ru_RU'}  # optional
-
-# Google
-SOCIAL_AUTH_GOOGLE_OAUTH_KEY = os.getenv('GOOGLE_KEY')
-SOCIAL_AUTH_GOOGLE_OAUTH_SECRET = os.getenv('GOOGLE_SECRET')
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', ]  # optional
 
 AUTHENTICATION_BACKENDS = (
-    'social_core.backends.facebook.FacebookOAuth2',
-    'social_core.backends.google.GoogleOAuth2',
     # and maybe some others ...
     'django.contrib.auth.backends.ModelBackend',
 )
@@ -314,8 +294,6 @@ SUMMERNOTE_CONFIG = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 OPEN_AI_KEY = os.getenv('OPEN_AI_KEY')
 
-from urllib.parse import quote
-
 # AWS
 AWS_ACCESS_KEY = quote(os.getenv('AWS_ACCESS_KEY'), safe='')
 AWS_SECRET_KEY = quote(os.getenv('AWS_SECRET_KEY'), safe='')
@@ -359,3 +337,7 @@ CELERY_CACHE_BACKEND = 'django-cache'
 ADMIN_SITE_HEADER = os.getenv('ADMIN_SITE_HEADER')
 ADMIN_SITE_TITLE = os.getenv('ADMIN_SITE_TITLE')
 ADMIN_SITE_INDEX = os.getenv('ADMIN_SITE_INDEX')
+
+# RASA
+
+RASA_API_URL = os.getenv('RASA_API_URL')
