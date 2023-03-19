@@ -1,26 +1,68 @@
-from django.test import TestCase, Client
 from django.urls import reverse
-import json
+from rest_framework import status
+from rest_framework.test import APITestCase, APIClient
+from .models import Conversation, Message, FavoriteConversation
 
-from .models import ConversationHistory
 
-
-class ChatbotTestCase(TestCase):
-    """
-    test for chatbot
-    """
-
+class ChatGPTAPITestCase(APITestCase):
     def setUp(self):
-        self.client = Client()
+        self.client = APIClient()
 
-    def test_chatbot_endpoint(self):
-        conversation_id = "123456"
-        user_input = "Hello"
-        response = self.client.post(reverse('chatbot'),
-                                    data={'user_input': user_input, 'conversation_id': conversation_id})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.content), {'task_id': '123'})
+        self.conversation = Conversation.objects.create()
+        self.message1 = Message.objects.create(conversation=self.conversation, text="Hello", is_user=True)
+        self.message2 = Message.objects.create(conversation=self.conversation, text="Hi there!", is_user=False)
 
-        conversation = ConversationHistory.objects.get(conversation_id=conversation_id)
-        self.assertEqual(conversation.user_input, user_input)
-        self.assertEqual(conversation.chatbot_response, "Hi!")
+        self.favorite_conversation = FavoriteConversation.objects.create(conversation=self.conversation)
+
+    def test_create_conversation(self):
+        url = reverse('conversation-list')
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_get_conversations(self):
+        url = reverse('conversation-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_conversation_detail(self):
+        url = reverse('conversation-detail', args=[self.conversation.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_create_message(self):
+        url = reverse('message-list', args=[self.conversation.id])
+        data = {"text": "What's the weather like today?"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_get_messages(self):
+        url = reverse('message-list', args=[self.conversation.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_archive_conversation(self):
+        url = reverse('archive-conversation', args=[self.conversation.id])
+        response = self.client.patch(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_create_favorite_conversation(self):
+        new_conversation = Conversation.objects.create()
+        url = reverse('favorite-conversation-list')
+        data = {"conversation": new_conversation.id}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_get_favorite_conversations(self):
+        url = reverse('favorite-conversation-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_favorite_conversation_detail(self):
+        url = reverse('favorite-conversation-detail', args=[self.favorite_conversation.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_favorite_conversation(self):
+        url = reverse('favorite-conversation-detail', args=[self.favorite_conversation.id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
