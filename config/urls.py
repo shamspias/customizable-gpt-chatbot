@@ -15,4 +15,7 @@ urlpatterns = [
 
     # Site settings app URLs
     path('site-settings/', include('site_settings.urls', namespace='site_settings')),
+
+    # Chatbot app URLs
+    path('chatbot/', include('chatbot.urls', namespace='chatbot')),
 ]
