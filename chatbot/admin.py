@@ -18,5 +18,5 @@ class MessageAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'conversation', 'content', 'created_at', 'is_from_user')
     search_fields = ('conversation__id', 'content',)
-    list_filter = ('is_from_user',)
+    list_filter = ('is_from_user', 'user__username',)
     ordering = ('-created_at',)
