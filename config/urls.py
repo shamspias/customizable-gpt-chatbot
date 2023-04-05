@@ -12,4 +12,7 @@ urlpatterns = [
 
     # Users app URLs
     path('users/', include('users.urls', namespace='users')),
+
+    # Site settings app URLs
+    path('site-settings/', include('site_settings.urls', namespace='site_settings')),
 ]
