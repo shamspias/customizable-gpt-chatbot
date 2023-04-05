@@ -35,6 +35,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'chatbot.apps.ChatbotConfig',
+    'users.apps.UsersConfig',
+    'site_settings.apps.SiteSettingsConfig',
 ]
 
 MIDDLEWARE = [
