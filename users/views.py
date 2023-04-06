@@ -24,6 +24,7 @@ class LoginView(APIView):
     """
     Login API view.
     """
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
