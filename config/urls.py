@@ -27,7 +27,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
 
     # Users app URLs
-    path('api/v1/users', include('users.urls')),
+    path('api/v1/users/', include('users.urls')),
 
     # Site settings app URLs
     path('api/v1/site-settings/', include('site_settings.urls')),
