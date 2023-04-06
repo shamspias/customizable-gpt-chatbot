@@ -1,7 +1,10 @@
 Django
 djangorestframework
+django-filter
+drf-yasg
 celery
 django-oauth-toolkit
+social-auth-app-django
 django-allauth
 django-rest-auth
 django-cors-headers
