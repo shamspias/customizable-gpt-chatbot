@@ -16,7 +16,6 @@ from oauthlib.common import generate_token
 from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken, RefreshToken
 from datetime import timedelta
-from django.conf import settings
 
 User = get_user_model()
 
@@ -49,6 +48,8 @@ class LoginView(APIView):
         # Generate tokens for the user
         access_token = generate_token()
         refresh_token = generate_token()
+        expires_in = timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+        expires = timezone.now() + expires_in
 
         AccessToken.objects.create(
             user=user,
@@ -64,8 +65,13 @@ class LoginView(APIView):
             application=app,
             access_token=AccessToken.objects.get(token=access_token)
         )
+        context = {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            # "expires_in": expires_in.total_seconds()
+        }
 
-        return Response({"access_token": access_token, "refresh_token": refresh_token})
+        return Response(context, status=status.HTTP_200_OK)
 
 
 class GoogleLoginView(APIView):
@@ -80,15 +86,19 @@ class GoogleLoginView(APIView):
             try:
                 # Get the OAuth2 Application
                 app = Application.objects.get(name="google")
-                token = app.accesstoken_set.get(user=user)
+                access_token = app.accesstoken_set.get(user=user)
+                refresh_token = RefreshToken.objects.get(user=user, access_token=access_token)
 
-                return Response({
-                    "access_token": token.token,
-                    "expires_in": token.expires
-                })
+                context = {
+                    "access_token": access_token.token,
+                    "refresh_token": refresh_token.token
+                    # "expires_in": access_token.expires
+                }
+
+                return Response(context, status=status.HTTP_200_OK)
 
             except Application.DoesNotExist:
-                return Response({"error": "OAuth2 Application not found."})
+                return Response({"error": "OAuth2 Application not found."}, status=status.HTTP_404_NOT_FOUND)
 
         else:
             return redirect(load_strategy().build_absolute_uri('/social-auth/login/google-oauth2/'))
