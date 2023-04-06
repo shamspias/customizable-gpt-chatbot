@@ -1,5 +1,18 @@
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Customized ChatGPT API",
+        default_version='v1',
+        description="API documentation for the Customized ChatGPT project",
+    ),
+    public=True,
+    permission_classes=[permissions.AllowAny, ],
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -10,12 +23,19 @@ urlpatterns = [
     # Social auth URLs
     path('social-auth/', include('social_django.urls', namespace='social')),
 
+    # Rest framework URLs
+    path('api-auth/', include('rest_framework.urls')),
+
     # Users app URLs
-    path('users/', include('users.urls', namespace='users')),
+    path('api/v1/users', include('users.urls')),
 
     # Site settings app URLs
-    path('site-settings/', include('site_settings.urls', namespace='site_settings')),
+    path('api/v1/site-settings/', include('site_settings.urls')),
 
     # Chatbot app URLs
-    path('chatbot/', include('chatbot.urls', namespace='chatbot')),
+    path('api/v1/chatbot/', include('chatbot.urls')),
+
+    # Swagger URLs
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
