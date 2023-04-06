@@ -8,12 +8,6 @@ from urllib.parse import quote
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# SECURITY WARNING: don't run with debug turned on in production!
-SITE_ID = os.getenv('SITE_ID', 1)
-
-DEBUG = os.getenv('DJANGO_DEBUG', True)
-SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
-
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -21,6 +15,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
 ]
 
 THIRD_PARTY_APPS = [
@@ -56,6 +51,12 @@ MIDDLEWARE = [
     # CROSS Origin
     'corsheaders.middleware.CorsMiddleware',
 ]
+
+# SECURITY WARNING: don't run with debug turned on in production!
+SITE_ID = os.getenv('SITE_ID', 1)
+
+DEBUG = os.getenv('DJANGO_DEBUG', True)
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-p!1w7j+^j5v8y-@$_9j*8mr-)l#$u=08=c)!=(b1dleci18$7+')
 ROOT_URLCONF = 'config.urls'
