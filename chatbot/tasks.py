@@ -1,6 +1,7 @@
+import openai
 from celery import shared_task
 from celery.utils.log import get_task_logger
-import openai
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
 logger = get_task_logger(__name__)
@@ -15,6 +16,7 @@ system_prompt = "This is a conversation with an AI assistant. The assistant is h
 @shared_task
 def send_gpt_request(conversation_id, message_list):
     try:
+        openai.api_key = settings.OPEN_AI_KEY
         # Send request to GPT-3 (replace with actual GPT-3 API call)
         gpt3_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
