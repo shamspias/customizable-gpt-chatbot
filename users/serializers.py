@@ -6,6 +6,7 @@ from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken, RefreshToken
 from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
 
 Application = get_application_model()
 User = get_user_model()
@@ -34,7 +35,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             token=access_token,
             application=app,
             scope=oauth2_settings.DEFAULT_SCOPES,
-            expires=timezone.now() + oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS
+            expires=timezone.now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS)
         )
 
         RefreshToken.objects.create(
