@@ -16,7 +16,7 @@ system_prompt = "This is a conversation with an AI assistant. The assistant is h
 @shared_task
 def send_gpt_request(conversation_id, message_list):
     try:
-        openai.api_key = settings.OPEN_AI_KEY
+        openai.api_key = settings.OPENAI_API_KEY
         # Send request to GPT-3 (replace with actual GPT-3 API call)
         gpt3_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
