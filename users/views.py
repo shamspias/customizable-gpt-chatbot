@@ -33,7 +33,7 @@ class LoginView(APIView):
         if email is None or password is None:
             return Response({"error": "email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(username=email, password=password)
+        user = authenticate(email=email, password=password)
         if user is None:
             return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
