@@ -5,7 +5,6 @@ drf-yasg
 celery
 django-oauth-toolkit
 social-auth-app-django
-django-allauth
 django-rest-auth
 django-cors-headers
 openai
@@ -18,3 +17,4 @@ gunicorn
 django-storages
 boto3
 pycurl
+pillow
