@@ -1,15 +1,23 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.models import User
+from rest_framework.pagination import LimitOffsetPagination
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request
 
 
+class LastMessagesPagination(LimitOffsetPagination):
+    """
+    Pagination class to return the last messages.
+    """
+    default_limit = 10
+    max_limit = 10
+
+
 class ConversationListCreate(generics.ListCreateAPIView):
     """
-    API view to list and create Conversations.
+    List all conversations or create a new one.
     """
     serializer_class = ConversationSerializer
 
@@ -22,31 +30,41 @@ class ConversationListCreate(generics.ListCreateAPIView):
 
 class ConversationDetail(generics.RetrieveUpdateDestroyAPIView):
     """
-    API view to retrieve, update, or delete a Conversation.
+    Retrieve, update or delete a conversation instance.
     """
-    queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
 
+    def get_queryset(self):
+        return Conversation.objects.filter(user=self.request.user)
 
-class MessageCreate(generics.CreateAPIView):
-    """
-    API view to create a Message.
-    """
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
-
-    def perform_create(self, serializer):
-        conversation = get_object_or_404(Conversation, id=self.kwargs['conversation_id'])
-        serializer.save(conversation=conversation)
-        send_gpt_request.delay(conversation.id, serializer.validated_data['content'])
+    def delete(self, request, *args, **kwargs):
+        conversation = self.get_object()
+        if conversation.user != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        return super().delete(request, *args, **kwargs)
 
 
 class MessageList(generics.ListAPIView):
     """
-    API view to list the last 10 messages of a Conversation.
+    List the last 10 messages of a conversation.
+    """
+    serializer_class = MessageSerializer
+    pagination_class = LastMessagesPagination
+
+    def get_queryset(self):
+        conversation = get_object_or_404(Conversation, id=self.kwargs['conversation_id'], user=self.request.user)
+        return Message.objects.filter(conversation=conversation).select_related('conversation')
+
+
+class MessageCreate(generics.CreateAPIView):
+    """
+    Create a new message.
     """
     serializer_class = MessageSerializer
 
-    def get_queryset(self):
-        conversation = get_object_or_404(Conversation, id=self.kwargs['conversation_id'])
-        return Message.objects.filter(conversation=conversation)[:10]
+    def perform_create(self, serializer):
+        conversation = get_object_or_404(Conversation, id=self.kwargs['conversation_id'], user=self.request.user)
+        serializer.save(conversation=conversation, is_from_user=True)
+
+        # Call the Celery task to get a response from GPT-3
+        send_gpt_request.delay(conversation.id, serializer.validated_data['content'])
