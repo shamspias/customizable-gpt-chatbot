@@ -30,8 +30,8 @@ class LoginView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
         password = request.data.get("password")
-        client_id = settings.GOOGLE_OAUTH2_CLIENT_ID
-        client_secret = settings.GOOGLE_OAUTH2_CLIENT_SECRET
+        client_id = settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY
+        client_secret = settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET
 
         if username is None or password is None or client_id is None or client_secret is None:
             return Response({"error": "username, password, client_id, and client_secret are required"},
