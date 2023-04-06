@@ -16,6 +16,7 @@ from oauthlib.common import generate_token
 from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken, RefreshToken
 from datetime import timedelta
+from django.contrib.auth.hashers import make_password
 from django.conf import settings
 
 User = get_user_model()
@@ -129,6 +130,9 @@ class UserRegistrationView(generics.CreateAPIView):
         email = request.data.get('email')
         if User.objects.filter(email=email).exists():
             return Response({'error': 'Email address already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        password = request.data.get('password')
+        request.data['password'] = make_password(password)
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
