@@ -6,11 +6,57 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from social_django.utils import load_strategy
 from rest_framework import permissions
-from rest_framework.views import APIView
+from rest_framework import status
+from django.utils import timezone
+from django.contrib.auth import authenticate
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from oauth2_provider.models import Application
+from oauthlib.common import generate_token
+from oauth2_provider.settings import oauth2_settings
+from oauth2_provider.models import AccessToken, RefreshToken
+from django.conf import settings
 
 User = get_user_model()
+
+
+class LoginView(APIView):
+    """
+    Login API view.
+    """
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if email is None or password is None:
+            return Response({"error": "email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(username=email, password=password)
+        if user is None:
+            return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Generate tokens for the user
+        app = Application.objects.get(name=settings.APPLICATION_NAME)
+        access_token = generate_token()
+        refresh_token = generate_token()
+
+        AccessToken.objects.create(
+            user=user,
+            token=access_token,
+            application=app,
+            scope=oauth2_settings.DEFAULT_SCOPES,
+            expires=timezone.now() + oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS
+        )
+
+        RefreshToken.objects.create(
+            user=user,
+            token=refresh_token,
+            application=app,
+            access_token=AccessToken.objects.get(token=access_token)
+        )
+
+        return Response({"access_token": access_token, "refresh_token": refresh_token})
 
 
 class GoogleLoginView(APIView):
