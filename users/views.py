@@ -80,12 +80,16 @@ class GoogleLoginView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         user = request.user
         if user.is_authenticated:
             try:
                 # Get the OAuth2 Application
                 app = Application.objects.get(name="google")
+            except Application.DoesNotExist:
+                return Response({"error": "OAuth2 Application not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
                 access_token = app.accesstoken_set.get(user=user)
                 refresh_token = RefreshToken.objects.get(user=user, access_token=access_token)
 
@@ -97,8 +101,8 @@ class GoogleLoginView(APIView):
 
                 return Response(context, status=status.HTTP_200_OK)
 
-            except Application.DoesNotExist:
-                return Response({"error": "OAuth2 Application not found."}, status=status.HTTP_404_NOT_FOUND)
+            except AccessToken.DoesNotExist:
+                return Response({"error": "Access token not found for the user."}, status=status.HTTP_404_NOT_FOUND)
 
         else:
             return redirect(load_strategy().build_absolute_uri('/social-auth/login/google-oauth2/'))
