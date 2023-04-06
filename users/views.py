@@ -116,6 +116,39 @@ class UserRegistrationView(generics.CreateAPIView):
     serializer_class = CustomUserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.save()
+
+        # Generate tokens for the user
+        app = Application.objects.get(name=settings.APPLICATION_NAME)
+        access_token = generate_token()
+        refresh_token = generate_token()
+
+        AccessToken.objects.create(
+            user=user,
+            token=access_token,
+            application=app,
+            scope=oauth2_settings.DEFAULT_SCOPES,
+            expires=timezone.now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+        )
+
+        RefreshToken.objects.create(
+            user=user,
+            token=refresh_token,
+            application=app,
+            access_token=AccessToken.objects.get(token=access_token)
+        )
+
+        tokens = {
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }
+
+        return Response(tokens)
+
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
