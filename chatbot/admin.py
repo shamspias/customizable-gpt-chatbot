@@ -17,7 +17,7 @@ class MessageAdmin(admin.ModelAdmin):
     """
     Admin site configuration for Message model.
     """
-    list_display = ('id', 'conversation', 'content', 'created_at', 'is_from_user')
-    search_fields = ('user__username', 'content',)
-    list_filter = ('is_from_user', 'user__username',)
+    list_display = ('id', 'conversation', 'content', 'is_from_user', 'created_at')
+    list_filter = ('is_from_user', 'conversation__user__username', 'created_at')
+    search_fields = ('content',)
     ordering = ('-created_at',)
