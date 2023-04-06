@@ -1,4 +1,5 @@
-from rest_framework import serializers
+from rest_framework import serializers, status
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from oauth2_provider.models import get_application_model
 from oauthlib.common import generate_token
@@ -61,7 +62,7 @@ class CustomUserRegistrationSerializer(serializers.ModelSerializer):
 
         token_serializer = TokenSerializer(tokens)
 
-        return token_serializer.data
+        return Response(token_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
