@@ -9,7 +9,8 @@ from django.utils import timezone
 from datetime import timedelta
 
 Application = get_application_model()
-User = get_user_model()
+
+from .models import CustomUser
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -19,12 +20,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = User
-        # fields = ['username', 'email', 'password', 'first_name', 'last_name']
-        fields = "__all__"
+        model = CustomUser
+        fields = ['username', 'email', 'password', 'first_name', 'last_name']
 
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+        user = CustomUser.objects.create_user(**validated_data)
 
         # Generate tokens for the user
         app = Application.objects.get(name=settings.APPLICATION_NAME)
@@ -60,6 +60,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = User
+        model = CustomUser
         fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 'address', 'profile_picture']
         read_only_fields = ['username', 'email']
