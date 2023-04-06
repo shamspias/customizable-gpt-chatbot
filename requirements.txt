@@ -4,7 +4,7 @@ celery
 django-oauth-toolkit
 django-allauth
 django-rest-auth
-django-allauth-social-token
+django-cors-headers
 openai
 python-dotenv
 django-celery-results
