@@ -1,6 +1,6 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from .serializers import CustomUserRegistrationSerializer, UserProfileSerializer
+from .serializers import UserRegistrationSerializer, UserProfileSerializer
 from .tasks import send_forgot_password_email
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
@@ -113,7 +113,7 @@ class UserRegistrationView(generics.CreateAPIView):
     View for user registration.
     """
     queryset = User.objects.all()
-    serializer_class = CustomUserRegistrationSerializer
+    serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
