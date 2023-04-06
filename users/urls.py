@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserRegistrationView, UserProfileView, GoogleLoginView, LoginView
+from .views import UserRegistrationView, UserProfileView, GoogleLoginView, LoginView, LogoutView
 
 app_name = 'users'
 
@@ -15,4 +15,7 @@ urlpatterns = [
 
     # Google OAuth2 login endpoint
     path('login/google/', GoogleLoginView.as_view(), name='google-login'),
+
+    # Logout endpoint
+    path("logout/", LogoutView.as_view(), name="logout"),
 ]

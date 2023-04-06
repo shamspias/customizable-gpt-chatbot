@@ -16,6 +16,7 @@ from oauthlib.common import generate_token
 from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken, RefreshToken
 from datetime import timedelta
+from django.conf import settings
 
 User = get_user_model()
 
@@ -29,8 +30,8 @@ class LoginView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
         password = request.data.get("password")
-        client_id = request.data.get("client_id")
-        client_secret = request.data.get("client_secret")
+        client_id = settings.GOOGLE_OAUTH2_CLIENT_ID
+        client_secret = settings.GOOGLE_OAUTH2_CLIENT_SECRET
 
         if username is None or password is None or client_id is None or client_secret is None:
             return Response({"error": "username, password, client_id, and client_secret are required"},
@@ -135,3 +136,19 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
             message = 'Your password has been changed successfully.'
             recipient = user.email
             send_forgot_password_email.delay(subject, message, recipient)
+
+
+class LogoutView(APIView):
+    """
+    View for user logout.
+    """
+
+    def post(self, request, *args, **kwargs):
+        token = request.auth
+        if token:
+            access_token = AccessToken.objects.filter(token=token)
+            if access_token.exists():
+                access_token.delete()
+                return Response({"detail": "Logout successful"}, status=status.HTTP_200_OK)
+
+        return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
