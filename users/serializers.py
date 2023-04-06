@@ -13,7 +13,7 @@ Application = get_application_model()
 from .models import CustomUser
 
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
+class CustomUserRegistrationSerializer(serializers.ModelSerializer):
     """
     User registration serializer.
     """
