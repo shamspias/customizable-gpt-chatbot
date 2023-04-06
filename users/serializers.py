@@ -13,6 +13,14 @@ Application = get_application_model()
 from .models import CustomUser
 
 
+class TokenSerializer(serializers.Serializer):
+    """
+    Token serializer.
+    """
+    access_token = serializers.CharField()
+    refresh_token = serializers.CharField()
+
+
 class CustomUserRegistrationSerializer(serializers.ModelSerializer):
     """
     User registration serializer.
@@ -51,7 +59,9 @@ class CustomUserRegistrationSerializer(serializers.ModelSerializer):
             'refresh_token': refresh_token
         }
 
-        return tokens
+        token_serializer = TokenSerializer(tokens)
+
+        return token_serializer.data
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
