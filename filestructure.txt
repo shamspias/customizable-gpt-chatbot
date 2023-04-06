@@ -1,0 +1,42 @@
+gpt_chat/
+|-- .env
+|-- .gitignore
+|-- README.md
+|-- manage.py
+|-- requirements.txt
+|-- config/
+|   |-- __init__.py
+|   |-- asgi.py
+|   |-- celery.py
+|   |-- settings.py
+|   |-- urls.py
+|   |-- wsgi.py
+|-- users/
+|   |-- __init__.py
+|   |-- admin.py
+|   |-- apps.py
+|   |-- migrations/
+|   |-- models.py
+|   |-- serializers.py
+|   |-- urls.py
+|   |-- views.py
+|   |-- tasks.py
+|-- site_settings/
+|   |-- __init__.py
+|   |-- admin.py
+|   |-- apps.py
+|   |-- migrations/
+|   |-- models.py
+|   |-- serializers.py
+|   |-- urls.py
+|   |-- views.py
+|-- chatbot/
+|   |-- __init__.py
+|   |-- admin.py
+|   |-- apps.py
+|   |-- migrations/
+|   |-- models.py
+|   |-- serializers.py
+|   |-- urls.py
+|   |-- views.py
+|   |-- tasks.py
