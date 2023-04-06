@@ -80,7 +80,7 @@ class GoogleLoginView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         user = request.user
         if user.is_authenticated:
             try:
