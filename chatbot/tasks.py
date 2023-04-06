@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 logger = get_task_logger(__name__)
 
-from .models import Message
+from .models import Message, Conversation
 
 system_prompt = "This is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very " \
                 "friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you " \
@@ -13,7 +13,7 @@ system_prompt = "This is a conversation with an AI assistant. The assistant is h
 
 
 @shared_task
-def send_gpt3_request(conversation_id, message_list):
+def send_gpt_request(conversation_id, message_list):
     try:
         # Send request to GPT-3 (replace with actual GPT-3 API call)
         gpt3_response = openai.ChatCompletion.create(
