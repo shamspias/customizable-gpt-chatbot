@@ -210,7 +210,7 @@ LOGGING = {
 AUTH_USER_MODEL = os.getenv('AUTH_USER_MODEL', 'users.User')
 
 AUTHENTICATION_BACKENDS = (
-    'users.backends.EmailBackend',
+    # 'users.backends.EmailBackend',
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
