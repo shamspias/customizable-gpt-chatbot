@@ -30,11 +30,10 @@ class LoginView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
         password = request.data.get("password")
-        client_id = settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY
-        client_secret = settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET
+        client_id = request.data.get("client_id")
 
-        if username is None or password is None or client_id is None or client_secret is None:
-            return Response({"error": "username, password, client_id, and client_secret are required"},
+        if username is None or password is None or client_id is None:
+            return Response({"error": "username, password and client_id are required"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         user = authenticate(username=username, password=password)
@@ -42,9 +41,9 @@ class LoginView(APIView):
             return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            app = Application.objects.get(client_id=client_id, client_secret=client_secret)
+            app = Application.objects.get(client_id=client_id)
         except Application.DoesNotExist:
-            return Response({"error": "Invalid client_id or client_secret"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Invalid client_id"}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Generate tokens for the user
         access_token = generate_token()
