@@ -29,14 +29,23 @@ class LoginView(APIView):
 
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
+        email = request.data.get("email")
         password = request.data.get("password")
         client_id = request.data.get("client_id")
 
-        if username is None or password is None or client_id is None:
-            return Response({"error": "username, password and client_id are required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+        if username:
+            if password is None or client_id is None:
+                return Response({"error": "username, password and client_id are required"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            user = authenticate(request, username=username, password=password)
 
-        user = authenticate(username=username, password=password)
+        else:
+            if email is None or password is None or client_id is None:
+                return Response({"error": "email, password and client_id are required"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            user = authenticate(request, username=email, password=password)
+
         if user is None:
             return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
