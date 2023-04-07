@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
+from celery.result import AsyncResult
 
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
@@ -133,13 +134,28 @@ class MessageCreate(generics.CreateAPIView):
 
         # Call the Celery task to get a response from GPT-3
         task = send_gpt_request.apply_async(args=(conversation.id, message_list, messages[0].id))
-        response = task.get()
 
-        return response
+        # Return the task ID
+        return task.id
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        response = self.perform_create(serializer)
+        task_id = self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({"response": response}, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({"task_id": task_id}, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class GPT3TaskStatus(APIView):
+    """
+    Check the status of a GPT task and return the result if it's ready.
+    """
+
+    def get(self, request, task_id, *args, **kwargs):
+        task = AsyncResult(task_id)
+
+        if task.ready():
+            response = task.result
+            return Response({"status": "READY", "response": response})
+        else:
+            return Response({"status": "PENDING"})
