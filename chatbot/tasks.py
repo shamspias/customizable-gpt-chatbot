@@ -29,6 +29,8 @@ def send_gpt_request(conversation_id, message_list):
                      ] + message_list
         )
 
+        response = gpt3_response["choices"][0]["message"]["content"].strip()
+
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3: {e}")
         return
@@ -36,7 +38,7 @@ def send_gpt_request(conversation_id, message_list):
     try:
         # Store GPT-3 response as a message
         conversation = Conversation.objects.get(pk=conversation_id)
-        message = Message(conversation=conversation, content=gpt3_response, is_from_user=False)
+        message = Message(conversation=conversation, content=response, is_from_user=False)
         message.save()
     except ObjectDoesNotExist:
         logger.error(f"Conversation with id {conversation_id} does not exist")
