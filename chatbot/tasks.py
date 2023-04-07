@@ -14,7 +14,7 @@ system_prompt = "This is a conversation with an AI assistant. The assistant is h
 
 
 @shared_task
-def send_gpt_request(conversation_id, message_list):
+def send_gpt_request(conversation_id, message_list, last_user_message_id):
     try:
         openai.api_key = settings.OPENAI_API_KEY
         # Send request to GPT-3 (replace with actual GPT-3 API call)
@@ -29,17 +29,22 @@ def send_gpt_request(conversation_id, message_list):
                      ] + message_list
         )
 
-        response = gpt3_response["choices"][0]["message"]["content"].strip()
+        assistant_response = gpt3_response["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3: {e}")
         return
 
     try:
-        # Store GPT-3 response as a message
-        conversation = Conversation.objects.get(pk=conversation_id)
-        message = Message(conversation=conversation, content=response, is_from_user=False)
+        # Store GPT response as a message
+        message = Message(
+            conversation_id=conversation_id,
+            content=assistant_response,
+            is_from_user=False,
+            in_reply_to_id=last_user_message_id
+        )
         message.save()
+
     except ObjectDoesNotExist:
         logger.error(f"Conversation with id {conversation_id} does not exist")
     except Exception as e:
