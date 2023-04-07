@@ -8,6 +8,8 @@ urlpatterns = [
     path('conversations/', views.ConversationListCreate.as_view(), name='conversation-list-create'),
     # Retrieve, update, and delete a specific conversation
     path('conversations/<int:pk>/', views.ConversationDetail.as_view(), name='conversation-detail'),
+    # Favourite a conversation
+    path('conversations/<int:pk>/favourite/', views.ConversationFavourite.as_view(), name='conversation-favourite'),
     # Archive a conversation
     path('conversations/<int:pk>/archive/', views.ConversationArchive.as_view(), name='conversation-archive'),
     # End a conversation
