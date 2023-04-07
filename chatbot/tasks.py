@@ -6,7 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 logger = get_task_logger(__name__)
 
-from .models import Message, Conversation
+from .models import Message
 
 system_prompt = "This is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very " \
                 "friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you " \
@@ -32,7 +32,7 @@ def send_gpt_request(conversation_id, message_list, last_user_message_id):
         assistant_response = gpt3_response["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
-        logger.error(f"Failed to send request to GPT-3: {e}")
+        logger.error(f"Failed to send request to GPT-3.5: {e}")
         return
 
     try:
@@ -49,3 +49,4 @@ def send_gpt_request(conversation_id, message_list, last_user_message_id):
         logger.error(f"Conversation with id {conversation_id} does not exist")
     except Exception as e:
         logger.error(f"Failed to save GPT-3 response as a message: {e}")
+    return assistant_response
