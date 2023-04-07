@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from celery.result import AsyncResult
-
+from django.core.exceptions import ObjectDoesNotExist
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request
@@ -132,19 +132,41 @@ class MessageCreate(generics.CreateAPIView):
             for msg in messages
         ]
 
-        # Call the Celery task to get a response from GPT-3
-        task = send_gpt_request.apply_async(args=(conversation.id, message_list, messages[0].id))
-        response = task.get()
+        print(message_list)
 
-        # Return the task ID
-        return response
+        # Call the Celery task to get a response from GPT-3
+        task = send_gpt_request.apply_async(args=(message_list,))
+        response = task.get()
+        return [response, conversation.id, messages[0].id]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        response = self.perform_create(serializer)
+        response_list = self.perform_create(serializer)
+        assistant_response = response_list[0]
+        conversation_id = response_list[1]
+        last_user_message_id = response_list[2]
+
+        try:
+            # Store GPT response as a message
+            message = Message(
+                conversation_id=conversation_id,
+                content=assistant_response,
+                is_from_user=False,
+                in_reply_to_id=last_user_message_id
+            )
+            message.save()
+
+        except ObjectDoesNotExist:
+            error = f"Conversation with id {conversation_id} does not exist"
+            Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            error_mgs = str(e)
+            error = f"Failed to save GPT-3 response as a message: {error_mgs}"
+            Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
         headers = self.get_success_headers(serializer.data)
-        return Response({"response": response}, status=status.HTTP_200_OK, headers=headers)
+        return Response({"response": assistant_response}, status=status.HTTP_200_OK, headers=headers)
 
 
 class GPT3TaskStatus(APIView):
