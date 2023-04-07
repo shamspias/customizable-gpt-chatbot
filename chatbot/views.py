@@ -56,7 +56,10 @@ class ConversationArchive(APIView):
 
     def patch(self, request, pk):
         conversation = get_object_or_404(Conversation, id=pk, user=request.user)
-        conversation.archive = True
+        if conversation.archive:
+            conversation.archive = False
+        else:
+            conversation.archive = True
         conversation.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -68,7 +71,10 @@ class ConversationFavourite(APIView):
 
     def patch(self, request, pk):
         conversation = get_object_or_404(Conversation, id=pk, user=request.user)
-        conversation.favourite = True
+        if conversation.favourite:
+            conversation.favourite = False
+        else:
+            conversation.favourite = True
         conversation.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
