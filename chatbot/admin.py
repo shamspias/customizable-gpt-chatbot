@@ -8,7 +8,7 @@ class ConversationAdmin(admin.ModelAdmin):
     Admin site configuration for Conversation model.
     """
     list_display = ('id', 'title', 'user', 'favourite', 'archive', 'created_at', 'updated_at',)
-    list_filter = ('status', 'created_at')
+    list_filter = ('created_at', 'updated_at', 'favourite', 'archive',)
     search_fields = ('user__username', 'title',)
 
 
