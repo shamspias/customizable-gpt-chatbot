@@ -134,16 +134,17 @@ class MessageCreate(generics.CreateAPIView):
 
         # Call the Celery task to get a response from GPT-3
         task = send_gpt_request.apply_async(args=(conversation.id, message_list, messages[0].id))
+        response = task.get()
 
         # Return the task ID
-        return task.id
+        return response
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        task_id = self.perform_create(serializer)
+        response = self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({"task_id": task_id}, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({"response": response}, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class GPT3TaskStatus(APIView):
