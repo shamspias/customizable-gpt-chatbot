@@ -56,20 +56,7 @@ class ConversationArchive(APIView):
 
     def patch(self, request, pk):
         conversation = get_object_or_404(Conversation, id=pk, user=request.user)
-        conversation.status = 'archived'
-        conversation.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# End a conversation
-class ConversationEnd(APIView):
-    """
-    End a conversation.
-    """
-
-    def patch(self, request, pk):
-        conversation = get_object_or_404(Conversation, id=pk, user=request.user)
-        conversation.status = 'ended'
+        conversation.archive = True
         conversation.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
