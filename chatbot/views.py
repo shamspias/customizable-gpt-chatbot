@@ -74,6 +74,18 @@ class ConversationEnd(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class ConversationFavourite(APIView):
+    """
+    Favourite a conversation.
+    """
+
+    def patch(self, request, pk):
+        conversation = get_object_or_404(Conversation, id=pk, user=request.user)
+        conversation.favourite = True
+        conversation.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # Delete a conversation
 class ConversationDelete(APIView):
     """
