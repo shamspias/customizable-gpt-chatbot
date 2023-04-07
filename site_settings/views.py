@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, permissions
 from .models import SiteSetting, Language, Ad
 from .serializers import SiteSettingSerializer, LanguageSerializer, AdSerializer
 
@@ -9,6 +9,7 @@ class SiteSettingList(generics.ListAPIView):
     """
     queryset = SiteSetting.objects.all()
     serializer_class = SiteSettingSerializer
+    permission_classes = [permissions.AllowAny]
 
 
 class LanguageList(generics.ListAPIView):
@@ -17,6 +18,7 @@ class LanguageList(generics.ListAPIView):
     """
     queryset = Language.objects.all()
     serializer_class = LanguageSerializer
+    permission_classes = [permissions.AllowAny]
 
 
 class AdList(generics.ListAPIView):
