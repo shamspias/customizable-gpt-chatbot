@@ -12,8 +12,7 @@ urlpatterns = [
     path('conversations/<int:pk>/favourite/', views.ConversationFavourite.as_view(), name='conversation-favourite'),
     # Archive a conversation
     path('conversations/<int:pk>/archive/', views.ConversationArchive.as_view(), name='conversation-archive'),
-    # End a conversation
-    path('conversations/<int:pk>/end/', views.ConversationEnd.as_view(), name='conversation-end'),
+
     # Delete a conversation
     path('conversations/<int:pk>/delete/', views.ConversationDelete.as_view(), name='conversation-delete'),
     # List messages in a conversation
