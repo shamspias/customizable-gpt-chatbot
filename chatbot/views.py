@@ -144,7 +144,7 @@ class MessageCreate(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         response = self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({"response": response}, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({"response": response}, status=status.HTTP_200_OK, headers=headers)
 
 
 class GPT3TaskStatus(APIView):
