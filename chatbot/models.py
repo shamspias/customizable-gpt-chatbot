@@ -1,6 +1,12 @@
 from django.db import models
 from django.conf import settings
-import uuid
+import secrets
+
+
+def generate_secure_random_id():
+    min_value = 10 ** 10  # Minimum value of the range (inclusive)
+    max_value = 10 ** 11 - 1  # Maximum value of the range (exclusive)
+    return secrets.randbelow(max_value - min_value) + min_value
 
 
 class Conversation(models.Model):
@@ -13,7 +19,7 @@ class Conversation(models.Model):
         ('ended', 'Ended'),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.BigIntegerField(primary_key=True, default=generate_secure_random_id, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
