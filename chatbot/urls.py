@@ -19,4 +19,6 @@ urlpatterns = [
     path('conversations/<int:conversation_id>/messages/', views.MessageList.as_view(), name='message-list'),
     # Create a message in a conversation
     path('conversations/<int:conversation_id>/messages/create/', views.MessageCreate.as_view(), name='message-create'),
+    # async gpt task
+    path('conversations/task/<str:task_id>/', views.GPT3TaskStatus.as_view(), name='gpt_task_status'),
 ]
