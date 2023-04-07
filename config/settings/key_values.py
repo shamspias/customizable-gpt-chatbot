@@ -58,8 +58,8 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
-X_FRAME_OPTIONS = 'DENY'
-
+X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
+SECURE_BROWSER_XSS_FILTER = bool(os.getenv('SECURE_BROWSER_XSS_FILTER', True))
 # GENERALS
 APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
 
