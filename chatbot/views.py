@@ -58,10 +58,12 @@ class ConversationArchive(APIView):
         conversation = get_object_or_404(Conversation, id=pk, user=request.user)
         if conversation.archive:
             conversation.archive = False
+            conversation.save()
+            return Response({"message": "remove from archive"}, status=status.HTTP_200_OK)
         else:
             conversation.archive = True
-        conversation.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            conversation.save()
+            return Response({"message": "add to archive"}, status=status.HTTP_200_OK)
 
 
 class ConversationFavourite(APIView):
@@ -73,10 +75,12 @@ class ConversationFavourite(APIView):
         conversation = get_object_or_404(Conversation, id=pk, user=request.user)
         if conversation.favourite:
             conversation.favourite = False
+            conversation.save()
+            return Response({"message": "remove from favourite"}, status=status.HTTP_200_OK)
         else:
             conversation.favourite = True
-        conversation.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            conversation.save()
+            return Response({"message": "add to favourite"}, status=status.HTTP_200_OK)
 
 
 # Delete a conversation
