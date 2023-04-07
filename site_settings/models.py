@@ -21,6 +21,7 @@ class SiteSetting(models.Model):
     """
     title = models.CharField(max_length=200)
     logo = models.ImageField(upload_to='site_logo/')
+    prompt = models.TextField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Site Settings"
