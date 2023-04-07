@@ -25,7 +25,8 @@ class Conversation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     favourite = models.BooleanField(default=False)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    archive = models.BooleanField(default=False)
+    # status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
 
     def __str__(self):
         return f"Conversation {self.title} - {self.user.username}"
