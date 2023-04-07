@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import UserRegistrationSerializer, UserProfileSerializer
 from .tasks import send_forgot_password_email
 from django.contrib.auth import get_user_model
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from social_django.utils import load_strategy
 from rest_framework import permissions
 from rest_framework import status
@@ -140,7 +140,7 @@ class UserRegistrationView(generics.CreateAPIView):
         user = serializer.save()
 
         # Generate tokens for the user
-        app = Application.objects.get(name=settings.APPLICATION_NAME)
+        app = get_object_or_404(Application, name=settings.APPLICATION_NAME)
         access_token = generate_token()
         refresh_token = generate_token()
 
@@ -164,7 +164,7 @@ class UserRegistrationView(generics.CreateAPIView):
             'refresh_token': refresh_token
         }
 
-        context = user.__dict__
+        context = serializer.data.copy()
         context.update(tokens)
 
         return Response(context, status=status.HTTP_201_CREATED)
