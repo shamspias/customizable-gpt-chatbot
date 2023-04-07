@@ -29,6 +29,7 @@ class Message(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_from_user = models.BooleanField(default=True)
+    in_reply_to = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='replies')
 
     class Meta:
         ordering = ['-created_at']
