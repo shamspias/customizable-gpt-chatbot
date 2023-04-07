@@ -3,11 +3,17 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
 
+from site_settings.models import SiteSetting
+
 logger = get_task_logger(__name__)
 
-system_prompt = "This is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very " \
-                "friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you " \
-                "today?\n\n"
+# Get system prompt from site settings
+try:
+    system_prompt_obj = SiteSetting.objects.first()
+    system_prompt = system_prompt_obj.prompt
+except Exception as e:
+    system_prompt = "You are sonic you can do anything you want."
+    logger.error(f"Failed to get system prompt from site settings: {e}")
 
 
 @shared_task
