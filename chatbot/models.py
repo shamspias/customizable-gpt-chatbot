@@ -20,13 +20,15 @@ class Conversation(models.Model):
     ]
 
     id = models.BigIntegerField(primary_key=True, default=generate_secure_random_id, editable=False)
+    title = models.CharField(max_length=255, default="Empty")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    favourite = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
 
     def __str__(self):
-        return f"Conversation {self.id} - {self.user.username}"
+        return f"Conversation {self.title} - {self.user.username}"
 
 
 class Message(models.Model):
