@@ -55,7 +55,7 @@ class ConversationArchive(APIView):
     """
 
     def patch(self, request, pk):
-        conversation = get_object_or_404(Conversation, id=pk, user=request.user)
+        conversation = get_object_or_404(Conversation, conversation_id=pk, user=request.user)
         conversation.status = 'archived'
         conversation.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -68,7 +68,7 @@ class ConversationEnd(APIView):
     """
 
     def patch(self, request, pk):
-        conversation = get_object_or_404(Conversation, id=pk, user=request.user)
+        conversation = get_object_or_404(Conversation, conversation_id=pk, user=request.user)
         conversation.status = 'ended'
         conversation.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -81,7 +81,7 @@ class ConversationDelete(APIView):
     """
 
     def delete(self, request, pk):
-        conversation = get_object_or_404(Conversation, id=pk, user=request.user)
+        conversation = get_object_or_404(Conversation, conversation_id=pk, user=request.user)
         conversation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -107,7 +107,8 @@ class MessageCreate(generics.CreateAPIView):
     serializer_class = MessageSerializer
 
     def perform_create(self, serializer):
-        conversation = get_object_or_404(Conversation, id=self.kwargs['conversation_id'], user=self.request.user)
+        conversation = get_object_or_404(Conversation, conversation_id=self.kwargs['conversation_id'],
+                                         user=self.request.user)
         serializer.save(conversation=conversation, is_from_user=True)
 
         # Retrieve the last 10 messages from the conversation
@@ -123,4 +124,4 @@ class MessageCreate(generics.CreateAPIView):
         ]
 
         # Call the Celery task to get a response from GPT-3
-        send_gpt_request.delay(conversation.id, message_list, messages[0].id)
+        send_gpt_request.delay(conversation.conversation_id, message_list, messages[0].id)
