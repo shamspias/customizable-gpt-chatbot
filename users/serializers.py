@@ -1,12 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from oauth2_provider.models import get_application_model
-from oauthlib.common import generate_token
-from oauth2_provider.settings import oauth2_settings
-from oauth2_provider.models import AccessToken, RefreshToken
-from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
 
 Application = get_application_model()
 User = get_user_model()
