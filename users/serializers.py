@@ -20,7 +20,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'first_name', 'last_name']
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'phone_number', 'address',
+                  'profile_picture']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
