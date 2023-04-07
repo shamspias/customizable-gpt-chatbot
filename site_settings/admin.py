@@ -16,7 +16,7 @@ class SiteSettingAdmin(admin.ModelAdmin):
     """
     Admin site configuration for SiteSetting model.
     """
-    list_display = ('title', 'logo',)
+    list_display = ('title', 'logo', 'prompt',)
     search_fields = ('title',)
 
 
