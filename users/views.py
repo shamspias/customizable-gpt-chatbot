@@ -164,7 +164,10 @@ class UserRegistrationView(generics.CreateAPIView):
             'refresh_token': refresh_token
         }
 
-        return Response(tokens)
+        context = user.__dict__
+        context.update(tokens)
+
+        return Response(context, status=status.HTTP_201_CREATED)
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
