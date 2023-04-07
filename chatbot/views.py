@@ -132,7 +132,8 @@ class MessageCreate(generics.CreateAPIView):
         ]
 
         # Call the Celery task to get a response from GPT-3
-        response = send_gpt_request.delay(conversation.id, message_list, messages[0].id)
+        task = send_gpt_request.apply_async(args=(conversation.id, message_list, messages[0].id))
+        response = task.get()
 
         return response
 
