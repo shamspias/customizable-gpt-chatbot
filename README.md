@@ -16,20 +16,21 @@ A Django-based intelligent chatbot with customizable learning and multi-language
 - Django & Django Rest Framework
 - Celery
 - Hugging Face's transformers library
-- NLTK/spaCy
+- Embedding Model
+- Vector Database
 - OpenAI GPT-3 & Whisper
 
 ## Requirements
-- Python 3.6 or above
-- Django 3.1 or above
+- Python 3.8 or above
+- Django 3.2 or above
 - Hugging Face's transformers library
-- NLTK or spaCy
+- Pinecone API Key
 - API key from OpenAI
 
 ## How to run
 - Clone the repository.
 - Install the required packages by running `pip install -r requirements.txt`
-- Run celery `celery -A customizableGpt3Chatbot worker --loglevel=info`
+- Run celery `celery -A config worker --loglevel=info`
 - Run the command `python manage.py runserver`
 - Open `http://127.0.0.1:8000/` in your browser
 
