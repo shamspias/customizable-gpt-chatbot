@@ -126,23 +126,23 @@ CSRF_COOKIE_NAME = os.getenv('CSRF_COOKIE_NAME', "csrftoken")
 # CORS_ALLOW_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS')
 # CORS_ALLOW_ORIGINS = CORS_ALLOW_ORIGINS.split(',')
 # CORS_ALLOWED_ORIGINS = CORS_ALLOW_ORIGINS
+# #
+# CORS_ALLOW_METHODS = (
+#     'GET',
+#     'POST',
+#     'PUT',
+#     'PATCH',
+#     'DELETE',
+#     'OPTIONS'
+# )
 #
-CORS_ALLOW_METHODS = (
-    'GET',
-    'POST',
-    'PUT',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
-)
-
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'X-CSRFToken',
-]
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-
-X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
-SECURE_BROWSER_XSS_FILTER = bool(os.getenv('SECURE_BROWSER_XSS_FILTER', True))
+# CORS_ALLOW_HEADERS = list(default_headers) + [
+#     'X-CSRFToken',
+# ]
+# CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+#
+# X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
+# SECURE_BROWSER_XSS_FILTER = bool(os.getenv('SECURE_BROWSER_XSS_FILTER', True))
 # GENERALS
 APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
 
