@@ -142,13 +142,13 @@ CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGIN
 #     'OPTIONS'
 # )
 #
-# CORS_ALLOW_HEADERS = list(default_headers) + [
-#     'X-CSRFToken',
-# ]
-# CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-#
-# X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
-# SECURE_BROWSER_XSS_FILTER = bool(os.getenv('SECURE_BROWSER_XSS_FILTER', True))
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'X-CSRFToken',
+]
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+
+X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
+SECURE_BROWSER_XSS_FILTER = bool(os.getenv('SECURE_BROWSER_XSS_FILTER', True))
 # GENERALS
 APPEND_SLASH = bool(os.getenv('APPEND_SLASH', True))
 
