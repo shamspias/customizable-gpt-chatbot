@@ -1,4 +1,11 @@
-import openai
+import pickle
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS as FISS
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import (
+    SystemMessage
+)
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -15,24 +22,33 @@ except Exception as e:
     system_prompt = "You are sonic you can do anything you want."
     logger.error(f"Failed to get system prompt from site settings: {e}")
 
+embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
+chat = ChatOpenAI(temperature=0, openai_api_key=settings.OPENAI_API_KEY)
+
+
+class FAISS(FISS):
+    """
+    FAISS is a vector store that uses the FAISS library to store and search vectors.
+    """
+
+    def save(self, file_path):
+        with open(file_path, "wb") as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(file_path):
+        with open(file_path, "rb") as f:
+            return pickle.load(f)
+
 
 @shared_task
 def send_gpt_request(message_list):
     try:
-        openai.api_key = settings.OPENAI_API_KEY
-        # Send request to GPT-3 (replace with actual GPT-3 API call)
-        gpt3_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                         {"role": "system",
-                          "content": system_prompt},
-                         {"role": "user", "content": "Who are you?"},
-                         {"role": "assistant",
-                          "content": "I am the sonic powered by ChatGpt.Contact me sonic@deadlyai.com"},
-                     ] + message_list
-        )
+        messages = [
+                       SystemMessage(content=system_prompt)
+                   ] + message_list
 
-        assistant_response = gpt3_response["choices"][0]["message"]["content"].strip()
+        assistant_response = chat(messages).content
 
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3.5: {e}")
