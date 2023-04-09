@@ -18,3 +18,4 @@ django-storages
 boto3
 pycurl
 pillow
+langchain
