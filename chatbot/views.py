@@ -5,6 +5,11 @@ from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
+from langchain.schema import (
+    AIMessage,
+    HumanMessage,
+)
+
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request
@@ -124,15 +129,20 @@ class MessageCreate(generics.CreateAPIView):
         messages = Message.objects.filter(conversation=conversation).order_by('-created_at')[:10][::-1]
 
         # Build the list of dictionaries containing the message data
-        message_list = [
-            {
-                "role": "user" if msg.is_from_user else "assistant",
-                "content": msg.content
-            }
-            for msg in messages
-        ]
+        # message_list = [
+        #     {
+        #         "role": "user" if msg.is_from_user else "assistant",
+        #         "content": msg.content
+        #     }
+        #     for msg in messages
+        # ]
 
-        print(message_list)
+        message_list = []
+        for msg in messages:
+            if msg.is_from_user:
+                message_list.append(HumanMessage(content=msg.content))
+            else:
+                message_list.append(AIMessage(content=msg.content))
 
         # Call the Celery task to get a response from GPT-3
         task = send_gpt_request.apply_async(args=(message_list,))
