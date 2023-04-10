@@ -3,7 +3,8 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS as FISS
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import (
-    SystemMessage
+    SystemMessage,
+    HumanMessage,
 )
 
 from celery import shared_task
@@ -44,6 +45,16 @@ class FAISS(FISS):
 @shared_task
 def send_gpt_request(message_list):
     try:
+        # Add extra text to the content of the last message
+        information_source_text = " This is the extra text."
+        last_message = message_list[-1]
+        updated_content = last_message.content + information_source_text
+
+        # Create a new HumanMessage object with the updated content
+        updated_message = HumanMessage(content=updated_content)
+
+        # Replace the last message in message_list with the updated message
+        message_list[-1] = updated_message
         messages = [
                        SystemMessage(content=system_prompt)
                    ] + message_list
