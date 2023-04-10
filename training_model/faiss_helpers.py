@@ -20,6 +20,10 @@ class FAISS(FISS):
         with open(file_path, "wb") as f:
             pickle.dump(self, f)
 
+    def add_vectors(self, new_embeddings):
+        # Assuming self.index is the faiss index instance
+        self.index.add(new_embeddings)
+
 
 def get_loader(file_path):
     mime_type, _ = mimetypes.guess_type(file_path)
@@ -49,7 +53,7 @@ def build_or_update_faiss_index(file_path, index_name):
         new_embeddings = FAISS.from_documents(pages, embeddings, index_name=index_name)
 
         # Add the new embeddings to the existing index
-        faiss_index.add(new_embeddings)
+        faiss_index.add_vectors(new_embeddings)
         faiss_index.save(faiss_obj_path)
     else:
         # Build and save the FAISS object
