@@ -1,6 +1,6 @@
 import pickle
 import os
-from langchain.embeddings import OpenAIEmbeddings
+
 from langchain.vectorstores import FAISS as FISS
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import (
@@ -24,7 +24,7 @@ except Exception as e:
     system_prompt = "You are sonic you can do anything you want."
     logger.error(f"Failed to get system prompt from site settings: {e}")
 
-embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
+
 chat = ChatOpenAI(temperature=0, openai_api_key=settings.OPENAI_API_KEY)
 
 
