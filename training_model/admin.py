@@ -20,9 +20,13 @@ class DocumentAdmin(admin.ModelAdmin):
             return HttpResponseRedirect("train/")
         return super().response_change(request, obj)
 
-    def train_view(self, request):
+    def train_view(self, request, object_id):
+        document = Document.objects.get(pk=object_id)
+        file_path = document.file.path
+        index_name = document.index_name
+
         # Load and process files
-        build_faiss_index()
+        build_faiss_index(file_path, index_name)
 
         self.message_user(request, 'Training complete. The FAISS index has been created.')
         return HttpResponseRedirect("../")
