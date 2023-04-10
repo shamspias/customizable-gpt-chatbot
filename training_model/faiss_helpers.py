@@ -1,7 +1,6 @@
 import os
 import pickle
-import faiss
-from .models import Document
+import mimetypes
 from langchain.document_loaders.csv_loader import CSVLoader
 from langchain.document_loaders import UnstructuredWordDocumentLoader
 from langchain.document_loaders import PyPDFLoader
@@ -22,10 +21,23 @@ class FAISS(FISS):
             pickle.dump(self, f)
 
 
+def get_loader(file_path):
+    mime_type, _ = mimetypes.guess_type(file_path)
+
+    if mime_type == 'application/pdf':
+        return PyPDFLoader(file_path)
+    elif mime_type == 'text/csv':
+        return CSVLoader(file_path)
+    elif mime_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+        return UnstructuredWordDocumentLoader(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {mime_type}")
+
+
 def build_or_update_faiss_index(file_path, index_name):
     faiss_obj_path = os.path.join(settings.BASE_DIR, "models", "{}.pickle".format(index_name))
 
-    loader = CSVLoader(file_path)
+    loader = get_loader(file_path)
     pages = loader.load_and_split()
 
     if os.path.exists(faiss_obj_path):
