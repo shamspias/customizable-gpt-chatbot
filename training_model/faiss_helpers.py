@@ -22,19 +22,27 @@ class FAISS(FISS):
             pickle.dump(self, f)
 
 
-def build_faiss_index(index_name):
+def build_or_update_faiss_index(file_path, index_name):
     faiss_obj_path = os.path.join(settings.BASE_DIR, "models", "{}.pickle".format(index_name))
+
+    loader = CSVLoader(file_path)
+    pages = loader.load_and_split()
 
     if os.path.exists(faiss_obj_path):
         # Load the FAISS object from disk
-        faiss_index = faiss.read_index(faiss_obj_path)
+        with open(faiss_obj_path, "rb") as f:
+            faiss_index = pickle.load(f)
+
+        # make new embeddings
+        new_embeddings = FAISS.from_documents(pages, embeddings, index_name=index_name)
+
+        # Add the new embeddings to the existing index
+        faiss_index.add(new_embeddings)
+        faiss_index.save(faiss_obj_path)
     else:
         # Build and save the FAISS object
 
-        loader = CSVLoader("data/database.csv")
-        pages = loader.load_and_split()
-
-        faiss_index = FAISS.from_documents(pages, embeddings, index_name="vegan")
+        faiss_index = FAISS.from_documents(pages, embeddings, index_name=index_name)
         faiss_index.save(faiss_obj_path)
 
     return faiss_index
