@@ -31,7 +31,7 @@ class Document(models.Model):
     file = models.FileField(upload_to=dynamic_upload_to)
     index_name = models.CharField(max_length=255)
     storage_type = models.CharField(max_length=255, choices=CHOICES)
-    trained = models.BooleanField(default=False)
+    is_trained = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
