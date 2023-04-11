@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.http import HttpResponseRedirect, HttpResponse
-from django.urls import path, reverse_lazy
+from django.shortcuts import redirect
+from django.urls import path, reverse_lazy, reverse
 from django.utils.html import format_html
 
 from django.contrib.auth import get_user_model
@@ -60,7 +61,8 @@ class DocumentAdmin(admin.ModelAdmin):
         build_or_update_pinecone_index(file_path, index_name, namespace)
         self.message_user(request, 'Training complete. The Pinecone index has been created.')
 
-        return HttpResponse('<script>window.location.href = "../";</script>')
+        change_url = reverse('admin:training_model_document_change', args=[object_id])
+        return HttpResponseRedirect(change_url)
 
 
 admin.site.register(Document, DocumentAdmin)
