@@ -1,0 +1,10 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    {% block custom_buttons %}
+        <div class="submit-row">
+            <input type="submit" value="Train" name="_train" class="default"/>
+        </div>
+    {% endblock %}
+{% endblock %}
