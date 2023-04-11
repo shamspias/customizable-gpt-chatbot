@@ -20,12 +20,12 @@ class DocumentAdmin(admin.ModelAdmin):
     change_form_template = 'admin/training_model/document/change_form.html'
 
     def train_button(self, obj):
-        return format_html('<a class="button" href="{}">{}</a>', f"{obj.pk}/train/", "Train")
+        return format_html('<a class="button" href="{}">{}</a>', f"{obj.pk}/change/train/", "Train")
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view), name='train'),
+            path('<int:object_id>/change/train/', self.admin_site.admin_view(self.train_view), name='train'),
         ]
         return custom_urls + urls
 
