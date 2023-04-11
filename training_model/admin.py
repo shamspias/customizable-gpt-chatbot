@@ -28,7 +28,7 @@ class DocumentAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         if "_train" in request.POST:
-            train_url = reverse('admin:training_model', args=[obj.pk])
+            train_url = reverse('admin:train_model', args=[obj.pk])
             return HttpResponseRedirect(train_url)
         return super().response_change(request, obj)
 
