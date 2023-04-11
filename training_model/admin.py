@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.http import HttpResponseRedirect
-from django.urls import path
+from django.urls import path, reverse
 from django.contrib.auth import get_user_model
 from .models import Document
 
@@ -22,13 +22,14 @@ class DocumentAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view), name='train'),
+            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view), name='train_model'),
         ]
         return custom_urls + urls
 
     def response_change(self, request, obj):
         if "_train" in request.POST:
-            return HttpResponseRedirect(f"../{obj.pk}/train/")
+            train_url = reverse('admin:training_model', args=[obj.pk])
+            return HttpResponseRedirect(train_url)
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
