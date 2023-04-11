@@ -9,10 +9,13 @@ from langchain.schema import (
     AIMessage,
     HumanMessage,
 )
+from django.contrib.auth import get_user_model
 
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request
+
+User = get_user_model()
 
 
 class LastMessagesPagination(LimitOffsetPagination):
@@ -144,8 +147,10 @@ class MessageCreate(generics.CreateAPIView):
             else:
                 message_list.append(AIMessage(content=msg.content))
 
+        name_space = User.objects.get(id=self.request.user.id).username
+
         # Call the Celery task to get a response from GPT-3
-        task = send_gpt_request.apply_async(args=(message_list,))
+        task = send_gpt_request.apply_async(args=(message_list, name_space))
         response = task.get()
         return [response, conversation.id, messages[0].id]
 
