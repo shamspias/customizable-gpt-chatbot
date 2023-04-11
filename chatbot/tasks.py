@@ -86,15 +86,15 @@ def get_pinecone_index(index_name, name_space):
 
 
 @shared_task
-def send_gpt_request(message_list, name_space):
+def send_gpt_request(messages, name_space):
     try:
 
-        messages = [SystemMessage(content=system_prompt)]
-        for msg in message_list:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
+        message_list = []
+        for msg in messages:
+            if msg.is_from_user:
+                message_list.append(HumanMessage(content=msg.content))
             else:
-                messages.append(AIMessage(content=msg["content"]))
+                message_list.append(AIMessage(content=msg.content))
         # Load the FAISS index
         # base_index = get_faiss_index("buffer_salaries")
 
