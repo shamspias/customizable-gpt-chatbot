@@ -13,6 +13,10 @@ User = get_user_model()
 
 
 class TrainView(View):
+    """
+    View to train a Pinecone index
+    """
+
     def get(self, request, object_id):
         # Check if user is staff or superuser
         if not request.user.is_staff and not request.user.is_superuser:
