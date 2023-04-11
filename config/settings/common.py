@@ -31,6 +31,7 @@ LOCAL_APPS = [
     'chatbot.apps.ChatbotConfig',
     'users.apps.UsersConfig',
     'site_settings.apps.SiteSettingsConfig',
+    'training_model.apps.TrainingModelConfig',
 
 ]
 
