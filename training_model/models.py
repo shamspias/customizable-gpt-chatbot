@@ -22,9 +22,9 @@ class Document(models.Model):
 
     def save(self, *args, **kwargs):
         if self.storage_type == 'FAISS':
-            self.file.upload_to = upload_to_faiss
+            self.file.upload_to = upload_to_faiss(self.file.name)
         else:
-            self.file.upload_to = upload_to_pinecone
+            self.file.upload_to = upload_to_pinecone(self.file.name)
         super().save(*args, **kwargs)
 
     def __str__(self):
