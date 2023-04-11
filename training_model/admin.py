@@ -1,8 +1,15 @@
 from django.contrib import admin
 from django.http import HttpResponseRedirect
 from django.urls import path
+from django.contrib.auth import get_user_model
 from .models import Document
-from .faiss_helpers import build_or_update_faiss_index
+
+from .pinecone_helpers import build_or_update_pinecone_index
+
+# from .faiss_helpers import build_or_update_faiss_index
+
+
+User = get_user_model()
 
 
 class DocumentAdmin(admin.ModelAdmin):
@@ -24,11 +31,18 @@ class DocumentAdmin(admin.ModelAdmin):
         document = Document.objects.get(pk=object_id)
         file_path = document.file.path
         index_name = document.index_name
+        namespace = User.objects.get(pk=request.user.id).username
 
-        # Load and process files
-        build_or_update_faiss_index(file_path, index_name)
+        # Load and process files`
 
-        self.message_user(request, 'Training complete. The FAISS index has been created.')
+        # FAISS
+        # build_or_update_faiss_index(file_path, index_name)
+        # self.message_user(request, 'Training complete. The FAISS index has been created.')
+
+        # Pinecone
+        build_or_update_pinecone_index(file_path, index_name, namespace)
+        self.message_user(request, 'Training complete. The Pinecone index has been created.')
+
         return HttpResponseRedirect("../")
 
 
