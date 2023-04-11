@@ -12,9 +12,10 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_SECRET')
 # Open AI key
 OPENAI_API_KEY = os.getenv('OPEN_AI_KEY')
 
-# Pinecone key
-# PINECONE_KEY = os.getenv('PINECONE_KEY')
-
+# Pinecone
+PINECONE_KEY = os.getenv('PINECONE_KEY')
+PINECONE_ENVIRONMENT = os.getenv('PINECONE_ENVIRONMENT')
+PINECONE_INDEX_NAME = os.getenv('PINECONE_INDEX_NAME')
 
 # Admin Site Config
 ADMIN_SITE_HEADER = os.getenv('ADMIN_SITE_HEADER')
