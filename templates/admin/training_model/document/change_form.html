@@ -1,8 +1,6 @@
 {% extends 'admin/change_form.html' %}
 
-{% load admin_urls %}
-
 {% block submit_buttons_bottom %}
-    <a href="{% url opts|admin_urlname:'train' object_id %}" class="button">Train</a>
+    <input type="submit" value="Train" name="_train" />
     {{ block.super }}
 {% endblock %}
