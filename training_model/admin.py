@@ -29,7 +29,8 @@ class DocumentAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view), name='train_model'),
+            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view),
+                 name='training_model_document_train'),
         ]
         return custom_urls + urls
 
