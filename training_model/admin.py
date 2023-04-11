@@ -13,7 +13,8 @@ User = get_user_model()
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'index_name', 'file', 'storage_type', 'uploaded_at')
+    list_display = ('id', 'index_name', 'file', 'storage_type', 'is_trained', 'uploaded_at')
+    list_filter = ('storage_type', 'is_trained')
     search_fields = ('file', 'index_name', 'storage_type')
 
     change_form_template = 'admin/training_model/document/change_form.html'
