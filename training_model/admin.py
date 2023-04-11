@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import path, reverse_lazy
 from django.utils.html import format_html
 
@@ -60,7 +60,7 @@ class DocumentAdmin(admin.ModelAdmin):
         build_or_update_pinecone_index(file_path, index_name, namespace)
         self.message_user(request, 'Training complete. The Pinecone index has been created.')
 
-        return HttpResponseRedirect("../")
+        return HttpResponse('<script>window.location.href = "../";</script>')
 
 
 admin.site.register(Document, DocumentAdmin)
