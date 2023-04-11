@@ -131,26 +131,27 @@ class MessageCreate(generics.CreateAPIView):
         # Retrieve the last 10 messages from the conversation
         messages = Message.objects.filter(conversation=conversation).order_by('-created_at')[:10][::-1]
 
-        # # Build the list of dictionaries containing the message data
-        # message_list = []
-        # for msg in messages:
-        #     if msg.is_from_user:
-        #         message_list.append({"role": "user", "content": msg.content})
-        #     else:
-        #         message_list.append({"role": "assistant", "content": msg.content})
+        # Build the list of dictionaries containing the message data
+        # message_list = [
+        #     {
+        #         "role": "user" if msg.is_from_user else "assistant",
+        #         "content": msg.content
+        #     }
+        #     for msg in messages
+        # ]
 
-        # message_list = []
-        # for msg in messages:
-        #     if msg.is_from_user:
-        #         message_list.append(HumanMessage(content=msg.content))
-        #     else:
-        #         message_list.append(AIMessage(content=msg.content))
+        message_list = []
+        for msg in messages:
+            if msg.is_from_user:
+                message_list.append(HumanMessage(content=msg.content))
+            else:
+                message_list.append(AIMessage(content=msg.content))
 
         name_space = User.objects.get(id=self.request.user.id).username
 
         # Call the Celery task to get a response from GPT-3
-        task = send_gpt_request.apply_async(args=(messages, name_space))
-        print("JSON Issue")
+        task = send_gpt_request.apply_async(args=(message_list, name_space))
+
         response = task.get()
         return [response, conversation.id, messages[0].id]
 
