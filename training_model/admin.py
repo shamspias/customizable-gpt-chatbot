@@ -13,7 +13,7 @@ User = get_user_model()
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    change_form_template = 'admin/your_app_name/document/change_form.html'
+    change_form_template = 'admin/training_model/document/change_form.html'
 
     def get_urls(self):
         urls = super().get_urls()
