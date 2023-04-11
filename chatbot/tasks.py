@@ -13,6 +13,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import (
     SystemMessage,
     HumanMessage,
+    AIMessage,
 )
 
 from celery import shared_task
@@ -87,6 +88,13 @@ def get_pinecone_index(index_name, name_space):
 @shared_task
 def send_gpt_request(message_list, name_space):
     try:
+
+        messages = [SystemMessage(content=system_prompt)]
+        for msg in message_list:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            else:
+                messages.append(AIMessage(content=msg["content"]))
         # Load the FAISS index
         # base_index = get_faiss_index("buffer_salaries")
 
