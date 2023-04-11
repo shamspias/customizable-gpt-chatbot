@@ -125,7 +125,7 @@ class PineconeIndexManager:
         self.pinecone_manager.delete_index(self.index_name)
 
 
-def build_or_update_pinecone_index(index_name, name_space, file_path):
+def build_or_update_pinecone_index(file_path, index_name, name_space):
     """
     This function is used to build or update the Pinecone Index
     """
