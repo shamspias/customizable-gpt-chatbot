@@ -1,7 +1,17 @@
 import pickle
 import os
 
-from langchain.vectorstores import FAISS as FISS
+# from langchain.vectorstores import FAISS as BaseFAISS
+from training_model.pinecone_helpers import (
+    PineconeManager,
+    PineconeIndexManager,
+    PINECONE_ENVIRONMENT,
+    PINECONE_INDEX_NAME,
+    PINECONE_API_KEY,
+    embeddings,
+)
+from langchain.vectorstores import Pinecone
+
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import (
     SystemMessage,
@@ -24,51 +34,67 @@ except Exception as e:
     system_prompt = "You are sonic you can do anything you want."
     logger.error(f"Failed to get system prompt from site settings: {e}")
 
-
 chat = ChatOpenAI(temperature=0, openai_api_key=settings.OPENAI_API_KEY)
 
 
-class FAISS(FISS):
-    """
-    FAISS is a vector store that uses the FAISS library to store and search vectors.
-    """
+#
+# class FAISS(BaseFAISS):
+#     """
+#     FAISS is a vector store that uses the FAISS library to store and search vectors.
+#     """
+#
+#     def save(self, file_path):
+#         with open(file_path, "wb") as f:
+#             pickle.dump(self, f)
+#
+#     @staticmethod
+#     def load(file_path):
+#         with open(file_path, "rb") as f:
+#             return pickle.load(f)
 
-    def save(self, file_path):
-        with open(file_path, "wb") as f:
-            pickle.dump(self, f)
+#
+# def get_faiss_index(index_name):
+#     faiss_obj_path = os.path.join(settings.BASE_DIR, "models", "{}.pickle".format(index_name))
+#
+#     if os.path.exists(faiss_obj_path):
+#         # Load the FAISS object from disk
+#         try:
+#             faiss_index = FAISS.load(faiss_obj_path)
+#             return faiss_index
+#         except Exception as e:
+#             logger.error(f"Failed to load FAISS index: {e}")
+#             return None
 
-    @staticmethod
-    def load(file_path):
-        with open(file_path, "rb") as f:
-            return pickle.load(f)
+def get_pinecone_index(index_name, name_space):
+    pinecone_manager = PineconeManager(PINECONE_API_KEY, PINECONE_ENVIRONMENT)
+    pinecone_index_manager = PineconeIndexManager(pinecone_manager, index_name)
 
+    try:
+        pinecone_index = Pinecone.from_existing_index(index_name=pinecone_index_manager.index_name,
+                                                      namespace=name_space, embedding=embeddings)
+        return pinecone_index
 
-def get_faiss_index(index_name):
-    faiss_obj_path = os.path.join(settings.BASE_DIR, "models", "{}.pickle".format(index_name))
-
-    if os.path.exists(faiss_obj_path):
-        # Load the FAISS object from disk
-        try:
-            faiss_index = FAISS.load(faiss_obj_path)
-            return faiss_index
-        except Exception as e:
-            logger.error(f"Failed to load FAISS index: {e}")
-            return None
+    except Exception as e:
+        logger.error(f"Failed to load Pinecone index: {e}")
+        return None
 
 
 @shared_task
-def send_gpt_request(message_list):
+def send_gpt_request(message_list, name_space):
     try:
         # Load the FAISS index
-        faiss_index = get_faiss_index("buffer_salaries")
+        # base_index = get_faiss_index("buffer_salaries")
 
-        if faiss_index:
+        # Load the Pinecone index
+        base_index = get_pinecone_index(PINECONE_INDEX_NAME, name_space)
+
+        if base_index:
             # Add extra text to the content of the last message
             last_message = message_list[-1]
 
             # Get the most similar documents to the last message
             try:
-                docs = faiss_index.similarity_search(query=last_message.content, k=2)
+                docs = base_index.similarity_search(query=last_message.content, k=2)
 
                 updated_content = last_message.content + "\n\n"
                 for doc in docs:
