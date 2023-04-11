@@ -5,13 +5,10 @@ import os
 from training_model.pinecone_helpers import (
     PineconeManager,
     PineconeIndexManager,
-    PINECONE_ENVIRONMENT,
-    PINECONE_INDEX_NAME,
-    PINECONE_API_KEY,
     embeddings,
 )
 from langchain.vectorstores import Pinecone
-
+from langchain.embeddings import OpenAIEmbeddings
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import (
     SystemMessage,
@@ -34,7 +31,13 @@ except Exception as e:
     system_prompt = "You are sonic you can do anything you want."
     logger.error(f"Failed to get system prompt from site settings: {e}")
 
-chat = ChatOpenAI(temperature=0, openai_api_key=settings.OPENAI_API_KEY)
+PINECONE_API_KEY = settings.PINECONE_API_KEY
+PINECONE_ENVIRONMENT = settings.PINECONE_ENVIRONMENT
+PINECONE_INDEX_NAME = settings.PINECONE_INDEX_NAME
+OPENAI_API_KEY = settings.OPENAI_API_KEY
+
+chat = ChatOpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
+embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 
 
 #
