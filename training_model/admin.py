@@ -35,6 +35,9 @@ class DocumentAdmin(admin.ModelAdmin):
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
+        print(object_id)
+        print('------------------')
+
         document = Document.objects.get(pk=object_id)
         file_path = document.file.path
         index_name = document.index_name
@@ -47,6 +50,10 @@ class DocumentAdmin(admin.ModelAdmin):
         # self.message_user(request, 'Training complete. The FAISS index has been created.')
 
         # Pinecone
+        print(object_id)
+        print('------------------')
+        print(file_path, index_name, namespace)
+        print('------------------')
         build_or_update_pinecone_index(file_path, index_name, namespace)
         self.message_user(request, 'Training complete. The Pinecone index has been created.')
 
