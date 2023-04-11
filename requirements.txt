@@ -7,7 +7,6 @@ django-oauth-toolkit
 social-auth-app-django
 django-rest-auth
 django-cors-headers
-openai
 python-dotenv
 django-celery-results
 redis
@@ -21,3 +20,5 @@ pillow
 langchain
 pinecone-client
 bs4
+tiktoken
+pypdf
