@@ -1,52 +1,50 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.views import View
+from django.urls import reverse
+from django.contrib import messages
 import requests
 import tempfile
 import os
 from django.contrib.auth import get_user_model
 from .models import Document
-
 from .pinecone_helpers import build_or_update_pinecone_index
-
-# from .faiss_helpers import build_or_update_faiss_index
-
 
 User = get_user_model()
 
 
-def train_view(request, object_id):
-    document = Document.objects.get(pk=object_id)
-    print(object_id)
-    print('------------------')
+class TrainView(View):
+    def get(self, request, object_id):
+        # Check if user is staff or superuser
+        if not request.user.is_staff and not request.user.is_superuser:
+            return HttpResponseForbidden("You don't have permission to access this page.")
 
-    document = Document.objects.get(pk=object_id)
-    index_name = document.index_name
-    namespace = User.objects.get(pk=request.user.id).username
+        document = Document.objects.get(pk=object_id)
+        index_name = document.index_name
+        namespace = User.objects.get(pk=request.user.id).username
 
-    # Download the file and save it to a temporary directory
-    file_url = document.file.url
-    response = requests.get(file_url)
-    temp_dir = tempfile.mkdtemp()
-    file_name = os.path.join(temp_dir, os.path.basename(file_url))
+        # Download the file and save it to a temporary directory
+        file_url = document.file.url
+        response = requests.get(file_url)
+        temp_dir = tempfile.mkdtemp()
+        file_name = os.path.join(temp_dir, os.path.basename(file_url))
 
-    with open(file_name, 'wb') as f:
-        f.write(response.content)
+        with open(file_name, 'wb') as f:
+            f.write(response.content)
 
-    file_path = file_name
-    # Load and process files`
+        file_path = file_name
 
-    # FAISS
-    # build_or_update_faiss_index(file_path, index_name)
-    # self.message_user(request, 'Training complete. The FAISS index has been created.')
+        # Load and process files
+        build_or_update_pinecone_index(file_path, index_name, namespace)
 
-    # Pinecone
-    print(object_id)
-    print('------------------')
-    print(file_path, index_name, namespace)
-    print('------------------')
-    build_or_update_pinecone_index(file_path, index_name, namespace)
+        # Update is_trained to True
+        document.is_trained = True
+        document.save()
 
-    # Remember to clean up the temporary directory after you're done
-    os.remove(file_path)
-    os.rmdir(temp_dir)
+        # Clean up the temporary directory
+        os.remove(file_path)
+        os.rmdir(temp_dir)
 
-    return HttpResponse("Training complete.")
+        # Redirect to Django admin with a success message
+        messages.success(request, "Training complete.")
+        admin_url = reverse('admin:training_model_document_change', args=[object_id])
+        return HttpResponseRedirect(admin_url)
