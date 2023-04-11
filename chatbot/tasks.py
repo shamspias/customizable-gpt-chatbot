@@ -125,6 +125,7 @@ def send_gpt_request(message_list, name_space):
         messages = [
                        SystemMessage(content=system_prompt)
                    ] + message_list
+        print(messages)
 
         assistant_response = chat(messages).content
 
