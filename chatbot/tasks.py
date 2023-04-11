@@ -89,12 +89,12 @@ def get_pinecone_index(index_name, name_space):
 def send_gpt_request(message_list, name_space):
     try:
 
-        messages = [SystemMessage(content=system_prompt)]
+        new_messages_list = []
         for msg in message_list:
             if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
+                new_messages_list.append(HumanMessage(content=msg["content"]))
             else:
-                messages.append(AIMessage(content=msg["content"]))
+                new_messages_list.append(AIMessage(content=msg["content"]))
         # Load the FAISS index
         # base_index = get_faiss_index("buffer_salaries")
 
@@ -103,7 +103,7 @@ def send_gpt_request(message_list, name_space):
 
         if base_index:
             # Add extra text to the content of the last message
-            last_message = message_list[-1]
+            last_message = new_messages_list[-1]
 
             # Get the most similar documents to the last message
             try:
@@ -122,9 +122,7 @@ def send_gpt_request(message_list, name_space):
             # Replace the last message in message_list with the updated message
             message_list[-1] = updated_message
 
-        messages = [
-                       SystemMessage(content=system_prompt)
-                   ] + message_list
+        messages = [SystemMessage(content=system_prompt), new_messages_list]
         logger.print(messages)
 
         assistant_response = chat(messages).content
