@@ -20,3 +20,4 @@ pycurl
 pillow
 langchain
 pinecone-client
+bs4
