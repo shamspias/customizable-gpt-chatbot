@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse_lazy, reverse
+from django.core.files.storage import default_storage
+
 from django.utils.html import format_html
 
 from django.contrib.auth import get_user_model
@@ -41,24 +43,19 @@ class DocumentAdmin(admin.ModelAdmin):
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
-        """
-        Train the model and create the index
-        """
-        print('object_id: ', object_id)
-        print('Training model...')
         document = Document.objects.get(pk=object_id)
-        file_path = document.file.path
+        file = default_storage.open(document.file.name, 'r')
         index_name = document.index_name
         namespace = User.objects.get(pk=request.user.id).username
 
         # Load and process files`
 
         # FAISS
-        # build_or_update_faiss_index(file_path, index_name)
+        # build_or_update_faiss_index(file, index_name)
         # self.message_user(request, 'Training complete. The FAISS index has been created.')
 
         # Pinecone
-        build_or_update_pinecone_index(file_path, index_name, namespace)
+        build_or_update_pinecone_index(file, index_name, namespace)
         self.message_user(request, 'Training complete. The Pinecone index has been created.')
 
         change_url = reverse('admin:training_model_document_change', args=[object_id])
