@@ -1,6 +1,6 @@
 from django.urls import path
-from . import views
+from .views import TrainView
 
 urlpatterns = [
-    path('train/<int:object_id>/', views.train_view, name='train_view'),
+    path('train/<int:object_id>/', TrainView.as_view(), name='train_view'),
 ]
