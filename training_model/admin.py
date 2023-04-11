@@ -39,6 +39,11 @@ class DocumentAdmin(admin.ModelAdmin):
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
+        """
+        Train the model and create the index
+        """
+        print('object_id: ', object_id)
+        print('Training model...')
         document = Document.objects.get(pk=object_id)
         file_path = document.file.path
         index_name = document.index_name
