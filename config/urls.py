@@ -18,6 +18,9 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
 
+    # Training model app URLs
+    path('training-model/', include('training_model.urls')),
+
     # OAuth2 provider URLs
     path('oauth2/', include('oauth2_provider.urls', namespace='oauth2_provider')),
 
