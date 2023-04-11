@@ -122,11 +122,10 @@ def send_gpt_request(message_list, name_space):
             messages=[
                          {"role": "system",
                           "content": system_prompt},
-                         {"role": "user", "content": "Who are you?"},
-                         {"role": "assistant",
-                          "content": "I am the sonic powered by ChatGpt.Contact me sonic@deadlyai.com"},
                      ] + message_list
         )
+        print(message_list)
+        print(gpt3_response["choices"][0]["message"]["content"])
 
         assistant_response = gpt3_response["choices"][0]["message"]["content"].strip()
 
