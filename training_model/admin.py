@@ -13,6 +13,9 @@ User = get_user_model()
 
 
 class DocumentAdmin(admin.ModelAdmin):
+    list_display = ('file', 'index_name', 'storage_type', 'uploaded_at')
+    search_fields = ('index_name', 'storage_type')
+
     change_form_template = 'admin/training_model/document/change_form.html'
 
     def get_urls(self):
