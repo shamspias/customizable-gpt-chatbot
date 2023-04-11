@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SiteSetting, Language, Ad
+from .models import SiteSetting, Language, Ad, PineconeIndex, DefaultSettings
 
 
 @admin.register(Language)
@@ -27,3 +27,21 @@ class AdAdmin(admin.ModelAdmin):
     """
     list_display = ('title', 'description', 'image',)
     search_fields = ('title', 'description',)
+
+
+@admin.register(PineconeIndex)
+class PineconeIndexAdmin(admin.ModelAdmin):
+    """
+    Admin site configuration for PineconeIndex model.
+    """
+    list_display = ('name', 'index_id',)
+    search_fields = ('name', 'index_id',)
+
+
+@admin.register(DefaultSettings)
+class DefaultSettingsAdmin(admin.ModelAdmin):
+    """
+    Admin site configuration for DefaultSettings model.
+    """
+    list_display = ('language', 'site_setting', 'ad',)
+    search_fields = ('language', 'site_setting', 'ad',)
