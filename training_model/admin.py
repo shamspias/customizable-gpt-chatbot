@@ -22,13 +22,13 @@ class DocumentAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('train/', self.admin_site.admin_view(self.train_view), name='train'),
+            path('<int:object_id>/train/', self.admin_site.admin_view(self.train_view), name='train'),
         ]
         return custom_urls + urls
 
     def response_change(self, request, obj):
         if "_train" in request.POST:
-            return HttpResponseRedirect("train/")
+            return HttpResponseRedirect(f"{obj.pk}/train/")
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
