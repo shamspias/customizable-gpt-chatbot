@@ -123,10 +123,8 @@ def send_gpt_request(message_list, name_space):
             message_list[-1] = updated_message
 
         messages = [SystemMessage(content=system_prompt), new_messages_list]
-        logger.print(messages)
 
         assistant_response = chat(messages).content
-        logger.print(assistant_response)
 
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3.5: {e}")
