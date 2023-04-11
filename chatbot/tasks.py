@@ -74,7 +74,9 @@ def get_pinecone_index(index_name, name_space):
 
     try:
         pinecone_index = Pinecone.from_existing_index(index_name=pinecone_index_manager.index_name,
-                                                      namespace=name_space, embedding=embeddings)
+                                                      embedding=embeddings)
+        # pinecone_index = Pinecone.from_existing_index(index_name=pinecone_index_manager.index_name,
+        #                                               namespace=name_space, embedding=embeddings)
         return pinecone_index
 
     except Exception as e:
