@@ -20,18 +20,21 @@ class DocumentAdmin(admin.ModelAdmin):
     change_form_template = 'admin/training_model/document/change_form.html'
 
     def train_button(self, obj):
-        return format_html('<a class="button" href="{}{}{}">{}</a>', obj.pk, "/change/", "train/", "Train")
+        return format_html('<a class="button" href="{}">{}</a>', f"{obj.pk}/change/train/", "Train")
 
     def get_urls(self):
         urls = super().get_urls()
-        custom_urls = [
-            path('train/', self.admin_site.admin_view(self.train_view), name='train'),
-        ]
-        return custom_urls + urls
+        return urls
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['train_url'] = f'{object_id}/train/'
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def response_change(self, request, obj):
-        if "_train" in request.POST:
-            return HttpResponseRedirect("train/")
+        if "train" in request.POST:
+            self.train_view(request, obj)
+            return HttpResponseRedirect("../")
         return super().response_change(request, obj)
 
     def train_view(self, request, object_id):
