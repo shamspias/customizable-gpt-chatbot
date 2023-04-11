@@ -132,20 +132,20 @@ class MessageCreate(generics.CreateAPIView):
         messages = Message.objects.filter(conversation=conversation).order_by('-created_at')[:10][::-1]
 
         # Build the list of dictionaries containing the message data
-        message_list = [
-            {
-                "role": "user" if msg.is_from_user else "assistant",
-                "content": msg.content
-            }
-            for msg in messages
-        ]
+        # message_list = [
+        #     {
+        #         "role": "user" if msg.is_from_user else "assistant",
+        #         "content": msg.content
+        #     }
+        #     for msg in messages
+        # ]
 
-        # message_list = []
-        # for msg in messages:
-        #     if msg.is_from_user:
-        #         message_list.append(HumanMessage(content=msg.content))
-        #     else:
-        #         message_list.append(AIMessage(content=msg.content))
+        message_list = []
+        for msg in messages:
+            if msg.is_from_user:
+                message_list.append(HumanMessage(content=msg.content))
+            else:
+                message_list.append(AIMessage(content=msg.content))
 
         name_space = User.objects.get(id=self.request.user.id).username
 
