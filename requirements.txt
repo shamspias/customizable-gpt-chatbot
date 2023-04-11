@@ -19,3 +19,4 @@ boto3
 pycurl
 pillow
 langchain
+pinecone-client
