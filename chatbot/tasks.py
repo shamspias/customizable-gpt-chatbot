@@ -128,6 +128,7 @@ def send_gpt_request(message_list, name_space):
         print(messages)
 
         assistant_response = chat(messages).content
+        print(assistant_response)
 
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3.5: {e}")
