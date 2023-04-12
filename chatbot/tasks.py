@@ -150,7 +150,8 @@ def generate_title_request(message_list):
             model="gpt-3.5-turbo",
             messages=[
                          {"role": "system",
-                          "content": "Summarize and make a very short meaningful title based on that"},
+                          "content": "Summarize and make a very short meaningful title under 250 character must based "
+                                     "on that"},
                      ] + message_list
         )
         response = gpt3_response["choices"][0]["message"]["content"].strip()
