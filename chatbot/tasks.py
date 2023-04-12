@@ -1,6 +1,6 @@
 import pickle
 import os
-
+import openai
 # from langchain.vectorstores import FAISS as BaseFAISS
 from training_model.pinecone_helpers import (
     PineconeManager,
@@ -89,12 +89,12 @@ def get_pinecone_index(index_name, name_space):
 def send_gpt_request(message_list, name_space):
     try:
 
-        new_messages_list = []
-        for msg in message_list:
-            if msg["role"] == "user":
-                new_messages_list.append(HumanMessage(content=msg["content"]))
-            else:
-                new_messages_list.append(AIMessage(content=msg["content"]))
+        # new_messages_list = []
+        # for msg in message_list:
+        #     if msg["role"] == "user":
+        #         new_messages_list.append(HumanMessage(content=msg["content"]))
+        #     else:
+        #         new_messages_list.append(AIMessage(content=msg["content"]))
         # Load the FAISS index
         # base_index = get_faiss_index("buffer_salaries")
 
@@ -103,7 +103,7 @@ def send_gpt_request(message_list, name_space):
 
         if base_index:
             # Add extra text to the content of the last message
-            last_message = new_messages_list[-1]
+            last_message = message_list[-1]
 
             # Get the most similar documents to the last message
             try:
@@ -117,14 +117,23 @@ def send_gpt_request(message_list, name_space):
                 updated_content = last_message.content
 
             # Create a new HumanMessage object with the updated content
-            updated_message = HumanMessage(content=updated_content)
+            # updated_message = HumanMessage(content=updated_content)
+            updated_message = {"role": "user", "content": updated_content}
 
             # Replace the last message in message_list with the updated message
             message_list[-1] = updated_message
 
-        messages = [SystemMessage(content=system_prompt), new_messages_list]
+        openai.api_key = settings.OPENAI_API_KEY
+        # Send request to GPT-3 (replace with actual GPT-3 API call)
+        gpt3_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                         {"role": "system",
+                          "content": system_prompt},
+                     ] + message_list
+        )
 
-        assistant_response = chat(messages).content
+        assistant_response = gpt3_response["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
         logger.error(f"Failed to send request to GPT-3.5: {e}")
