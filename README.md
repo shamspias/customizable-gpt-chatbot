@@ -1,34 +1,50 @@
-# Customizable-gpt3-chatbot
-A Django-based intelligent chatbot with customizable learning and multi-language support using GPT-3. The chatbot is able to learn from books, articles, and other information provided by the user. Additionally, the chatbot is able to work with multiple languages.
+# Dynamic AI Chatbot with Custom Training Sources
+## Customizable-gpt-chatbot
+This project is a dynamic AI chatbot that can be trained from various sources, such as PDFs, documents, websites, and YouTube videos. It uses a user system with social authentication through Google, and the Django REST framework for its backend. The chatbot leverages OpenAI's GPT-3.5 language model to conduct conversations and is designed for scalability and ease of use.
 
 ## Features
-- Customizable learning capabilities with GPT-3
-- Multi-language support
-- Natural Language Processing (NLP) using NLTK/spaCy/GPT-3 
-- Conversational speech with OpenAI whisper
-- User-friendly interface
-- Social Authentication System
-- Track Record of every conversation for specific users
-- Give answer based on last 15 conversations
+- Train chatbot from multiple sources (PDFs, documents, websites, YouTube videos)
+- User system with social authentication through Google
+- Connect with OpenAI GPT-3.5 language model for conversation
+- Use Pinecone and FAISS for vector indexing
+- Employ OpenAI's text-embedding-ada-002 for text embedding
+- Python Langchain library for file processing and text conversion
+- Scalable architecture with separate settings for local, staging, and production environments
+- Dynamic site settings for title and prompt updates
+- Multilingual support
+- PostgreSQL database support
+- Celery task scheduler with Redis and AWS SQS options
+- AWS S3 bucket support for scalable hosting
 - Easy deployment on Heroku or AWS
 
 ## Technologies
-- Django & Django Rest Framework
-- Celery
-- Hugging Face's transformers library
-- Embedding Model
-- Vector Database
-- OpenAI GPT-3 & Whisper
+- Language: Python
+- Framework: Django REST Framework
+- Database: PostgreSQL
 
+### Major Libraries:
+- Celery
+- Langchain 
+- OpenAI
+- Pinecone
+- FAISS
 ## Requirements
 - Python 3.8 or above
-- Django 3.2 or above
-- Hugging Face's transformers library
+- Django 4.1 or above
 - Pinecone API Key
 - API key from OpenAI
+- Redis or AWS SQS
+- PostgreSQL database
+
+## Future Scope
+- Integration with more third-party services for authentication
+- Support for additional file formats and media types for chatbot training
+- Improved context-awareness in conversations
+- Enhanced multilingual support with automatic language detection
+- Integration with popular messaging platforms and chat applications
 
 ## How to run
-- Clone the repository.
+- Clone the repository. `git clone https://github.com/shamspias/customizable-gpt-chatbot`
 - Install the required packages by running `pip install -r requirements.txt`
 - Run celery `celery -A config worker --loglevel=info`
 - Run the command `python manage.py runserver`
@@ -41,6 +57,10 @@ In linux need to install `pycurl`
 
 ## Deployment
 The chatbot can be deployed on Heroku or AWS by following the standard procedures for Django deployment on these platforms.
+
+## Issues
+- If you don't use AWS SQS then no need to install `pycurl` and `boto3` packages.
+- If you don't use AWS S3 then no need to install `django-storages` package.
 
 ## Note
 Make sure that you have API key from OpenAI before running the project.
