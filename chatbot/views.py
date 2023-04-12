@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
-from .tasks import send_gpt_request
+from .tasks import send_gpt_request, generate_title_request
 
 User = get_user_model()
 
@@ -182,6 +182,39 @@ class MessageCreate(generics.CreateAPIView):
 
         headers = self.get_success_headers(serializer.data)
         return Response({"response": assistant_response}, status=status.HTTP_200_OK, headers=headers)
+
+
+class ConversationRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    """
+    Retrieve View to update or get the title
+    """
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    lookup_url_kwarg = 'conversation_id'
+
+    def retrieve(self, request, *args, **kwargs):
+        conversation = self.get_object()
+
+        if conversation.title == "Empty":
+            messages = Message.objects.filter(conversation=conversation)
+
+            if messages.exists():
+                message_list = []
+                for msg in messages:
+                    if msg.is_from_user:
+                        message_list.append({"role": "user", "content": msg.content})
+                    else:
+                        message_list.append({"role": "assistant", "content": msg.content})
+
+                conversation.title = generate_title_request(message_list)
+                conversation.save()
+                serializer = self.get_serializer(conversation)
+                return Response(serializer.data)
+            else:
+                return Response({"message": "No messages in conversation."}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            serializer = self.get_serializer(conversation)
+            return Response(serializer.data)
 
 
 class GPT3TaskStatus(APIView):
