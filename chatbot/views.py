@@ -206,7 +206,8 @@ class ConversationRetrieveUpdateView(generics.RetrieveUpdateAPIView):
                     else:
                         message_list.append({"role": "assistant", "content": msg.content})
 
-                conversation.title = generate_title_request(message_list)
+                task = generate_title_request.apply_async(args=(message_list,))
+                conversation.title = task.get()
                 conversation.save()
                 serializer = self.get_serializer(conversation)
                 return Response(serializer.data)
