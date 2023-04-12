@@ -15,8 +15,13 @@ urlpatterns = [
 
     # Delete a conversation
     path('conversations/<int:pk>/delete/', views.ConversationDelete.as_view(), name='conversation-delete'),
+
+    # update title
+    path('conversations/<int:pk>/title/', views.ConversationRetrieveUpdateView.as_view(), name='conversation-title'),
+
     # List messages in a conversation
     path('conversations/<int:conversation_id>/messages/', views.MessageList.as_view(), name='message-list'),
+
     # Create a message in a conversation
     path('conversations/<int:conversation_id>/messages/create/', views.MessageCreate.as_view(), name='message-create'),
     # async gpt task
