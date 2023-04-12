@@ -17,7 +17,7 @@ urlpatterns = [
     path('conversations/<int:pk>/delete/', views.ConversationDelete.as_view(), name='conversation-delete'),
 
     # update title
-    path('conversations/<int:pk>/title/', views.ConversationRetrieveUpdateView.as_view(), name='conversation-title'),
+    path('conversations/<int:conversation_id>/title/', views.ConversationRetrieveUpdateView.as_view(), name='conversation-title'),
 
     # List messages in a conversation
     path('conversations/<int:conversation_id>/messages/', views.MessageList.as_view(), name='message-list'),
