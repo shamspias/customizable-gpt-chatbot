@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def time_since(dt):
     """
-    Returns a string representing "time since" e.g.
+    Returns string representing "time since" e.g.
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     diff = now - dt
 
     seconds = diff.total_seconds()
@@ -14,11 +14,8 @@ def time_since(dt):
     days = int(hours // 24)
     months = int(days // 30)
     years = int(days // 365)
-    centuries = int(years // 100)
 
-    if centuries > 0:
-        return f"{centuries} century{'ies' if centuries > 1 else 'y'} ago"
-    elif years > 0:
+    if years > 0:
         return f"{years} year{'s' if years > 1 else ''} ago"
     elif months > 0:
         return f"{months} month{'s' if months > 1 else ''} ago"
