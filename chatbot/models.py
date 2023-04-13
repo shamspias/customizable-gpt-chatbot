@@ -26,10 +26,14 @@ class Conversation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     favourite = models.BooleanField(default=False)
     archive = models.BooleanField(default=False)
+
     # status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
 
+    class Meta:
+        ordering = ['-created_at']
+
     def __str__(self):
-        return f"Conversation {self.title} - {self.user.username}"
+        return f"Conversation {self.title} - {self.user.name}"
 
 
 class Message(models.Model):
