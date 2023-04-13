@@ -11,7 +11,6 @@ from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request, generate_title_request
 
-
 User = get_user_model()
 
 
@@ -31,7 +30,7 @@ class ConversationListCreate(generics.ListCreateAPIView):
     serializer_class = ConversationSerializer
 
     def get_queryset(self):
-        return Conversation.objects.filter(user=self.request.user)
+        return Conversation.objects.filter(user=self.request.user).order_by('-created_at')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
