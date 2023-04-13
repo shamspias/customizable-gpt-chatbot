@@ -19,6 +19,7 @@ class ConversationSerializer(serializers.ModelSerializer):
     Conversation serializer.
     """
     messages = MessageSerializer(many=True, read_only=True)
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
