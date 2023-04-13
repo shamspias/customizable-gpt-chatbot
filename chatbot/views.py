@@ -5,15 +5,12 @@ from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
-from langchain.schema import (
-    AIMessage,
-    HumanMessage,
-)
 from django.contrib.auth import get_user_model
 
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .tasks import send_gpt_request, generate_title_request
+
 
 User = get_user_model()
 
