@@ -205,7 +205,7 @@ class ConversationRetrieveUpdateView(generics.RetrieveUpdateAPIView):
                 task = generate_title_request.apply_async(args=(message_list,))
                 my_title = task.get()
                 # if length of title is greater than 55, truncate it
-                my_title = my_title[:55]
+                my_title = my_title[:30]
                 conversation.title = my_title
                 conversation.save()
                 serializer = self.get_serializer(conversation)
