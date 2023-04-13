@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Conversation, Message
+from .utils import time_since
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -21,3 +23,6 @@ class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
         fields = ['id', 'title', 'favourite', 'archive', 'created_at', 'messages']
+
+    def get_created_at(self, obj):
+        return time_since(obj.created_at)
