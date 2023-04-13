@@ -30,7 +30,7 @@ class ConversationListCreate(generics.ListCreateAPIView):
     serializer_class = ConversationSerializer
 
     def get_queryset(self):
-        return Conversation.objects.filter(user=self.request.user).order_by('-created_at')
+        return Conversation.objects.filter(user=self.request.user).order_by('created_at')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
