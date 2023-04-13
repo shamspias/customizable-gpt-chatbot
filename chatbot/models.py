@@ -33,7 +33,7 @@ class Conversation(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f"Conversation {self.title} - {self.user.name}"
+        return f"Conversation {self.title} - {self.user.username}"
 
 
 class Message(models.Model):
