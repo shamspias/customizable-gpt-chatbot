@@ -36,11 +36,16 @@ class PineconeManager:
         )
 
     def list_of_indexes(self):
-        pinecone_index_list = pinecone.list_indexes()
-        print("List of Pinecone Indexes: ")
-        print(pinecone_index_list)
-        print("____________________________________________________")
-        return pinecone_index_list
+        try:
+            pinecone_index_list = pinecone.list_indexes()
+            print("List of Pinecone Indexes: ")
+            print(pinecone_index_list)
+            print("____________________________________________________")
+            return pinecone_index_list
+        except Exception as e:
+            print("Error in listing the Pinecone Indexes: ", e)
+            print("____________________________________________________")
+            raise Exception("Error in listing the Pinecone Indexes: ", e)
 
     def create_index(self, index_name, dimension, metric):
         pinecone.create_index(name=index_name, dimension=dimension, metric=metric)
