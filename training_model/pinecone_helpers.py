@@ -129,7 +129,8 @@ def build_or_update_pinecone_index(file_path, index_name, name_space):
     """
     This function is used to build or update the Pinecone Index
     """
-    pinecone_index_manager = PineconeIndexManager(PineconeManager(PINECONE_API_KEY, PINECONE_ENVIRONMENT), index_name)
+    pinecone_index_manager = PineconeIndexManager(PineconeManager(PINECONE_API_KEY, PINECONE_ENVIRONMENT),
+                                                  PINECONE_INDEX_NAME)
     loader = DocumentLoaderFactory.get_loader(file_path)
     pages = loader.load_and_split()
 
