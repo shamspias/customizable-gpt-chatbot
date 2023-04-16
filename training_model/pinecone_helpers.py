@@ -146,12 +146,12 @@ def build_or_update_pinecone_index(file_path, index_name, name_space):
     if pinecone_index_manager.index_exists():
         print("Updating the model")
         pinecone_index = Pinecone.from_documents(pages, embeddings, index_name=pinecone_index_manager.index_name,
-                                                 namespace=name_space)
+                                                 namespace=PINECONE_NAMESPACE_NAME)
 
     else:
         print("Training the model")
         pinecone_index_manager.create_index(dimension=1536, metric="cosine")
         pinecone_index = Pinecone.from_documents(documents=pages, embedding=embeddings,
                                                  index_name=pinecone_index_manager.index_name,
-                                                 namespace=name_space)
+                                                 namespace=PINECONE_NAMESPACE_NAME)
     return pinecone_index
