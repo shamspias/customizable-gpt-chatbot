@@ -36,7 +36,9 @@ class PineconeManager:
         )
 
     def list_of_indexes(self):
-        return pinecone.list_indexes()
+        pinecone_index_list = pinecone.list_indexes()
+        print(pinecone_index_list)
+        return pinecone_index_list
 
     def create_index(self, index_name, dimension, metric):
         pinecone.create_index(name=index_name, dimension=dimension, metric=metric)
