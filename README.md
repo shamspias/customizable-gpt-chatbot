@@ -50,7 +50,7 @@ This project is a dynamic AI chatbot that can be trained from various sources, s
 - Run the command `python manage.py runserver`
 - Open `http://127.0.0.1:8000/` in your browser
 
-In linux need to install `pip install pycurl' and 'pip install python3-dev`
+In linux need to install `pip install pycurl' and 'sudo install python3-dev -y`
 1. Make sure that you have the development libraries for libcurl installed on your system. You can install them by running the following command: `sudo apt-get install libcurl4-openssl-dev gcc libssl-dev -y`
 2. Make sure that you have the latest version of pip and setuptools installed by running the following command: `pip install --upgrade pip setuptools`
 3. `pip install pycurl`
