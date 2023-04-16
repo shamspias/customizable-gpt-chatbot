@@ -115,7 +115,7 @@ class PineconeIndexManager:
         self.index_name = index_name
 
     def index_exists(self):
-        active_indexes = self.pinecone_manager.list_indexes()
+        active_indexes = self.pinecone_manager.list_indexes(self)
         return self.index_name in active_indexes
 
     def create_index(self, dimension, metric):
