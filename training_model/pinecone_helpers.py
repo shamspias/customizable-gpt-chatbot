@@ -35,8 +35,8 @@ class PineconeManager:
             environment=environment
         )
 
-    def list_indexes(self):
-        return pinecone.list_indexes()
+    # def list_indexes(self):
+    #     return pinecone.list_indexes()
 
     def create_index(self, index_name, dimension, metric):
         pinecone.create_index(name=index_name, dimension=dimension, metric=metric)
