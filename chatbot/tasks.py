@@ -107,8 +107,7 @@ def send_gpt_request(message_list, name_space):
 
             # Get the most similar documents to the last message
             try:
-                docs = base_index.similarity_search(query=last_message["content"], k=4)
-                print(docs)
+                docs = base_index.similarity_search(query=last_message["content"], k=2)
 
                 updated_content = last_message["content"] + "\n\n"
                 for doc in docs:
