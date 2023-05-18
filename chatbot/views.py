@@ -144,8 +144,17 @@ class MessageCreate(generics.CreateAPIView):
 
         name_space = User.objects.get(id=self.request.user.id).username
 
+        from site_settings.models import SiteSetting
+        # Get system prompt from site settings
+        try:
+            system_prompt_obj = SiteSetting.objects.first()
+            system_prompt = system_prompt_obj.prompt
+        except Exception as e:
+            print(str(e))
+            system_prompt = "You are sonic you can do anything you want."
+
         # Call the Celery task to get a response from GPT-3
-        task = send_gpt_request.apply_async(args=(message_list, name_space))
+        task = send_gpt_request.apply_async(args=(message_list, name_space, system_prompt))
         print(message_list)
         response = task.get()
         return [response, conversation.id, messages[0].id]
