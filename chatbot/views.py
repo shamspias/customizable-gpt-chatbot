@@ -135,13 +135,6 @@ class MessageCreate(generics.CreateAPIView):
             else:
                 message_list.append({"role": "assistant", "content": msg.content})
 
-        # message_list = []
-        # for msg in messages:
-        #     if msg.is_from_user:
-        #         message_list.append(HumanMessage(content=msg.content))
-        #     else:
-        #         message_list.append(AIMessage(content=msg.content))
-
         name_space = User.objects.get(id=self.request.user.id).username
 
         from site_settings.models import SiteSetting
