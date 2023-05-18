@@ -20,17 +20,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
 
-from site_settings.models import SiteSetting
-
 logger = get_task_logger(__name__)
-
-# Get system prompt from site settings
-try:
-    system_prompt_obj = SiteSetting.objects.first()
-    system_prompt = system_prompt_obj.prompt
-except Exception as e:
-    system_prompt = "You are sonic you can do anything you want."
-    logger.error(f"Failed to get system prompt from site settings: {e}")
 
 PINECONE_API_KEY = settings.PINECONE_API_KEY
 PINECONE_ENVIRONMENT = settings.PINECONE_ENVIRONMENT
@@ -86,7 +76,7 @@ def get_pinecone_index(index_name, name_space):
 
 
 @shared_task
-def send_gpt_request(message_list, name_space):
+def send_gpt_request(message_list, name_space, system_prompt):
     try:
 
         # new_messages_list = []
@@ -129,7 +119,7 @@ def send_gpt_request(message_list, name_space):
             model="gpt-3.5-turbo",
             messages=[
                          {"role": "system",
-                          "content": system_prompt},
+                          "content": f"{system_prompt}"},
                      ] + message_list
         )
 
