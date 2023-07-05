@@ -5,6 +5,7 @@ from django.contrib import messages
 import requests
 import tempfile
 import os
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from .models import Document
 from .pinecone_helpers import build_or_update_pinecone_index
@@ -23,8 +24,9 @@ class TrainView(View):
             return HttpResponseForbidden("You don't have permission to access this page.")
 
         document = Document.objects.get(pk=object_id)
-        index_name = document.index_name
-        namespace = User.objects.get(pk=request.user.id).username
+        index_name = settings.PINECONE_INDEX_NAME
+        # namespace = User.objects.get(pk=request.user.id).username
+        namespace = settings.PINECONE_NAMESPACE_NAME
 
         # Download the file and save it to a temporary directory
         file_url = document.file.url
