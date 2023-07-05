@@ -95,16 +95,19 @@ def send_gpt_request(message_list, name_space, system_prompt):
             # Add extra text to the content of the last message
             last_message = message_list[-1]
 
+            query_text = last_message["content"]
+
             # Get the most similar documents to the last message
             try:
                 docs = base_index.similarity_search(query=last_message["content"], k=2)
 
-                updated_content = last_message["content"] + "\n\n"
+                updated_content = '"""'
                 for doc in docs:
                     updated_content += doc.page_content + "\n\n"
+                updated_content = '"""\nQuestion:' + query_text
             except Exception as e:
                 logger.error(f"Failed to get similar documents: {e}")
-                updated_content = last_message.content
+                updated_content = query_text
 
             # Create a new HumanMessage object with the updated content
             # updated_message = HumanMessage(content=updated_content)
