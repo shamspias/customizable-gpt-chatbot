@@ -36,3 +36,6 @@ class Document(models.Model):
 
     def __str__(self):
         return self.file.name
+
+    def file_name(self):
+        return os.path.basename(self.file.name)
