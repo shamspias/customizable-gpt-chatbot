@@ -9,8 +9,9 @@ class DocumentAdmin(admin.ModelAdmin):
     """
     Admin View for Document
     """
-    list_display = ('id', 'index_name', 'file', 'storage_type', 'is_trained', 'uploaded_at', 'train_button')
+    list_display = ('file_name', 'index_name', 'storage_type', 'is_trained', 'uploaded_at', 'train_button')
     search_fields = ('file', 'index_name', 'storage_type')
+    list_filter = ('is_trained',)
 
     def train_button(self, obj):
         train_url = reverse('train_view', args=[obj.pk])
