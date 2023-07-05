@@ -116,7 +116,7 @@ def send_gpt_request(message_list, name_space, system_prompt):
         openai.api_key = settings.OPENAI_API_KEY
         # Send request to GPT-3 (replace with actual GPT-3 API call)
         gpt3_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-16k",
             messages=[
                          {"role": "system",
                           "content": f"{system_prompt}"},
@@ -137,7 +137,7 @@ def generate_title_request(message_list):
         openai.api_key = settings.OPENAI_API_KEY
         # Send request to GPT-3 (replace with actual GPT-3 API call)
         gpt3_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-16k",
             messages=[
                          {"role": "system",
                           "content": "Summarize and make a very short meaningful title under 24 characters"},
