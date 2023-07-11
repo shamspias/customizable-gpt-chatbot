@@ -104,7 +104,7 @@ def send_gpt_request(message_list, name_space, system_prompt):
                 updated_content = '"""'
                 for doc in docs:
                     updated_content += doc.page_content + "\n\n"
-                updated_content = '"""\nQuestion:' + query_text
+                updated_content += '"""\nQuestion:' + query_text
             except Exception as e:
                 logger.error(f"Failed to get similar documents: {e}")
                 updated_content = query_text
