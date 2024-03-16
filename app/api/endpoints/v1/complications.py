@@ -27,8 +27,9 @@ async def legal_data_conversation(conversation_request: ConversationSchema,
         contact_id = x_contact_id
         image = conversation_request.image
         image_url = conversation_request.image_url
+        model_name = conversation_request.main_model_name
 
-        langchain_service = LangChainService(session_id=thread_id)
+        langchain_service = LangChainService(session_id=thread_id, main_model_name=model_name)
 
         return StreamingResponse(
             langchain_service.get_response(message, country),
