@@ -65,12 +65,11 @@ class LangChainService:
         self.default_document_prompt = PromptTemplate.from_template(template="{page_content}")
 
         self._template = """Given the following conversation and a follow up question, rephrase the follow up 
-        question to be a standalone question, in its original language and change country name based on the country.
+        question to be a standalone question, in its original language.
 
 Chat History:
 {chat_history}
 Follow Up Input: {question}
-Country: {country}
 Standalone question:"""
 
         self.condense_question_prompt = PromptTemplate.from_template(self._template)
@@ -90,7 +89,6 @@ Standalone question:"""
         self.standalone_question = RunnableParallel(
             standalone_question=RunnablePassthrough.assign(
                 chat_history=lambda x: get_buffer_string(x["chat_history"]),
-                country=lambda x: x["country"]
             ) | self.condense_question_prompt | self.input_model | self.output_parser,
         )
 
@@ -185,10 +183,9 @@ Standalone question:"""
 
         return model
 
-    async def get_response(self, question, country):
+    async def get_response(self, question):
         inputs = {
             "question": question,
-            "country": country,
         }
         content = ""
         async for chunk in self.final_chain.astream(inputs):
