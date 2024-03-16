@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class LangChainService:
-    def __init__(self, session_id):
+    def __init__(self, session_id, main_model_name):
         if settings.PROXY_URLS:
             parsed_url = urlparse(settings.PROXY_URLS)
             if parsed_url.scheme and parsed_url.netloc:
@@ -81,8 +81,8 @@ Standalone question:"""
         Question: {question}
         """
         self.prompt = ChatPromptTemplate.from_template(self.template)
-        self.model = self.setup_model()
-        self.input_model = self.setup_model(optional=True)
+        self.model = self.setup_model(model_name=main_model_name)
+        self.input_model = self.setup_model(optional=True, model_name=main_model_name)
         self.output_parser = StrOutputParser()
 
         self.retrieved_documents = self.get_retrieved_documents()
@@ -118,7 +118,8 @@ Standalone question:"""
         #             "none" in x["standalone_question"][:6].lower()) else x["standalone_question"][6:],
         # }
 
-    def setup_model(self, optional: bool = False):
+    def setup_model(self, model_name: str, optional: bool = False):
+        # Initialize all models
         groq_models = ChatGroq(model_name=settings.GROQ_MODEL,
                                http_client=self.http_async_client,
                                groq_api_key=settings.GROQ_API_KEY
@@ -136,33 +137,52 @@ Standalone question:"""
                                           http_client=self.http_async_client,
                                           openai_api_key=settings.OPENAI_API_KEY
                                           )
-        mistral = ChatFireworks(model=settings.FIREWORK_MODEL, fireworks_api_key=settings.FIREWORKS_API_KEY)
+        fireworks_model = ChatFireworks(model=settings.FIREWORK_MODEL, fireworks_api_key=settings.FIREWORKS_API_KEY)
+
+        # Map model names to their objects
+        models_map = {
+            "groq": groq_models,
+            "google": google_gemini,
+            "giga_chat": giga_chat,
+            "openai": chat_openai,
+            "openai_fallback": chat_openai_fallback,
+            "fireworks": fireworks_model,
+        }
+
+        # Dynamically select the main model based on model_name
+        main_model = models_map.get(model_name)
+
+        if not main_model:
+            raise ValueError("Invalid model name provided")
+
+        # Remove the main model from the models_map to prepare for fallbacks
+        fallback_models = {k: v for k, v in models_map.items() if k != model_name}
+
+        # Order fallback models as per requirement
+        ordered_fallbacks = [fallback_models.get(name) for name in
+                             ["fireworks", "openai_fallback", "giga_chat", "groq", "google"] if name in fallback_models]
 
         if optional:
             model = (
-                chat_openai_fallback
-                .with_fallbacks([mistral, groq_models, giga_chat])
+                main_model
+                .with_fallbacks(ordered_fallbacks)
                 .configurable_alternatives(
                     ConfigurableField(id="model"),
-                    default_key="chat_openai_fallback",
-                    mistral=mistral,
-                    giga_chat=giga_chat,
-                    groq_models=groq_models
+                    default_key=model_name,
+                    **{name: model for name, model in fallback_models.items()}
                 )
             )
         else:
             model = (
-                chat_openai
-                .with_fallbacks([groq_models, chat_openai_fallback, mistral, giga_chat])
+                main_model
+                .with_fallbacks(ordered_fallbacks)
                 .configurable_alternatives(
                     ConfigurableField(id="model"),
-                    default_key="chat_openai",
-                    chat_openai=chat_openai,
-                    mistral=mistral,
-                    giga_chat=giga_chat,
-                    groq_models=groq_models
+                    default_key=model_name,
+                    **{name: model for name, model in fallback_models.items()}
                 )
             )
+
         return model
 
     async def get_response(self, question, country):
