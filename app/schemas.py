@@ -14,8 +14,7 @@ class ConversationSchema(BaseModel):
     image: Optional[bool] = Field(default=False, description="True or False image use or not")
     image_url: Optional[str] = Field(default=None, description="Url of image that you want to analysis")
     country: Optional[str] = Field(default="", description="country")
-    jurisdiction: Optional[str] = Field(default="", description="jurisdiction")
-    court: Optional[str] = Field(default="", description="court")
+    main_model_name: Optional[str] = Field(default="groq", description="LLM name")
 
 
 class ChatRequest(BaseModel):
