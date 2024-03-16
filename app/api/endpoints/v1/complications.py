@@ -16,7 +16,6 @@ async def legal_data_conversation(conversation_request: ConversationSchema,
                                   ):
     try:
         message = conversation_request.message
-        country = conversation_request.country
         webhook_use = conversation_request.webhook_use
         if x_conversation_id is None:
             conversation_id = conversation_request.conversation_id
@@ -32,7 +31,7 @@ async def legal_data_conversation(conversation_request: ConversationSchema,
         langchain_service = LangChainService(session_id=thread_id, main_model_name=model_name)
 
         return StreamingResponse(
-            langchain_service.get_response(message, country),
+            langchain_service.get_response(message),
             media_type="text/event-stream")
 
     except Exception as e:
