@@ -1,70 +1,142 @@
-# Dynamic AI Chatbot with Custom Training Sources
-## Customizable-gpt-chatbot
-This project is a dynamic AI chatbot that can be trained from various sources, such as PDFs, documents, websites, and YouTube videos. It uses a user system with social authentication through Google, and the Django REST framework for its backend. The chatbot leverages OpenAI's GPT-3.5 language model to conduct conversations and is designed for scalability and ease of use.
+# 🤖 Customizable GPT Chatbot
 
-## Features
-- Train chatbot from multiple sources (PDFs, documents, websites, YouTube videos)
-- User system with social authentication through Google
-- Connect with OpenAI GPT-3.5 language model for conversation
-- Use Pinecone and FAISS for vector indexing
-- Employ OpenAI's text-embedding-ada-002 for text embedding
-- Python Langchain library for file processing and text conversion
-- Scalable architecture with separate settings for local, staging, and production environments
-- Dynamic site settings for title and prompt updates
-- Multilingual support
-- PostgreSQL database support
-- Celery task scheduler with Redis and AWS SQS options
-- AWS S3 bucket support for scalable hosting
-- Easy deployment on Heroku or AWS
+A powerful, AI-powered chatbot you can train using **PDFs, documents, websites, and YouTube videos** — all in one platform!
 
-## Technologies
-- Language: Python
-- Framework: Django REST Framework
-- Database: PostgreSQL
+---
 
-### Major Libraries:
-- Celery
-- Langchain 
-- OpenAI
-- Pinecone
-- FAISS
-## Requirements
-- Python 3.8 or above
-- Django 4.1 or above
-- Pinecone API Key
-- API key from OpenAI
-- Redis or AWS SQS
-- PostgreSQL database
+## 🧠 What This Project Does
 
-## Future Scope
-- Integration with more third-party services for authentication
-- Support for additional file formats and media types for chatbot training
-- Improved context-awareness in conversations
-- Enhanced multilingual support with automatic language detection
-- Integration with popular messaging platforms and chat applications
+This is a **dynamic AI chatbot** built with Python and Django. It uses **OpenAI’s GPT-3.5** to have smart conversations, and you can train it with your own content (like PDFs, websites, and more). It also supports **Google login** and is built to scale across different environments (local, staging, production).
 
-## How to run
-- Clone the repository. `git clone https://github.com/shamspias/customizable-gpt-chatbot`
-- Install the required packages by running `pip install -r requirements.txt`
-- Run celery `celery -A config worker --loglevel=info`
-- Run the command `python manage.py runserver`
-- Open `http://127.0.0.1:8000/` in your browser
+---
 
-In linux and mac need to install 'sudo apt install python3-dev -y`
-1. Make sure that you have the development libraries for libcurl installed on your system. You can install them by running the following command: `sudo apt-get install libcurl4-openssl-dev gcc libssl-dev -y`
-2. Make sure that you have the latest version of pip and setuptools installed by running the following command: `pip install --upgrade pip setuptools`
-3. `pip install pycurl`
+## 🚀 Features
 
-## Deployment
-The chatbot can be deployed on Heroku or AWS by following the standard procedures for Django deployment on these platforms.
+* ✅ Train your chatbot using:
 
-## Issues
-- If you don't use AWS SQS then no need to install `pycurl` and `boto3` packages.
-- If you don't use AWS S3 then no need to install `django-storages` package.
+  * PDFs
+  * Word/Doc files
+  * Websites (URLs)
+  * YouTube videos
+* 🔐 Google Login (social authentication)
+* 🧠 Conversations powered by **OpenAI GPT-3.5**
+* 🔍 Uses **Pinecone** and **FAISS** to quickly search through your training data
+* 📦 Supports file processing using the **LangChain** library
+* 🌍 Multilingual support
+* ☁️ Deployable to **Heroku** or **AWS**
+* 🗃️ Uses **PostgreSQL** as the database
+* 🔄 Task handling with **Celery**, and supports **Redis** or **AWS SQS**
+* 📂 File storage on **AWS S3**
 
-## Note
-Make sure that you have API key from OpenAI before running the project.
+---
 
-This is just a basic implementation of the project, you can always add more features and customization according to your requirement.
+## 🛠️ Technologies Used
 
-Enjoy!
+* **Language**: Python
+* **Backend Framework**: Django REST Framework
+* **Database**: PostgreSQL
+* **Key Libraries**:
+
+  * OpenAI API
+  * Pinecone
+  * FAISS
+  * Celery
+  * LangChain
+
+---
+
+## 📦 Requirements
+
+Before starting, make sure you have:
+
+* Python 3.8+
+* Django 4.1+
+* API Keys for:
+
+  * **OpenAI**
+  * **Pinecone**
+* Redis or AWS SQS (for background tasks)
+* PostgreSQL
+* Optional: AWS S3 (for cloud storage)
+
+---
+
+## 🖥️ How to Run Locally (Beginner Version)
+
+1. **Clone the project**
+
+   ```bash
+   git clone https://github.com/shamspias/customizable-gpt-chatbot
+   cd customizable-gpt-chatbot
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   pip install --upgrade pip setuptools
+   pip install -r requirements.txt
+   ```
+
+3. **Install system packages (Linux/macOS only)**
+
+   ```bash
+   sudo apt install python3-dev libcurl4-openssl-dev gcc libssl-dev -y
+   pip install pycurl
+   ```
+
+4. **Start background worker (Celery)**
+
+   ```bash
+   celery -A config worker --loglevel=info
+   ```
+
+5. **Run the server**
+
+   ```bash
+   python manage.py runserver
+   ```
+
+6. **Visit in your browser**:
+   [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+
+---
+
+## ☁️ Deployment
+
+You can deploy the chatbot easily to:
+
+* **Heroku**
+* **AWS (Elastic Beanstalk, EC2, etc.)**
+
+Follow standard Django deployment steps.
+
+---
+
+## 🧩 Notes & Tips
+
+* **No AWS SQS?**
+  → You don’t need to install `pycurl` or `boto3`.
+
+* **No AWS S3?**
+  → You don’t need to install `django-storages`.
+
+* **Don’t forget your API keys!**
+
+  * You must have a working **OpenAI API Key** before running the chatbot.
+
+---
+
+## 🔮 Future Improvements (Planned)
+
+* More authentication options (e.g. GitHub, Microsoft)
+* Support for more file types and video formats
+* Smarter, more contextual chat replies
+* Auto-detect user language
+* Integrations with apps like WhatsApp, Telegram, or Slack
+
+---
+
+## ✅ You're All Set!
+
+Feel free to customize and build on this project to fit your needs.
+Have fun building your own smart chatbot! 🤖💬
