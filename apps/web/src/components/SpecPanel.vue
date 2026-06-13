@@ -66,6 +66,11 @@ function refine() {
           <p v-else class="muted">none</p>
         </section>
 
+        <section class="card" v-if="store.spec.sub_agents?.length">
+          <h3>Team (delegates to)</h3>
+          <ul><li v-for="a in store.spec.sub_agents" :key="a">{{ a }}</li></ul>
+        </section>
+
         <section class="card">
           <h3>Workflow</h3>
           <div class="graph">

@@ -101,7 +101,7 @@ def build(request: str, key: str = typer.Option(None, help="idempotency key")) -
             console.print(f"[red]{data.get('message')}[/]")
     if agent_id:
         _save_agent(agent_id)
-        console.print(f"\n[dim](saved as default agent; use `loom ask`)[/]")
+        console.print("\n[dim](saved as default agent; use `loom ask`)[/]")
 
 
 @app.command()

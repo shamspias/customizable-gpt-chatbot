@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
@@ -10,6 +12,37 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Deterministic default tenant id (matches deploy/migrations/0001_init.sql).
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
+
+
+def _bootstrap_dotenv(path: str = ".env") -> None:
+    """Export .env into os.environ (without overriding real env vars).
+
+    pydantic-settings reads .env into the Settings model, but the leaf provider
+    layer (loom_llm) reads os.getenv directly — so we mirror .env into the process
+    environment once, at import, before any provider is constructed.
+    """
+    p = Path(path)
+    if not p.exists():
+        return
+    for raw in p.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if val[:1] in ('"', "'"):  # quoted value
+            q = val[0]
+            end = val.find(q, 1)
+            val = val[1:end] if end > 0 else val[1:]
+        else:  # strip inline `# comment`
+            hashidx = val.find(" #")
+            if hashidx >= 0:
+                val = val[:hashidx].rstrip()
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_bootstrap_dotenv()
 
 
 class Settings(BaseSettings):
@@ -24,7 +57,10 @@ class Settings(BaseSettings):
     orchestrator_model: str = Field(default="claude-opus-4-8", alias="LOOM_ORCHESTRATOR_MODEL")
     worker_model: str = Field(default="claude-sonnet-4-6", alias="LOOM_WORKER_MODEL")
     cheap_model: str = Field(default="claude-haiku-4-5", alias="LOOM_CHEAP_MODEL")
-    ollama_model: str = Field(default="qwen3:0.6b", alias="LOOM_OLLAMA_MODEL")  # local chat model
+    ollama_model: str = Field(default="qwen3.5:0.8b", alias="LOOM_OLLAMA_MODEL")  # local agent model
+    ollama_orchestrator_model: str = Field(
+        default="", alias="LOOM_OLLAMA_ORCHESTRATOR_MODEL"  # blank => same as ollama_model
+    )
 
     # ── embeddings ──
     embed_provider: Literal["auto", "openai", "ollama"] = Field(

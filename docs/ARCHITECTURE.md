@@ -69,9 +69,23 @@ orchestrator depend only on a normalized provider interface (`stream_turn` +
   Structured output uses Ollama's `format` (JSON-schema → grammar); tool use goes
   through Ollama function calls. Schemas are dereferenced + constraint-stripped
   (`prepare_json_schema`) so small models can satisfy the grammar.
+- **`openai`** — OpenAI-compatible `/v1/chat/completions` (OpenAI, Groq, OpenRouter,
+  vLLM, LM Studio): tools + `response_format` json_schema, streamed tool-call deltas.
 - **`anthropic`** — orchestrator `claude-opus-4-8`, workers `claude-sonnet-4-6`,
   cheap `claude-haiku-4-5`, with adaptive thinking + `effort`. The Anthropic path
   preserves thinking blocks via the opaque `raw` payload on each assistant turn.
+
+Each provider exposes `default_model` (agent runs) and `orchestrator_model`
+(NL→spec compile); a Claude-named spec default never leaks to a local backend.
+
+## Tools & teams
+
+Tools are registered in an MCP-shaped registry (`packages/mcp-client`): `kb.search`
+(RAG), plus bounded builtins — `time.now`, `math.eval`, `http.fetch`, and
+workspace-scoped `fs.read`/`fs.write`/`fs.list` (per-tenant dir, path-sandboxed; no
+shell/code exec until the v1 sandbox). Agent **teams** are agents-as-tools: a spec's
+`sub_agents` (names of other agents) become `team__<name>` delegate tools the
+runtime resolves to nested, depth-capped agent runs.
 
 Embeddings are independently pluggable (`LOOM_EMBED_PROVIDER`): local Ollama
 `nomic-embed-text` (768-dim) by default, or OpenAI `text-embedding-3-small`

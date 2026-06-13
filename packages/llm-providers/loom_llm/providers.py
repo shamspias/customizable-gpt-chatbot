@@ -84,7 +84,8 @@ def prepare_json_schema(schema: dict) -> dict:
 
 
 class BaseProvider:
-    default_model: str = ""
+    default_model: str = ""       # serves agent runs
+    orchestrator_model: str = ""  # serves NL->spec compilation
 
     def resolve(self, model: str | None) -> str:
         return model or self.default_model
@@ -97,13 +98,28 @@ class BaseProvider:
         raise NotImplementedError
 
 
+def _local_resolve(provider: BaseProvider, model: str | None) -> str:
+    """For non-Anthropic backends: honor only this provider's own model names so a
+    Claude-defaulted spec.model never leaks to Ollama/OpenAI; otherwise fall back."""
+    if model in (provider.default_model, provider.orchestrator_model):
+        return model  # type: ignore[return-value]
+    return provider.default_model
+
+
 # ───────────────────────── Anthropic ─────────────────────────
 class AnthropicProvider(BaseProvider):
-    def __init__(self, default_model: str = "claude-sonnet-4-6") -> None:
+    def __init__(
+        self, default_model: str = "claude-sonnet-4-6", orchestrator_model: str = "claude-opus-4-8"
+    ) -> None:
         from loom_llm.chat import get_client
 
         self.client = get_client()
         self.default_model = default_model
+        self.orchestrator_model = orchestrator_model
+
+    # Anthropic: trust any Claude model name (per-agent choice is valid).
+    def resolve(self, model: str | None) -> str:
+        return model or self.default_model
 
     def _to_native(self, messages: list[dict]) -> list[dict]:
         out: list[dict] = []
@@ -188,13 +204,13 @@ class AnthropicProvider(BaseProvider):
 
 # ───────────────────────── Ollama (local) ─────────────────────────
 class OllamaProvider(BaseProvider):
-    def __init__(self, base_url: str, model: str) -> None:
+    def __init__(self, base_url: str, model: str, orchestrator_model: str = "") -> None:
         self.base_url = base_url.rstrip("/")
         self.default_model = model
+        self.orchestrator_model = orchestrator_model or model
 
     def resolve(self, model: str | None) -> str:
-        # Single local model serves every role in this deployment.
-        return self.default_model
+        return _local_resolve(self, model)
 
     def _to_native(self, system: str, messages: list[dict]) -> list[dict]:
         out: list[dict] = [{"role": "system", "content": system}]
@@ -294,12 +310,133 @@ class OllamaProvider(BaseProvider):
             return None
 
 
+# ───────────────────────── OpenAI-compatible (OpenAI / Groq / OpenRouter / vLLM / LM Studio) ──
+def _openai_tools(tools: list[dict]) -> list[dict]:
+    return [
+        {"type": "function", "function": {
+            "name": t["name"], "description": t.get("description", ""),
+            "parameters": t["input_schema"]}}
+        for t in tools
+    ]
+
+
+class OpenAICompatProvider(BaseProvider):
+    def __init__(self, base_url: str, api_key: str, model: str, orchestrator_model: str = "") -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.default_model = model
+        self.orchestrator_model = orchestrator_model or model
+
+    def resolve(self, model: str | None) -> str:
+        return _local_resolve(self, model)
+
+    def _headers(self) -> dict:
+        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+
+    def _to_native(self, system: str, messages: list[dict]) -> list[dict]:
+        out: list[dict] = [{"role": "system", "content": system}]
+        for m in messages:
+            role = m["role"]
+            if role == "assistant":
+                msg: dict = {"role": "assistant", "content": m.get("content") or None}
+                raw = m.get("raw") or {}
+                if raw.get("tool_calls"):
+                    msg["tool_calls"] = raw["tool_calls"]
+                out.append(msg)
+            elif role == "tool":
+                out.append({"role": "tool", "tool_call_id": m["tool_call_id"], "content": m["content"]})
+            else:
+                out.append({"role": "user", "content": m["content"]})
+        return out
+
+    async def stream_turn(
+        self, *, model, system, messages, tools, effort, max_tokens
+    ) -> AsyncIterator[dict]:
+        payload: dict = {
+            "model": self.resolve(model), "stream": True,
+            "messages": self._to_native(system, messages), "max_tokens": max_tokens,
+        }
+        if tools:
+            payload["tools"] = _openai_tools(tools)
+        text = ""
+        slots: dict[int, dict] = {}
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST", f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    delta = ((json.loads(data).get("choices") or [{}])[0]).get("delta") or {}
+                    if delta.get("content"):
+                        text += delta["content"]
+                        yield {"type": "text", "text": delta["content"]}
+                    for tc in delta.get("tool_calls") or []:
+                        idx = tc.get("index", 0)
+                        slot = slots.setdefault(idx, {"id": f"call_{idx}", "name": "", "args": ""})
+                        if tc.get("id"):
+                            slot["id"] = tc["id"]
+                        fn = tc.get("function") or {}
+                        if fn.get("name"):
+                            slot["name"] = fn["name"]
+                        if fn.get("arguments"):
+                            slot["args"] += fn["arguments"]
+        calls, raw_calls = [], []
+        for idx in sorted(slots):
+            s = slots[idx]
+            try:
+                args = json.loads(s["args"]) if s["args"] else {}
+            except json.JSONDecodeError:
+                args = {}
+            calls.append(ToolCall(id=s["id"], name=s["name"], arguments=args))
+            raw_calls.append({"id": s["id"], "type": "function",
+                              "function": {"name": s["name"], "arguments": s["args"] or "{}"}})
+        raw = {"role": "assistant", "content": text or None}
+        if raw_calls:
+            raw["tool_calls"] = raw_calls
+        yield {"type": "final",
+               "turn": Turn(text, calls, "tool_use" if calls else "end_turn", raw=raw)}
+
+    async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
+        payload = {
+            "model": self.resolve(model), "stream": False,
+            "messages": self._to_native(system, messages), "max_tokens": max_tokens,
+            "response_format": {"type": "json_schema",
+                                "json_schema": {"name": "AgentSpec", "schema": schema, "strict": True}},
+        }
+        async with httpx.AsyncClient(timeout=None) as client:
+            resp = await client.post(
+                f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
+            )
+            resp.raise_for_status()
+            content = (resp.json()["choices"][0]["message"].get("content")) or ""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return None
+
+
 @functools.lru_cache
 def get_provider() -> BaseProvider:
     kind = os.getenv("LOOM_LLM_PROVIDER", "anthropic").lower()
     if kind == "ollama":
         return OllamaProvider(
             os.getenv("LOOM_OLLAMA_BASE_URL", "http://localhost:11434"),
-            os.getenv("LOOM_OLLAMA_MODEL", "qwen3:0.6b"),
+            os.getenv("LOOM_OLLAMA_MODEL", "qwen3.5:0.8b"),
+            os.getenv("LOOM_OLLAMA_ORCHESTRATOR_MODEL", ""),
         )
-    return AnthropicProvider(os.getenv("LOOM_WORKER_MODEL", "claude-sonnet-4-6"))
+    if kind == "openai":
+        return OpenAICompatProvider(
+            os.getenv("LOOM_OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            os.getenv("OPENAI_API_KEY", ""),
+            os.getenv("LOOM_OPENAI_MODEL", "gpt-4o-mini"),
+            os.getenv("LOOM_OPENAI_ORCHESTRATOR_MODEL", ""),
+        )
+    return AnthropicProvider(
+        os.getenv("LOOM_WORKER_MODEL", "claude-sonnet-4-6"),
+        os.getenv("LOOM_ORCHESTRATOR_MODEL", "claude-opus-4-8"),
+    )

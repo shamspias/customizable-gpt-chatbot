@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from loom_llm import ORCHESTRATOR_MODEL, get_provider, prepare_json_schema
+from loom_llm import get_provider, prepare_json_schema
 from loom_spec import AgentSpec
 from pydantic import ValidationError
 
@@ -34,6 +34,9 @@ Tools you may grant the agent (use these EXACT logical names — do not invent o
 Knowledge base available in this workspace:
 - id: "{kb_id}" (name: {kb_name}) — the user's uploaded documents.
 
+Existing agents you may delegate to (build a team via `sub_agents`):
+{agent_lines}
+
 Design rules:
 - Write a clear, production-quality `system_prompt` (the agent's policy/persona/\
 instructions): what it does, its tone, how it uses tools, and how it cites sources.
@@ -44,18 +47,23 @@ put "{kb_id}" in `knowledge_bases`. If the task needs no documents, grant no too
 - Set `model` to "{default_model}". Set `effort` to "high" unless the task is simple.
 - `thinking_method`: "react" for tool-using agents, "plan_execute" for multi-step \
 planning agents.
-- Set sensible `guardrails` (max_steps between 1 and 64). Keep `name` short and \
-descriptive. Leave `sub_agents` empty and `workflow_graph_ref` null (not supported yet).
+- To build a coordinator that delegates to a TEAM, list existing agent names (only \
+from the list above) in `sub_agents`; the coordinator can then call each as a tool. \
+Leave `sub_agents` empty for a standalone agent. Keep `workflow_graph_ref` null.
+- Set sensible `guardrails` (max_steps between 1 and 64). Keep `name` short and descriptive.
 
 Return only the AgentSpec."""
 
 
 def _system_prompt(catalog: dict) -> str:
     tool_lines = "\n".join(f'- {t["name"]}: {t["description"]}' for t in catalog["tools"])
+    agents = catalog.get("agents", [])
+    agent_lines = "\n".join(f"- {a}" for a in agents) if agents else "- (none yet)"
     return SYSTEM_TEMPLATE.format(
         tool_lines=tool_lines,
         kb_id=catalog["kb_id"],
         kb_name=catalog["kb_name"],
+        agent_lines=agent_lines,
         default_model=get_provider().default_model,
     )
 
@@ -65,7 +73,7 @@ async def parse_spec(system: str, messages: list[dict]) -> tuple[AgentSpec | Non
     provider = get_provider()
     schema = prepare_json_schema(AgentSpec.model_json_schema())
     data = await provider.parse_json(
-        model=ORCHESTRATOR_MODEL, system=system, messages=messages,
+        model=provider.orchestrator_model, system=system, messages=messages,
         schema=schema, max_tokens=COMPILE_MAX_TOKENS,
     )
     if data is None:
@@ -92,7 +100,11 @@ async def compile_with_repair(
             continue
         errors = lint_spec(spec, catalog)
         if not errors:
-            return normalize(spec, catalog), []
+            final = normalize(spec, catalog)
+            # Reflect the model that will actually serve this agent (Ollama forces
+            # its single local model; Anthropic keeps the orchestrator's choice).
+            final = final.model_copy(update={"model": get_provider().resolve(final.model)})
+            return final, []
         last_errors = errors
         messages.append(
             {

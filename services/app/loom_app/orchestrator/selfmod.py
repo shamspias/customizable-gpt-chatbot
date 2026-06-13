@@ -22,21 +22,29 @@ from loom_app.orchestrator.catalog import build_catalog, lint_spec, normalize
 from loom_app.orchestrator.compiler import _system_prompt, compile_with_repair
 
 
+# Tools that cannot be granted without the v1 execution sandbox (none yet — a
+# `code`/`bash` exec tool would go here and be hard-blocked in the MVP).
+DANGEROUS_TOOLS: set[str] = set()
+
+
 def _tool_keys(spec: dict) -> set[str]:
     return {f"{t['mcp_server']}.{t['tool_name']}" for t in spec.get("tools", [])}
 
 
 def classify(old: dict, new: dict) -> tuple[str, bool, list[str]]:
-    """Return (capability_class, blocked, reasons)."""
+    """Return (capability_class, blocked, reasons).
+
+    cosmetic   = prompt/model/effort/kb edits → low-risk.
+    sensitive  = grants a new (non-kb.search) tool → needs explicit approval.
+    blocked    = grants a DANGEROUS tool that requires the v1 sandbox.
+    """
     added = _tool_keys(new) - _tool_keys(old)
-    sensitive = sorted(t for t in added if t != "kb.search")
-    if sensitive:
-        return (
-            "sensitive",
-            True,
-            [f"adds tool '{t}', which requires the v1 sandbox and is blocked in the MVP"
-             for t in sensitive],
-        )
+    blocked = sorted(t for t in added if t in DANGEROUS_TOOLS)
+    if blocked:
+        return ("sensitive", True,
+                [f"adds tool '{t}', which requires the v1 execution sandbox" for t in blocked])
+    if any(t != "kb.search" for t in added):
+        return "sensitive", False, []
     return "cosmetic", False, []
 
 

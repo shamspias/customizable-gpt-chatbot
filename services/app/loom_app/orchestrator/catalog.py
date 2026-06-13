@@ -21,11 +21,12 @@ async def build_catalog(tenant_id: str = DEFAULT_TENANT_ID) -> dict:
     async with sm() as session:
         kb_id = await repo.get_or_create_kb(session, tenant_id, "default")
         await session.commit()
-    return {"tools": registry.catalog(), "kb_id": kb_id, "kb_name": "default"}
+        agents = [a["name"] for a in await repo.list_agents(session, tenant_id)]
+    return {"tools": registry.catalog(), "kb_id": kb_id, "kb_name": "default", "agents": agents}
 
 
 def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
-    """Referential integrity: every tool/KB reference must resolve in the catalog.
+    """Referential integrity: every tool/KB/sub-agent reference must resolve.
     Constrained decoding guarantees schema-validity; this catches the rest."""
     errors: list[str] = []
     allowed = {t["name"] for t in catalog["tools"]}
@@ -38,6 +39,12 @@ def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
     for kb in spec.knowledge_bases:
         if kb not in valid_kbs:
             errors.append(f"knowledge base id '{kb}' does not exist — use '{catalog['kb_id']}'")
+    existing_agents = set(catalog.get("agents", []))
+    for sub in spec.sub_agents:
+        if sub == spec.name:
+            errors.append(f"sub_agent '{sub}' cannot reference the agent itself")
+        elif sub not in existing_agents:
+            errors.append(f"sub_agent '{sub}' is not an existing agent — build it first or omit it")
     return errors
 
 
