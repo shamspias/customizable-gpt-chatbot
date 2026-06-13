@@ -55,6 +55,62 @@ async def get_or_create_kb(session: AsyncSession, tenant_id: str, name: str = "d
     return str(new_id)
 
 
+async def create_kb(session: AsyncSession, tenant_id: str, name: str) -> str:
+    return str(
+        (
+            await session.execute(
+                text(
+                    "INSERT INTO knowledge_bases (tenant_id, name) "
+                    "VALUES (CAST(:t AS uuid), :n) RETURNING id"
+                ),
+                {"t": tenant_id, "n": name},
+            )
+        ).scalar_one()
+    )
+
+
+async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
+    res = await session.execute(
+        text(
+            "SELECT k.id, k.name, k.created_at, "
+            "  (SELECT count(*) FROM documents d WHERE d.kb_id = k.id) AS document_count "
+            "FROM knowledge_bases k WHERE k.tenant_id = CAST(:t AS uuid) ORDER BY k.created_at"
+        ),
+        {"t": tenant_id},
+    )
+    return [dict(r._mapping) for r in res]
+
+
+async def list_documents(session: AsyncSession, kb_id: str) -> list[dict]:
+    if not is_uuid(kb_id):
+        return []
+    res = await session.execute(
+        text(
+            "SELECT d.id, d.filename, d.content_type, d.num_pages, d.status, d.created_at, "
+            "  (SELECT count(*) FROM chunks c WHERE c.document_id = d.id) AS chunk_count "
+            "FROM documents d WHERE d.kb_id = CAST(:kb AS uuid) ORDER BY d.created_at DESC"
+        ),
+        {"kb": kb_id},
+    )
+    return [dict(r._mapping) for r in res]
+
+
+async def delete_document(session: AsyncSession, doc_id: str) -> None:
+    if not is_uuid(doc_id):
+        return
+    await session.execute(
+        text("DELETE FROM documents WHERE id = CAST(:id AS uuid)"), {"id": doc_id}
+    )
+
+
+async def delete_kb(session: AsyncSession, kb_id: str) -> None:
+    if not is_uuid(kb_id):
+        return
+    await session.execute(
+        text("DELETE FROM knowledge_bases WHERE id = CAST(:id AS uuid)"), {"id": kb_id}
+    )
+
+
 async def create_document(
     session: AsyncSession,
     kb_id: str,
@@ -107,17 +163,17 @@ async def insert_page_index(session: AsyncSession, rows: list[dict[str, Any]]) -
 
 
 async def insert_chunks(session: AsyncSession, rows: list[dict[str, Any]]) -> None:
-    """Each row: document_id, kb_id, tenant_id, ordinal, content, page_number,
+    """Each row: id, document_id, kb_id, tenant_id, ordinal, content, page_number,
     section_path, char_start, char_end, token_count, embedding (pgvector literal str)."""
     if not rows:
         return
     await session.execute(
         text(
-            "INSERT INTO chunks (document_id, kb_id, tenant_id, ordinal, content, "
+            "INSERT INTO chunks (id, document_id, kb_id, tenant_id, ordinal, content, "
             "page_number, section_path, char_start, char_end, token_count, embedding) "
-            "VALUES (CAST(:document_id AS uuid), CAST(:kb_id AS uuid), CAST(:tenant_id AS uuid), "
-            ":ordinal, :content, :page_number, :section_path, :char_start, :char_end, "
-            ":token_count, CAST(:embedding AS vector))"
+            "VALUES (CAST(:id AS uuid), CAST(:document_id AS uuid), CAST(:kb_id AS uuid), "
+            "CAST(:tenant_id AS uuid), :ordinal, :content, :page_number, :section_path, "
+            ":char_start, :char_end, :token_count, CAST(:embedding AS vector))"
         ),
         rows,
     )
@@ -152,6 +208,21 @@ async def lexical_search(
             "ORDER BY rank DESC LIMIT :n"
         ),
         {"q": query, "t": tenant_id, "kbs": kb_ids, "n": n},
+    )
+    return [dict(r._mapping) for r in res]
+
+
+async def get_chunks_by_ids(session: AsyncSession, ids: list[str]) -> list[dict]:
+    """Fetch chunk content + citation metadata for ids (used after a vector-store query)."""
+    if not ids:
+        return []
+    res = await session.execute(
+        text(
+            "SELECT c.id, c.content, c.page_number, c.section_path, c.char_start, c.char_end, "
+            "d.filename FROM chunks c JOIN documents d ON d.id = c.document_id "
+            "WHERE c.id = ANY(:ids)"
+        ),
+        {"ids": ids},
     )
     return [dict(r._mapping) for r in res]
 

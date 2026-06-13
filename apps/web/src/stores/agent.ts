@@ -14,6 +14,7 @@ export interface ChatMsg {
   role: "user" | "assistant";
   text: string;
   kind?: "spec" | "error";
+  thinking?: string;
   citations?: Citation[];
 }
 
@@ -24,6 +25,11 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
+  const view = ref<"studio" | "knowledge" | "workflows">("studio");
+  const agents = ref<any[]>([]);
+  const kbs = ref<any[]>([]);
+  const kbDocs = ref<any[]>([]);
+  const selectedKb = ref<string | null>(null);
   const busy = ref(false);
   const diff = ref<any | null>(null);
   const error = ref<string | null>(null);
@@ -72,14 +78,20 @@ export const useAgentStore = defineStore("agent", () => {
   async function ask(message: string) {
     if (!agentId.value) return;
     busy.value = true;
+    // Prior turns become conversation history (multi-turn).
+    const history = messages.value
+      .filter((m) => m.text && (m.kind === undefined))
+      .map((m) => ({ role: m.role, text: m.text }));
     messages.value.push({ role: "user", text: message });
-    const assistant = reactive<ChatMsg>({ role: "assistant", text: "", citations: [] });
+    const assistant = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
     messages.value.push(assistant);
     try {
-      await streamPost(`/api/agents/${agentId.value}/ask`, { message }, (ev, data) => {
+      await streamPost(`/api/agents/${agentId.value}/ask`, { message, history }, (ev, data) => {
         if (ev === "token") assistant.text += data.text;
+        else if (ev === "thinking") assistant.thinking += data.text;
         else if (ev === "citations") assistant.citations = data.citations;
-        else if (ev === "tool_use") phase.value = `searching · ${data.name}`;
+        else if (ev === "node") phase.value = `${data.type}`;
+        else if (ev === "tool_use") phase.value = `tool · ${data.name}`;
         else if (ev === "tool_result") phase.value = "";
         else if (ev === "error") assistant.text += `\n\n_[${data.message}]_`;
       });
@@ -156,8 +168,64 @@ export const useAgentStore = defineStore("agent", () => {
     }
   }
 
+  // ── agents listing / loading ──
+  async function listAgents() {
+    agents.value = await getJson("/api/agents");
+  }
+  async function loadAgent(id: string) {
+    const d = await getJson(`/api/agents/${id}`);
+    agentId.value = id;
+    spec.value = d.spec;
+    messages.value = [];
+    view.value = "studio";
+  }
+
+  // ── knowledge bases ──
+  async function listKbs() {
+    kbs.value = await getJson("/api/kb");
+  }
+  async function createKb(name: string) {
+    await postJson("/api/kb", { name });
+    await listKbs();
+  }
+  async function deleteKb(id: string) {
+    await fetch(`/api/kb/${id}`, { method: "DELETE" });
+    if (selectedKb.value === id) {
+      selectedKb.value = null;
+      kbDocs.value = [];
+    }
+    await listKbs();
+  }
+  async function selectKb(id: string) {
+    selectedKb.value = id;
+    kbDocs.value = await getJson(`/api/kb/${id}/documents`);
+  }
+  async function uploadToKb(id: string, file: File) {
+    busy.value = true;
+    error.value = null;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(`/api/kb/${id}/upload`, { method: "POST", body: fd });
+      if (!r.ok) throw new Error(await r.text());
+      await selectKb(id);
+      await listKbs();
+    } catch (e: any) {
+      error.value = String(e);
+    } finally {
+      busy.value = false;
+    }
+  }
+  async function deleteDoc(kbId: string, docId: string) {
+    await fetch(`/api/kb/${kbId}/documents/${docId}`, { method: "DELETE" });
+    await selectKb(kbId);
+    await listKbs();
+  }
+
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
+    view, agents, kbs, kbDocs, selectedKb,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
+    listAgents, loadAgent, listKbs, createKb, deleteKb, selectKb, uploadToKb, deleteDoc,
   };
 });

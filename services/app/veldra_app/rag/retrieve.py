@@ -12,6 +12,7 @@ from veldra_llm import embed_query
 from veldra_app import repo
 from veldra_app.db import get_sessionmaker
 from veldra_app.rag.ingest import embed_config
+from veldra_app.rag.vectorstores import get_vector_store
 
 RRF_K = 60
 
@@ -32,12 +33,17 @@ def _rrf(*ranked_lists: list[dict]) -> list[dict]:
 
 async def search(query: str, kb_ids: list[str], tenant_id: str, k: int = 6) -> tuple[str, list[dict]]:
     emb = await embed_query(query, embed_config())
+    # Vector leg from the configured store (pgvector / qdrant); lexical leg + content
+    # from Postgres. Fuse by reciprocal rank.
+    vec_hits = await get_vector_store().query(emb, kb_ids, tenant_id, n=k * 4)
     sm = get_sessionmaker()
     async with sm() as session:
-        vec = await repo.vector_search(session, tenant_id, kb_ids, emb, n=k * 4)
         lex = await repo.lexical_search(session, tenant_id, kb_ids, query, n=k * 4)
+        vec_rows = await repo.get_chunks_by_ids(session, [cid for cid, _ in vec_hits])
 
-    fused = _rrf(vec, lex)[:k]
+    by_id = {str(r["id"]): r for r in vec_rows}
+    vec_ranked = [by_id[cid] for cid, _ in vec_hits if cid in by_id]  # preserve vector order
+    fused = _rrf(vec_ranked, lex)[:k]
     if not fused:
         return ("No relevant passages were found in the knowledge base.", [])
 

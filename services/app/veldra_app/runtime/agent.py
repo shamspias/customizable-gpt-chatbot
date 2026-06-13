@@ -85,6 +85,7 @@ async def run_agent(
     tenant_id: str,
     run_id: str,
     depth: int = 0,
+    history: list[dict] | None = None,
 ) -> AsyncIterator[dict]:
     """Drive one agent turn-to-completion, yielding SSE event dicts."""
     provider = get_provider()
@@ -114,7 +115,13 @@ async def run_agent(
         )
     ctx = ToolContext(tenant_id=tenant_id, knowledge_bases=spec.knowledge_bases)
 
-    messages: list[dict] = [{"role": "user", "content": user_message}]
+    messages: list[dict] = []
+    for h in history or []:  # prior turns for multi-turn chat
+        role = h.get("role")
+        text = h.get("text") or h.get("content") or ""
+        if role in ("user", "assistant") and text:
+            messages.append({"role": role, "content": text})
+    messages.append({"role": "user", "content": user_message})
     ordinal = 0
     answer = ""
 

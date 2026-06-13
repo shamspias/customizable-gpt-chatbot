@@ -22,6 +22,7 @@ from veldra_app.edge.schemas import (
     AgentSummary,
     AskRequest,
     BuildRequest,
+    KbCreateRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
     UploadResponse,
@@ -40,22 +41,77 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-# ───────────────────────── knowledge base ─────────────────────────
+# ───────────────────────── knowledge bases ─────────────────────────
+def _ingest_response(result) -> UploadResponse:
+    return UploadResponse(
+        document_id=result.document_id, kb_id=result.kb_id, filename=result.filename,
+        num_pages=result.num_pages, num_chunks=result.num_chunks,
+    )
+
+
+@router.get("/kb")
+async def list_kbs() -> list[dict]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_kbs(s, TENANT)
+
+
+@router.post("/kb")
+async def create_kb(req: KbCreateRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        kb_id = await repo.create_kb(s, TENANT, req.name)
+        await s.commit()
+    return {"id": kb_id, "name": req.name}
+
+
+@router.delete("/kb/{kb_id}")
+async def delete_kb(kb_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        await repo.delete_kb(s, kb_id)
+        await s.commit()
+    return {"deleted": kb_id}
+
+
+@router.get("/kb/{kb_id}/documents")
+async def list_documents(kb_id: str) -> list[dict]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_documents(s, kb_id)
+
+
+@router.post("/kb/{kb_id}/upload", response_model=UploadResponse)
+async def upload_to_kb(kb_id: str, file: UploadFile = File(...)) -> UploadResponse:
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "empty file")
+    result = await ingest_document(
+        data, file.filename or "document",
+        file.content_type or "application/octet-stream", TENANT, kb_id=kb_id,
+    )
+    return _ingest_response(result)
+
+
+@router.delete("/kb/{kb_id}/documents/{doc_id}")
+async def delete_document(kb_id: str, doc_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        await repo.delete_document(s, doc_id)
+        await s.commit()
+    return {"deleted": doc_id}
+
+
 @router.post("/kb/upload", response_model=UploadResponse)
 async def upload(file: UploadFile = File(...)) -> UploadResponse:
+    """Upload to the default KB (kept for convenience / the CLI)."""
     data = await file.read()
     if not data:
         raise HTTPException(400, "empty file")
     result = await ingest_document(
         data, file.filename or "document", file.content_type or "application/octet-stream", TENANT
     )
-    return UploadResponse(
-        document_id=result.document_id,
-        kb_id=result.kb_id,
-        filename=result.filename,
-        num_pages=result.num_pages,
-        num_chunks=result.num_chunks,
-    )
+    return _ingest_response(result)
 
 
 # ───────────────────────── build (NL -> agent) ─────────────────────────
@@ -120,7 +176,9 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
 
     answer: str | None = None
     try:
-        async for event in execute(spec, req.message, tenant_id=TENANT, run_id=run_id):
+        async for event in execute(
+            spec, req.message, tenant_id=TENANT, run_id=run_id, history=req.history
+        ):
             if event["event"] == "done":
                 answer = json.loads(event["data"]).get("answer")
             yield event

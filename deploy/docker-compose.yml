@@ -80,6 +80,7 @@ services:
       VELDRA_API_HOST: "0.0.0.0"
       # Reach the host's Ollama from inside the container.
       VELDRA_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      VELDRA_QDRANT_URL: http://qdrant:6333
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -90,7 +91,17 @@ services:
       minio:
         condition: service_healthy
 
+  # Optional alternative vector store. Enable with: --profile qdrant
+  qdrant:
+    image: qdrant/qdrant:latest
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrantdata:/qdrant/storage
+
 volumes:
   pgdata:
   redisdata:
   miniodata:
+  qdrantdata:

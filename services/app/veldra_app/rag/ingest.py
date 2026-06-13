@@ -59,13 +59,15 @@ async def ingest_document(
     content_type: str,
     tenant_id: str = DEFAULT_TENANT_ID,
     kb_name: str = "default",
+    kb_id: str | None = None,
 ) -> IngestResult:
     sm = get_sessionmaker()
     s3_key = f"{tenant_id}/{uuid.uuid4()}/{filename}"
     await storage.put_object(s3_key, data, content_type or "application/octet-stream")
 
     async with sm() as session:
-        kb_id = await repo.get_or_create_kb(session, tenant_id, kb_name)
+        if kb_id is None:
+            kb_id = await repo.get_or_create_kb(session, tenant_id, kb_name)
         doc_id = await repo.create_document(session, kb_id, tenant_id, filename, content_type, s3_key)
         await session.commit()
 
@@ -98,9 +100,11 @@ async def ingest_document(
             return IngestResult(doc_id, kb_id, filename, len(pages), 0)
 
         embeddings = await embed_texts([c.content for c in all_chunks], embed_config())
+        ids = [str(uuid.uuid4()) for _ in all_chunks]
 
         chunk_rows = [
             {
+                "id": ids[i],
                 "document_id": doc_id,
                 "kb_id": kb_id,
                 "tenant_id": tenant_id,
@@ -122,6 +126,15 @@ async def ingest_document(
             await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
             await session.commit()
 
+        # Mirror vectors to the configured store (no-op for pgvector; upsert for qdrant).
+        from veldra_app.rag.vectorstores import get_vector_store
+
+        await get_vector_store().upsert(
+            [
+                {"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
+                for i in range(len(ids))
+            ]
+        )
         return IngestResult(doc_id, kb_id, filename, len(pages), len(chunk_rows))
     except Exception as exc:
         async with sm() as session:

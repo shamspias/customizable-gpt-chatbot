@@ -14,6 +14,9 @@ class BuildRequest(BaseModel):
 
 class AskRequest(BaseModel):
     message: str
+    history: list[dict[str, Any]] = Field(
+        default_factory=list, description="Prior turns [{role, text}] for multi-turn chat."
+    )
 
 
 class SelfModProposeRequest(BaseModel):
@@ -34,6 +37,10 @@ class UploadResponse(BaseModel):
     filename: str
     num_pages: int
     num_chunks: int
+
+
+class KbCreateRequest(BaseModel):
+    name: str = Field(min_length=1, description="Knowledge base name.")
 
 
 class AgentSummary(BaseModel):
