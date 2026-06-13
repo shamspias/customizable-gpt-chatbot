@@ -107,6 +107,18 @@ Embeddings are independently pluggable (`VELDRA_EMBED_PROVIDER`): local Ollama
 `nomic-embed-text` (768-dim) by default, or OpenAI `text-embedding-3-small` (1536).
 The dimension is fixed at first migration.
 
+### Agent loop modes (`VELDRA_AGENT_MODE`)
+
+To stay reliable even on **sub-1B local models**, the runtime defaults (`auto`) to a
+**constrained decision loop** for local/small models instead of fragile native
+tool-calling: each step the model picks an action from an enum (`tools + final`) and
+fills exactly that tool's args via structured output (with goal-aware prompting,
+required-field fallback, a no-progress breaker, bounded repair, and graceful step-limit
+fallback). The final answer is a separate, streamed, *grounded* composition ("answer
+only from the observations; if absent, say so"). Claude/large models keep native
+tool-calling. Force either with `VELDRA_AGENT_MODE=decision|native`. Verified driving a
+correct, cited RAG answer on `qwen3.5:0.8b`.
+
 > **Tiny-model caveat:** a sub-1B model (like `qwen3.5:0.8b`) emits schema-valid
 > output via constrained decoding and *can* call tools, but it designs weak specs
 > (often grants no tools from a vague request) and writes rambly answers. For a

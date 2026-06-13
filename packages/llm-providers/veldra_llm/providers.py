@@ -83,9 +83,37 @@ def prepare_json_schema(schema: dict) -> dict:
     return _strip(_deref(schema))
 
 
+def salvage_json(text: str) -> dict | None:
+    """Best-effort parse of model JSON: strip code fences, take the first balanced
+    {...}, then json.loads. Small models often wrap JSON in prose/fences."""
+    if not text:
+        return None
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("```", 2)[1] if t.count("```") >= 2 else t.strip("`")
+        if t.lstrip().startswith("json"):
+            t = t.lstrip()[4:]
+    start = t.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    for i in range(start, len(t)):
+        if t[i] == "{":
+            depth += 1
+        elif t[i] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(t[start : i + 1])
+                except json.JSONDecodeError:
+                    return None
+    return None
+
+
 class BaseProvider:
-    default_model: str = ""       # serves agent runs
-    orchestrator_model: str = ""  # serves NL->spec compilation
+    default_model: str = ""        # serves agent runs
+    orchestrator_model: str = ""   # serves NL->spec compilation
+    prefers_structured: bool = False  # small/local models: drive a constrained decision loop
 
     def resolve(self, model: str | None) -> str:
         return model or self.default_model
@@ -204,6 +232,8 @@ class AnthropicProvider(BaseProvider):
 
 # ───────────────────────── Ollama (local) ─────────────────────────
 class OllamaProvider(BaseProvider):
+    prefers_structured = True  # local models: use the constrained decision loop
+
     def __init__(
         self, base_url: str, model: str, orchestrator_model: str = "", think: bool = False
     ) -> None:
@@ -305,17 +335,13 @@ class OllamaProvider(BaseProvider):
             "think": self.think,
             "messages": self._to_native(system, messages),
             "format": schema,  # Ollama constrains output to this JSON schema
-            "options": {"num_predict": max_tokens},
+            "options": {"num_predict": max_tokens, "temperature": 0},  # greedy: stable for tiny models
         }
         async with httpx.AsyncClient(timeout=None) as client:
             resp = await client.post(f"{self.base_url}/api/chat", json=payload)
             resp.raise_for_status()
             data = resp.json()
-        content = (data.get("message") or {}).get("content", "")
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            return None
+        return salvage_json((data.get("message") or {}).get("content", ""))
 
 
 # ───────────────────────── OpenAI-compatible (OpenAI / Groq / OpenRouter / vLLM / LM Studio) ──
@@ -329,6 +355,8 @@ def _openai_tools(tools: list[dict]) -> list[dict]:
 
 
 class OpenAICompatProvider(BaseProvider):
+    prefers_structured = True  # treat as a local/small-model tier; use the decision loop
+
     def __init__(self, base_url: str, api_key: str, model: str, orchestrator_model: str = "") -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -411,10 +439,10 @@ class OpenAICompatProvider(BaseProvider):
 
     async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
         payload = {
-            "model": self.resolve(model), "stream": False,
+            "model": self.resolve(model), "stream": False, "temperature": 0,
             "messages": self._to_native(system, messages), "max_tokens": max_tokens,
             "response_format": {"type": "json_schema",
-                                "json_schema": {"name": "AgentSpec", "schema": schema, "strict": True}},
+                                "json_schema": {"name": "Decision", "schema": schema, "strict": True}},
         }
         async with httpx.AsyncClient(timeout=None) as client:
             resp = await client.post(
@@ -422,10 +450,7 @@ class OpenAICompatProvider(BaseProvider):
             )
             resp.raise_for_status()
             content = (resp.json()["choices"][0]["message"].get("content")) or ""
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            return None
+        return salvage_json(content)
 
 
 @functools.lru_cache
