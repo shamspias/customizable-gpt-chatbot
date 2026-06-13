@@ -1,0 +1,95 @@
+# Loom — Architecture
+
+Loom is a self-hostable **agent-harness platform**: install it, talk to an
+orchestrator AI in natural language, and it designs working agents — writing each
+agent's policy, selecting its tools, attaching a RAG knowledge base, and choosing
+a reasoning method. You reshape any agent by talking to the same AI, which emits a
+reviewable diff you approve.
+
+## Core invariants
+
+1. **An agent is _data_, not code** — a versioned `AgentSpec` row in Postgres
+   (`packages/spec-schema`). The runtime is a pure interpreter of that spec.
+2. **Python is the brain; Go is the nervous system; Go never calls an LLM.** Go is
+   a *target*, introduced only when a measured need appears (see roadmap). The MVP
+   is a single Python process.
+3. **The declarative-spec safety model covers _configuration_ only.** It protects
+   spec edits (prompt, model, retrieval). Executing untrusted tools/code is a
+   *separate* problem solved by the v1 sandbox — a hard gate for any non-`kb.search`
+   tool. "It's all JSON" does **not** make code execution safe.
+4. **RAG is just a tool** (`kb.search`), so retrieval composes with everything.
+5. **Forward-compatible, not pre-built.** The schema tolerates additive fields;
+   we don't build validators/UI for node/agent types no phase executes yet.
+
+## MVP shape (what's in this repo)
+
+One FastAPI process collapses edge + orchestrator + runtime + rag:
+
+```
+apps/web (Vue 3)  ──HTTP/SSE──▶  services/app (FastAPI)
+                                   ├─ edge/         REST + SSE, single-tenant stub
+                                   ├─ orchestrator/ NL→AgentSpec (messages.parse),
+                                   │                linter, 3-attempt repair, self-mod
+                                   ├─ runtime/      manual messages.stream loop, hooks,
+                                   │                tool dispatch, append-full-content
+                                   └─ rag/          ingest · page-index · hybrid+RRF · cite
+packages/  spec-schema · llm-providers · mcp-client · mcp-servers/kb_search · thinking-methods
+cli/       thin Typer client over the same endpoints
+deploy/    docker-compose (postgres+pgvector, redis, minio) + SQL migrations
+evals/     NL→spec golden set + accuracy runner
+```
+
+Datastores: **Postgres** (system of record + `pgvector` HNSW + `tsvector`), **Redis**
+(wired; pub/sub fan-out inactive until a 2nd process exists), **MinIO/S3** (source docs).
+
+### Key mechanisms
+
+- **Compiler** — `client.messages.parse(output_format=AgentSpec)` → validated
+  Pydantic object → static linter (every tool/KB ref resolves) → 3-attempt repair
+  feeding back full validator output → terminal = clarify, never persist invalid.
+- **Runtime** — manual loop over `messages.stream` (not `tool_runner`) for per-token
+  streaming + permission gates. Adaptive thinking (`display:"summarized"`) + effort
+  from the spec. Handles `end_turn`/`tool_use`/`pause_turn`/`refusal`; appends the
+  full `response.content` each turn (preserves thinking blocks).
+- **RAG page-index** — structure-aware chunks carry `page_number/section_path/char_span`
+  (the citation metadata is the differentiator). Hybrid pgvector + `tsvector` with RRF.
+- **Self-mod** — orchestrator emits a complete revised spec; we diff it to a JSON-Patch
+  for human approval. Capability gating blocks adding non-`kb.search` tools (needs the
+  v1 sandbox). Every applied change is a new immutable version (rollback = repin).
+- **Thinking methods** — pluggable factories keyed by `thinking_method`
+  (`packages/thinking-methods`). MVP: `react`, `plan_execute`.
+
+## Models
+
+The LLM layer is **provider-pluggable** via `LOOM_LLM_PROVIDER`. The runtime and
+orchestrator depend only on a normalized provider interface (`stream_turn` +
+`parse_json`), so the same agent loop runs on either backend:
+
+- **`ollama`** (default) — fully local, no API key. One model serves every role.
+  Structured output uses Ollama's `format` (JSON-schema → grammar); tool use goes
+  through Ollama function calls. Schemas are dereferenced + constraint-stripped
+  (`prepare_json_schema`) so small models can satisfy the grammar.
+- **`anthropic`** — orchestrator `claude-opus-4-8`, workers `claude-sonnet-4-6`,
+  cheap `claude-haiku-4-5`, with adaptive thinking + `effort`. The Anthropic path
+  preserves thinking blocks via the opaque `raw` payload on each assistant turn.
+
+Embeddings are independently pluggable (`LOOM_EMBED_PROVIDER`): local Ollama
+`nomic-embed-text` (768-dim) by default, or OpenAI `text-embedding-3-small`
+(1536-dim). Dimension is fixed at first migration.
+
+## Roadmap
+
+- **MVP (this repo)** — one Python process: NL→agent→RAG→cited answer + one
+  config-only self-mod, with a golden NL→spec eval bar and OTel tracing.
+- **v1** — Go **sandbox** (gVisor) gated on its own breakout/egress/resource-cap
+  suite, before any untrusted tool ships; multi-tenancy enforcement (RLS); self-mod
+  dry-run replay smoke test; Go gateway *if* measured fan-out/CPU need (then
+  Pydantic→Go/TS codegen + CI contract tests become mandatory); Vue Flow canvas;
+  RAG rerank + parent-expansion; Reflexion.
+- **v2** — Go workflow DAG engine (durable, resumes at node boundaries — Python owns
+  the opaque conversation blob) over NATS; multi-agent teams + handoffs; ToT/Debate;
+  Firecracker; visual graph editing; Qdrant option.
+- **v3 (conditional)** — Temporal durable spine; k8s/Helm.
+
+See the design plan at `~/.claude/plans/tender-humming-tiger.md` for the full
+rationale and the adversarial critique that shaped this scope.

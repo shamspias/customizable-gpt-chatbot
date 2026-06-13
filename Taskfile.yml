@@ -1,0 +1,66 @@
+# https://taskfile.dev — `task <name>`
+version: '3'
+
+dotenv: ['.env']
+
+vars:
+  COMPOSE: docker compose -f deploy/docker-compose.yml
+
+tasks:
+  install:
+    desc: Install Python (uv) and web (npm) dependencies
+    cmds:
+      - uv sync
+      - cd apps/web && npm install
+
+  up:
+    desc: Start local infra (postgres+pgvector, redis, minio)
+    cmds:
+      - "{{.COMPOSE}} up -d postgres redis minio"
+      - echo "Waiting for postgres..." && sleep 3
+
+  down:
+    desc: Stop local infra
+    cmds:
+      - "{{.COMPOSE}} down"
+
+  migrate:
+    desc: Apply SQL migrations in deploy/migrations
+    cmds:
+      - uv run python -m loom_app.db migrate
+
+  dev:
+    desc: Run API (:8000) and web (:5173) together
+    deps: [dev:api, dev:web]
+
+  dev:api:
+    desc: Run the FastAPI app with autoreload
+    cmds:
+      - uv run uvicorn loom_app.main:app --reload --host ${LOOM_API_HOST:-0.0.0.0} --port ${LOOM_API_PORT:-8000}
+
+  dev:web:
+    desc: Run the Vue dev server
+    dir: apps/web
+    cmds:
+      - npm run dev
+
+  eval:
+    desc: Run the NL->spec golden eval suite
+    cmds:
+      - uv run python -m evals.nl_to_spec.run
+
+  cli:
+    desc: 'Run the loom CLI, e.g. `task cli -- build "answer from my docs"`'
+    cmds:
+      - uv run loom {{.CLI_ARGS}}
+
+  fmt:
+    desc: Format + autofix
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --fix .
+
+  test:
+    desc: Run Python tests
+    cmds:
+      - uv run pytest -q
