@@ -1,45 +1,95 @@
+/* Veldra design system — restrained, professional, dark-first (with light). */
 :root {
-  --bg: #ffffff;
-  --card: #f7f8fa;
-  --chip-bg: #eef1f5;
-  --border: #e3e6eb;
-  --ink: #1c2024;
-  --muted: #6b7280;
-  --accent: #2f6fed;
-  --ok-bg: #eef7f0;
-  --ok-border: #cfe6d6;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bg: #0c0e12;
+  --bg-soft: #101319;
+  --surface: #161a21;
+  --surface-2: #1c212b;
+  --border: #252b36;
+  --border-strong: #333b48;
+  --ink: #e9ecf3;
+  --muted: #98a1b0;
+  --faint: #6b7484;
+  --accent: #7c8cf8;
+  --accent-2: #a78bfa;
+  --accent-soft: rgba(124, 140, 248, 0.16);
+  --accent-ring: rgba(124, 140, 248, 0.35);
+  --ok: #4cc38a;
+  --ok-soft: rgba(76, 195, 138, 0.14);
+  --danger: #f3737b;
+  --danger-soft: rgba(243, 115, 123, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --radius: 14px;
+  --radius-sm: 9px;
+
+  color-scheme: dark;
+  font-family: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   color: var(--ink);
+  background: var(--bg);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #15171c;
-    --card: #1d2026;
-    --chip-bg: #242832;
-    --border: #2c313b;
-    --ink: #e6e8ec;
-    --muted: #9aa3b2;
-    --accent: #6f9bff;
-    --ok-bg: #16241c;
-    --ok-border: #244a33;
+    --bg: #f6f7f9;
+    --bg-soft: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #f1f3f7;
+    --border: #e3e7ee;
+    --border-strong: #d2d8e2;
+    --ink: #171a21;
+    --muted: #5a6472;
+    --faint: #8b93a1;
+    --accent: #5b63e6;
+    --accent-2: #7c5cf0;
+    --accent-soft: rgba(91, 99, 230, 0.10);
+    --accent-ring: rgba(91, 99, 230, 0.30);
+    --ok: #1f9d63;
+    --ok-soft: rgba(31, 157, 99, 0.10);
+    --danger: #d64550;
+    --danger-soft: rgba(214, 69, 80, 0.10);
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+    --shadow: 0 10px 30px rgba(16, 24, 40, 0.10);
+    color-scheme: light;
   }
 }
 
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
-body { background: var(--bg); }
+body { background: radial-gradient(1200px 600px at 80% -10%, var(--bg-soft), var(--bg)) fixed; }
+
+::selection { background: var(--accent-soft); }
+
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
 
 button {
-  font: inherit; padding: 8px 14px; border-radius: 8px;
-  border: 1px solid var(--accent); background: var(--accent); color: #fff;
-  cursor: pointer;
+  font: inherit; font-weight: 550; padding: 9px 15px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, border-color 0.15s;
 }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-button.ghost { background: transparent; color: var(--ink); border-color: var(--border); }
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.ghost {
+  background: var(--surface-2); color: var(--ink); border-color: var(--border);
+}
+button.ghost:hover:not(:disabled) { border-color: var(--border-strong); filter: none; background: var(--surface); }
 
 input[type="text"], input:not([type]), textarea {
-  font: inherit; padding: 9px 12px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--bg); color: var(--ink); outline: none;
+  font: inherit; padding: 10px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-input:focus, textarea:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+a { color: var(--accent); }
+
+@keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes veldra-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

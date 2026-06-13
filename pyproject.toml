@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "loom"
+name = "veldra"
 version = "0.1.0"
-description = "Loom — a self-hostable agent-harness platform. Talk an agent into existence."
+description = "Veldra — a self-hostable agent-harness platform. Talk an agent into existence."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "TBD" }
@@ -52,18 +52,18 @@ dev = [
 ]
 
 [project.scripts]
-loom = "loom_cli.main:app"
+veldra = "veldra_cli.main:app"
 
 # Single distribution assembled from the monorepo's package roots.
 [tool.hatch.build.targets.wheel]
 packages = [
-  "packages/spec-schema/loom_spec",
-  "packages/llm-providers/loom_llm",
-  "packages/mcp-client/loom_mcp",
-  "packages/mcp-servers/loom_mcp_servers",
-  "packages/thinking-methods/loom_thinking",
-  "services/app/loom_app",
-  "cli/loom_cli",
+  "packages/spec-schema/veldra_spec",
+  "packages/llm-providers/veldra_llm",
+  "packages/mcp-client/veldra_mcp",
+  "packages/mcp-servers/veldra_mcp_servers",
+  "packages/thinking-methods/veldra_thinking",
+  "services/app/veldra_app",
+  "cli/veldra_cli",
 ]
 
 [tool.uv]

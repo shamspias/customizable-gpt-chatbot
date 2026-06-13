@@ -1,23 +1,23 @@
-# Local self-host stack for the Loom MVP.
-#   task up    -> postgres+pgvector, redis, minio
-# The app (services/app) and web (apps/web) run on the host via `task dev`
-# during development; a containerized app target is added later.
-name: loom
+# Veldra — full self-host stack. One command runs everything:
+#   make up         (or: docker compose -f deploy/docker-compose.yml up --build)
+# Brings up postgres+pgvector, redis, minio, and the app (Vue UI + FastAPI API)
+# on http://localhost:8000. Requires Ollama running on the host (default provider).
+name: veldra
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: loom
-      POSTGRES_PASSWORD: loom
-      POSTGRES_DB: loom
+      POSTGRES_USER: veldra
+      POSTGRES_PASSWORD: veldra
+      POSTGRES_DB: veldra
     ports:
       # 5433 on the host to avoid clashing with a local Postgres on 5432.
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loom -d loom"]
+      test: ["CMD-SHELL", "pg_isready -U veldra -d veldra"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -38,8 +38,8 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: loom
-      MINIO_ROOT_PASSWORD: loomsecret
+      MINIO_ROOT_USER: veldra
+      MINIO_ROOT_PASSWORD: veldrasecret
     ports:
       - "9000:9000"   # S3 API
       - "9001:9001"   # console
@@ -59,11 +59,36 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 loom loomsecret;
-      mc mb --ignore-existing local/loom-documents;
-      mc anonymous set none local/loom-documents;
+      mc alias set local http://minio:9000 veldra veldrasecret;
+      mc mb --ignore-existing local/veldra-documents;
+      mc anonymous set none local/veldra-documents;
       exit 0;
       "
+
+  # The Veldra app: serves the Vue UI + FastAPI API. `docker compose up` runs the lot.
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      # In-network service addresses (override whatever .env has for host-mode dev).
+      DATABASE_URL: postgresql://veldra:veldra@postgres:5432/veldra
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      VELDRA_API_HOST: "0.0.0.0"
+      # Reach the host's Ollama from inside the container.
+      VELDRA_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
 volumes:
   pgdata:

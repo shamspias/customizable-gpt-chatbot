@@ -15,8 +15,8 @@ import sys
 from rich.console import Console
 
 from evals.nl_to_spec.cases import CASES, TARGET_ACCURACY
-from loom_app.orchestrator.compiler import _system_prompt, compile_with_repair
-from loom_app.tools_registry import get_registry
+from veldra_app.orchestrator.compiler import _system_prompt, compile_with_repair
+from veldra_app.tools_registry import get_registry
 
 console = Console()
 FAKE_KB = "00000000-0000-0000-0000-0000000000ab"

@@ -1,21 +1,24 @@
 {
-  "name": "loom-web",
+  "name": "veldra-web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "pinia": "^2.2.6",
-    "vue": "^3.5.13"
+    "pinia": "^3.0.3",
+    "vue": "^3.5.21"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.1",
-    "typescript": "^5.6.3",
-    "vite": "^6.0.3",
-    "vue-tsc": "^2.1.10"
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "vue-tsc": "^3.0.7"
   }
 }

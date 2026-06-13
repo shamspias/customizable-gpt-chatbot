@@ -1,0 +1,17 @@
+.git
+.venv
+**/__pycache__
+**/*.pyc
+node_modules
+apps/web/node_modules
+apps/web/dist
+.env
+data
+storage
+.loom
+.veldra
+*.log
+.idea
+.vscode
+dist
+build

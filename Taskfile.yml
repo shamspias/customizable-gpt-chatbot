@@ -27,7 +27,7 @@ tasks:
   migrate:
     desc: Apply SQL migrations in deploy/migrations
     cmds:
-      - uv run python -m loom_app.db migrate
+      - uv run python -m veldra_app.db migrate
 
   dev:
     desc: Run API (:8000) and web (:5173) together
@@ -36,7 +36,7 @@ tasks:
   dev:api:
     desc: Run the FastAPI app with autoreload
     cmds:
-      - uv run uvicorn loom_app.main:app --reload --host ${LOOM_API_HOST:-0.0.0.0} --port ${LOOM_API_PORT:-8000}
+      - uv run uvicorn veldra_app.main:app --reload --host ${VELDRA_API_HOST:-0.0.0.0} --port ${VELDRA_API_PORT:-8000}
 
   dev:web:
     desc: Run the Vue dev server
@@ -50,9 +50,9 @@ tasks:
       - uv run python -m evals.nl_to_spec.run
 
   cli:
-    desc: 'Run the loom CLI, e.g. `task cli -- build "answer from my docs"`'
+    desc: 'Run the veldra CLI, e.g. `task cli -- build "answer from my docs"`'
     cmds:
-      - uv run loom {{.CLI_ARGS}}
+      - uv run veldra {{.CLI_ARGS}}
 
   fmt:
     desc: Format + autofix

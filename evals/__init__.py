@@ -1,1 +1,1 @@
-"""Loom evaluation suites."""
+"""Veldra evaluation suites."""

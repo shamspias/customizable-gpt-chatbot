@@ -1,10 +1,10 @@
--- Loom initial schema.
--- {{EMBED_DIM}} is substituted by the migration runner (loom_app.db) with the
+-- Veldra initial schema.
+-- {{EMBED_DIM}} is substituted by the migration runner (veldra_app.db) with the
 -- configured embedding dimension (default 1536 = text-embedding-3-small).
 --
 -- Multi-tenancy: every tenant-scoped table carries tenant_id and a row-level
 -- security policy is DEFINED below but RLS is NOT ENABLED in the MVP (single
--- tenant). Enabling RLS + setting the `loom.tenant_id` GUC per request is a v1 task.
+-- tenant). Enabling RLS + setting the `veldra.tenant_id` GUC per request is a v1 task.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -145,16 +145,16 @@ CREATE INDEX audit_tenant_idx ON audit (tenant_id, created_at);
 
 -- ───────────────────────── RLS policies (DEFINED, not enabled — v1) ─────────────────────────
 -- Each becomes active once `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` is added
--- (v1) and the app does `SET LOCAL loom.tenant_id = '<uuid>'` per request.
+-- (v1) and the app does `SET LOCAL veldra.tenant_id = '<uuid>'` per request.
 CREATE POLICY tenant_isolation ON agents
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);
 CREATE POLICY tenant_isolation ON knowledge_bases
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);
 CREATE POLICY tenant_isolation ON documents
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);
 CREATE POLICY tenant_isolation ON chunks
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);
 CREATE POLICY tenant_isolation ON runs
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);
 CREATE POLICY tenant_isolation ON audit
-    USING (tenant_id = current_setting('loom.tenant_id', true)::uuid);
+    USING (tenant_id = current_setting('veldra.tenant_id', true)::uuid);

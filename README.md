@@ -1,6 +1,6 @@
-# Loom — talk an agent into existence
+# Veldra — talk an agent into existence
 
-**Loom is a self-hostable, local-first agent-harness platform.** Install it, open
+**Veldra is a self-hostable, local-first agent-harness platform.** Install it, open
 the web app, and describe what you want in plain language. An orchestrator AI
 compiles your request into a *working agent* — writing its policy, selecting its
 tools, attaching a RAG knowledge base, choosing a reasoning method, and even wiring
@@ -24,49 +24,52 @@ better one.
 
 ## 🖥️ Where's the front-end?
 
-It's the Vue 3 app in **`apps/web/`**. Run it and open **http://localhost:5173**:
-
-```bash
-cd apps/web && npm install && npm run dev
-```
+It's the Vue 3 app in **`apps/web/`**. In Docker it's built into the app image and
+served at **http://localhost:8000**; in dev mode it runs on **http://localhost:5173**
+(proxying `/api` to the backend, so it's same-origin — no CORS).
 
 It's a chat-to-build UI: upload documents, describe the agent you want (left), watch
 the orchestrator stream its plan and render the generated **spec** — policy, tools,
 knowledge bases, team, and the workflow — on the right; then chat with the agent
 (streamed answers + clickable citations), and refine it with a diff-approval modal.
-The dev server proxies `/api` to the backend on `:8000`, so it's same-origin (no CORS).
 
-## Quick start
+## Quick start — one command
 
-Prerequisites: Docker, [uv](https://docs.astral.sh/uv/), Node 20+, and a running
-[Ollama](https://ollama.com). **No cloud API key needed.**
+Prereqs: **Docker** + a running [Ollama](https://ollama.com). Pull a couple of models,
+then bring up the entire stack (Postgres+pgvector, Redis, MinIO, and the app) with one
+command:
 
 ```bash
-# 1. models (set LOOM_OLLAMA_MODEL to a tag you actually have — see `ollama list`)
-ollama pull qwen3.5:0.8b          # chat/agent model (tools + thinking)
+ollama pull qwen3.5:0.8b          # agent model (tools + thinking)
 ollama pull nomic-embed-text      # embeddings (768-dim)
+make up                           # = docker compose -f deploy/docker-compose.yml up --build
+```
 
-# 2. backend
-cp example.env .env               # defaults: provider=ollama, db on :5433
-uv sync                           # installs the Python workspace
-docker compose -f deploy/docker-compose.yml up -d   # postgres+pgvector, redis, minio
-uv run python -m loom_app.db migrate
-uv run uvicorn loom_app.main:app --port 8000
+Open **http://localhost:8000**. `make down` stops it, `make logs` tails the app.
+(The image is built end-to-end and verified: UI + API in one container, reaching your
+host Ollama via `host.docker.internal`.)
 
-# 3. front-end (separate terminal)
-cd apps/web && npm install && npm run dev   # http://localhost:5173
+## Quick start — dev (hot reload)
+
+Prereqs: also [uv](https://docs.astral.sh/uv/) + Node 20.19+.
+
+```bash
+cp example.env .env
+make dev                          # infra in Docker + migrate; prints the two run commands
+uv run uvicorn veldra_app.main:app --reload      # API on :8000
+cd apps/web && npm install && npm run dev        # UI on :5173
 ```
 
 > The Postgres container maps host port **5433** (to avoid clashing with a local
-> Postgres on 5432). `DATABASE_URL` in `example.env` already points there.
+> Postgres on 5432); inside Docker the app talks to it on the internal network.
 
 Then, in the web app: upload a doc or two → *"Answer questions from these docs and
 always cite the page"* → ask away. Or via the CLI:
 
 ```bash
-uv run loom kb add ./whitepaper.pdf
-uv run loom build "answer from my docs with citations"
-uv run loom ask "what does section 3 say about pricing?"
+uv run veldra kb add ./whitepaper.pdf
+uv run veldra build "answer from my docs with citations"
+uv run veldra ask "what does section 3 say about pricing?"
 ```
 
 ## What you can build
@@ -87,22 +90,22 @@ uv run loom ask "what does section 3 say about pricing?"
 
 ## Models / providers
 
-The LLM layer is **provider-pluggable** via `LOOM_LLM_PROVIDER`:
+The LLM layer is **provider-pluggable** via `VELDRA_LLM_PROVIDER`:
 
-| Provider | `LOOM_LLM_PROVIDER` | Notes |
+| Provider | `VELDRA_LLM_PROVIDER` | Notes |
 |---|---|---|
-| **Ollama** (default) | `ollama` | Fully local, no key. `LOOM_OLLAMA_MODEL` (+ optional `LOOM_OLLAMA_ORCHESTRATOR_MODEL` for a stronger compile model). Uses Ollama `format` for structured output + function-calling. |
-| **OpenAI-compatible** | `openai` | OpenAI, Groq, OpenRouter, vLLM, LM Studio — set `LOOM_OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LOOM_OPENAI_MODEL`. |
+| **Ollama** (default) | `ollama` | Fully local, no key. `VELDRA_OLLAMA_MODEL` (+ optional `VELDRA_OLLAMA_ORCHESTRATOR_MODEL` for a stronger compile model). Uses Ollama `format` for structured output + function-calling. |
+| **OpenAI-compatible** | `openai` | OpenAI, Groq, OpenRouter, vLLM, LM Studio — set `VELDRA_OPENAI_BASE_URL`, `OPENAI_API_KEY`, `VELDRA_OPENAI_MODEL`. |
 | **Anthropic** | `anthropic` | Claude with adaptive thinking + `effort`: orchestrator `claude-opus-4-8`, agents `claude-sonnet-4-6`. Needs `ANTHROPIC_API_KEY`. |
 
-Embeddings are independently pluggable (`LOOM_EMBED_PROVIDER`): local Ollama
+Embeddings are independently pluggable (`VELDRA_EMBED_PROVIDER`): local Ollama
 `nomic-embed-text` (768-dim) by default, or OpenAI `text-embedding-3-small` (1536).
 The dimension is fixed at first migration.
 
 > **Tiny-model caveat:** a sub-1B model (like `qwen3.5:0.8b`) emits schema-valid
 > output via constrained decoding and *can* call tools, but it designs weak specs
 > (often grants no tools from a vague request) and writes rambly answers. For a
-> genuinely capable orchestrator, point `LOOM_OLLAMA_ORCHESTRATOR_MODEL` at a bigger
+> genuinely capable orchestrator, point `VELDRA_OLLAMA_ORCHESTRATOR_MODEL` at a bigger
 > local model (`qwen3:1.7b`, `gemma3`, `gpt-oss:120b-cloud`) or use the `openai` /
 > `anthropic` providers.
 
@@ -112,7 +115,7 @@ The dimension is fixed at first migration.
 apps/web/        Vue 3 + Vite + Pinia + TS — the chat-to-build front-end
 services/app/    one FastAPI process: edge (REST+SSE) · orchestrator · runtime · rag
 packages/        spec-schema · llm-providers · mcp-client · mcp-servers · thinking-methods
-cli/             thin Typer client (loom kb add | build | ask | agents | selfmod)
+cli/             thin Typer client (veldra kb add | build | ask | agents | selfmod)
 deploy/          docker-compose (postgres+pgvector, redis, minio) + SQL migrations
 evals/           NL→spec golden accuracy suite
 docs/            ARCHITECTURE.md — full design + phased roadmap

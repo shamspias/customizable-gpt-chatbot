@@ -46,7 +46,7 @@ apps/web/.vite/
 bin/
 
 # ---- Local data / artifacts ----
-.loom/
+.veldra/
 data/
 storage/
 *.log

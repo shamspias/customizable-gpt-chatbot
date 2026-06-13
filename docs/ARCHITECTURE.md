@@ -1,6 +1,6 @@
-# Loom — Architecture
+# Veldra — Architecture
 
-Loom is a self-hostable **agent-harness platform**: install it, talk to an
+Veldra is a self-hostable **agent-harness platform**: install it, talk to an
 orchestrator AI in natural language, and it designs working agents — writing each
 agent's policy, selecting its tools, attaching a RAG knowledge base, and choosing
 a reasoning method. You reshape any agent by talking to the same AI, which emits a
@@ -61,7 +61,7 @@ Datastores: **Postgres** (system of record + `pgvector` HNSW + `tsvector`), **Re
 
 ## Models
 
-The LLM layer is **provider-pluggable** via `LOOM_LLM_PROVIDER`. The runtime and
+The LLM layer is **provider-pluggable** via `VELDRA_LLM_PROVIDER`. The runtime and
 orchestrator depend only on a normalized provider interface (`stream_turn` +
 `parse_json`), so the same agent loop runs on either backend:
 
@@ -87,7 +87,7 @@ shell/code exec until the v1 sandbox). Agent **teams** are agents-as-tools: a sp
 `sub_agents` (names of other agents) become `team__<name>` delegate tools the
 runtime resolves to nested, depth-capped agent runs.
 
-Embeddings are independently pluggable (`LOOM_EMBED_PROVIDER`): local Ollama
+Embeddings are independently pluggable (`VELDRA_EMBED_PROVIDER`): local Ollama
 `nomic-embed-text` (768-dim) by default, or OpenAI `text-embedding-3-small`
 (1536-dim). Dimension is fixed at first migration.
 
