@@ -61,7 +61,10 @@ function refine() {
     <template v-else>
       <header class="panel__head">
         <h2>{{ store.spec.name }}</h2>
-        <button class="link" @click="showJson = !showJson">{{ showJson ? "view card" : "view JSON" }}</button>
+        <div class="head-actions">
+          <button class="link" @click="store.showBuilder = true">⚒ builder</button>
+          <button class="link" @click="showJson = !showJson">{{ showJson ? "view card" : "view JSON" }}</button>
+        </div>
       </header>
 
       <pre v-if="showJson" class="json">{{ JSON.stringify(store.spec, null, 2) }}</pre>
@@ -130,6 +133,7 @@ function refine() {
 .panel__empty { color: var(--muted); margin-top: 40px; text-align: center; }
 .panel__head { display: flex; justify-content: space-between; align-items: baseline; }
 .panel__head h2 { font-size: 18px; margin: 0; }
+.head-actions { display: flex; gap: 12px; }
 .cards { display: flex; flex-direction: column; gap: 10px; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
 .card h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

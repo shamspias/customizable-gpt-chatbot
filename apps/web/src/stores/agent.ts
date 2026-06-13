@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
-import { postJson, streamPost, uploadFile } from "../api";
+import { getJson, postJson, streamPost, uploadFile } from "../api";
 
 export interface Citation {
   index: number;
@@ -23,6 +23,7 @@ export const useAgentStore = defineStore("agent", () => {
   const spec = ref<any | null>(null);
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
+  const showBuilder = ref(false);
   const busy = ref(false);
   const diff = ref<any | null>(null);
   const error = ref<string | null>(null);
@@ -133,8 +134,30 @@ export const useAgentStore = defineStore("agent", () => {
 
   const dismissDiff = () => (diff.value = null);
 
+  async function saveWorkflow(graph: any) {
+    if (!agentId.value) return;
+    busy.value = true;
+    error.value = null;
+    try {
+      const r = await fetch(`/api/agents/${agentId.value}/workflow`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ graph }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const detail = await getJson(`/api/agents/${agentId.value}`);
+      spec.value = detail.spec;
+      showBuilder.value = false;
+      messages.value.push({ role: "assistant", kind: "spec", text: "Workflow saved." });
+    } catch (e: any) {
+      error.value = String(e);
+    } finally {
+      busy.value = false;
+    }
+  }
+
   return {
-    docs, agentId, spec, messages, phase, busy, diff, error,
-    upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff,
+    docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
+    upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
   };
 });

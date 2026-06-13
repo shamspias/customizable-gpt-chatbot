@@ -24,6 +24,10 @@ class SelfModApplyRequest(BaseModel):
     spec: dict[str, Any] = Field(description="The approved revised AgentSpec to persist.")
 
 
+class WorkflowSaveRequest(BaseModel):
+    graph: dict[str, Any] = Field(description="The WorkflowGraph (nodes + edges) to save.")
+
+
 class UploadResponse(BaseModel):
     document_id: str
     kb_id: str

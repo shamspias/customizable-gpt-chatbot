@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import CitationChips from "./components/CitationChips.vue";
 import DiffModal from "./components/DiffModal.vue";
 import SpecPanel from "./components/SpecPanel.vue";
+import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { useAgentStore } from "./stores/agent";
 
 const store = useAgentStore();
@@ -126,6 +127,7 @@ watch(
     </main>
 
     <DiffModal />
+    <WorkflowBuilder />
   </div>
 </template>
 

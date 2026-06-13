@@ -119,3 +119,36 @@ async def apply(agent_id: str, new_spec: dict, tenant_id: str) -> dict:
         )
         await session.commit()
     return {"agent_id": agent_id, "version": version, "capability_class": klass}
+
+
+async def set_workflow(agent_id: str, graph: dict, tenant_id: str) -> dict:
+    """Replace the agent's workflow_graph (from the visual builder) and persist a
+    new version. Forgiving: auto-attaches the default KB if the graph searches docs."""
+    sm = get_sessionmaker()
+    async with sm() as session:
+        current = await repo.get_spec(session, agent_id)
+    if current is None:
+        raise ValueError("agent not found")
+
+    catalog = await build_catalog(tenant_id)
+    spec = AgentSpec.model_validate({**current, "workflow_graph": graph})
+    if (
+        spec.workflow_graph
+        and any(n.type == "kb_search" for n in spec.workflow_graph.nodes)
+        and not spec.knowledge_bases
+    ):
+        spec = spec.model_copy(update={"knowledge_bases": [catalog["kb_id"]]})
+    errors = lint_spec(spec, catalog)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    async with sm() as session:
+        version = await repo.insert_spec_version(
+            session, agent_id, spec.model_dump(), note="workflow edit"
+        )
+        await repo.set_current_version(session, agent_id, version)
+        await repo.insert_audit(
+            session, tenant_id, "user", "set_workflow", "agent", agent_id, {"version": version}
+        )
+        await session.commit()
+    return {"agent_id": agent_id, "version": version}

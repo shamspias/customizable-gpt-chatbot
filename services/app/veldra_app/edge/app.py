@@ -25,6 +25,7 @@ from veldra_app.edge.schemas import (
     SelfModApplyRequest,
     SelfModProposeRequest,
     UploadResponse,
+    WorkflowSaveRequest,
 )
 from veldra_app.orchestrator import build_agent, selfmod
 from veldra_app.rag import ingest_document
@@ -168,6 +169,15 @@ async def selfmod_propose(agent_id: str, req: SelfModProposeRequest):
 async def selfmod_apply(agent_id: str, req: SelfModApplyRequest) -> dict:
     try:
         return await selfmod.apply(agent_id, req.spec, TENANT)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/agents/{agent_id}/workflow")
+async def save_workflow(agent_id: str, req: WorkflowSaveRequest) -> dict:
+    """Persist a workflow graph edited in the visual builder (new spec version)."""
+    try:
+        return await selfmod.set_workflow(agent_id, req.graph, TENANT)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
