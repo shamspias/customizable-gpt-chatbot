@@ -22,6 +22,12 @@
   --radius: 14px;
   --radius-sm: 9px;
 
+  /* Aliases for components written against the earlier token names. */
+  --card: var(--surface);
+  --chip-bg: var(--surface-2);
+  --ok-bg: var(--ok-soft);
+  --ok-border: color-mix(in srgb, var(--ok) 38%, transparent);
+
   color-scheme: dark;
   font-family: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;

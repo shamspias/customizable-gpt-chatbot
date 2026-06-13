@@ -19,7 +19,7 @@ from veldra_app import repo
 from veldra_app.db import get_sessionmaker
 from veldra_app.events import ev, status
 from veldra_app.orchestrator.catalog import build_catalog, lint_spec, normalize
-from veldra_app.orchestrator.compiler import _system_prompt, compile_with_repair
+from veldra_app.orchestrator.compiler import _system_prompt, compile_with_repair, wants_workflow
 
 
 # Tools that cannot be granted without the v1 execution sandbox (none yet — a
@@ -28,7 +28,7 @@ DANGEROUS_TOOLS: set[str] = set()
 
 
 def _tool_keys(spec: dict) -> set[str]:
-    return {f"{t['mcp_server']}.{t['tool_name']}" for t in spec.get("tools", [])}
+    return {t["name"] for t in spec.get("tools", [])}
 
 
 def classify(old: dict, new: dict) -> tuple[str, bool, list[str]]:
@@ -65,8 +65,15 @@ async def propose(agent_id: str, instruction: str, tenant_id: str) -> AsyncItera
         "Return the COMPLETE revised AgentSpec, preserving everything not affected by the change."
     )
 
+    # Keep the workflow field available when the agent already has one (so an edit
+    # doesn't silently drop it) or the instruction is about a workflow.
+    include_workflow = bool(current.get("workflow_graph")) or wants_workflow(instruction)
+    include_team = bool(current.get("sub_agents")) or bool(catalog.get("agents"))
     yield status("designing")
-    spec, errors = await compile_with_repair(system, [{"role": "user", "content": user}], catalog)
+    spec, errors = await compile_with_repair(
+        system, [{"role": "user", "content": user}], catalog,
+        include_workflow=include_workflow, include_team=include_team,
+    )
     if spec is None:
         yield ev("error", message="Couldn't produce a valid revision: " + "; ".join(errors))
         return

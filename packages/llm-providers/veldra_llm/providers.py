@@ -204,10 +204,16 @@ class AnthropicProvider(BaseProvider):
 
 # ───────────────────────── Ollama (local) ─────────────────────────
 class OllamaProvider(BaseProvider):
-    def __init__(self, base_url: str, model: str, orchestrator_model: str = "") -> None:
+    def __init__(
+        self, base_url: str, model: str, orchestrator_model: str = "", think: bool = False
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.default_model = model
         self.orchestrator_model = orchestrator_model or model
+        # Off by default: small thinking models (qwen3) over-reason while STREAMING and
+        # never emit the answer (content stays empty). Disabling gives direct, reliable
+        # output and is harmless on non-thinking models. Set VELDRA_OLLAMA_THINK=true to re-enable.
+        self.think = think
 
     def resolve(self, model: str | None) -> str:
         return _local_resolve(self, model)
@@ -248,6 +254,7 @@ class OllamaProvider(BaseProvider):
         payload: dict = {
             "model": self.resolve(model),
             "stream": True,
+            "think": self.think,
             "messages": self._to_native(system, messages),
             "options": {"num_predict": max_tokens},
         }
@@ -295,6 +302,7 @@ class OllamaProvider(BaseProvider):
         payload = {
             "model": self.resolve(model),
             "stream": False,
+            "think": self.think,
             "messages": self._to_native(system, messages),
             "format": schema,  # Ollama constrains output to this JSON schema
             "options": {"num_predict": max_tokens},
@@ -428,6 +436,7 @@ def get_provider() -> BaseProvider:
             os.getenv("VELDRA_OLLAMA_BASE_URL", "http://localhost:11434"),
             os.getenv("VELDRA_OLLAMA_MODEL", "qwen3.5:0.8b"),
             os.getenv("VELDRA_OLLAMA_ORCHESTRATOR_MODEL", ""),
+            think=os.getenv("VELDRA_OLLAMA_THINK", "false").lower() in ("1", "true", "yes"),
         )
     if kind == "openai":
         return OpenAICompatProvider(

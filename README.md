@@ -82,6 +82,11 @@ uv run veldra ask "what does section 3 say about pricing?"
 - **Agent teams** — give an agent `sub_agents` (names of other agents) and it gets a
   `team__<name>` tool for each; the coordinator delegates subtasks and they run as
   nested agents (depth-capped).
+- **Workflows** — for a deterministic multi-step pipeline, an agent carries a
+  `workflow_graph` (`start → kb_search → llm → condition → end`) the runtime executes
+  with a variable pool (`{input}`, `{context}`, …); the spec panel renders the graph.
+  Ask for a "workflow"/"pipeline" and the orchestrator builds one (best with a capable
+  model); or define it programmatically.
 - **Knowledge bases** — upload PDF/markdown/text; structure-aware page-indexed chunks
   with `page`/`section`/`char-span` citations; hybrid pgvector + `tsvector` retrieval (RRF).
 - **Self-modification** — "make answers more concise", "give it the http.fetch tool":

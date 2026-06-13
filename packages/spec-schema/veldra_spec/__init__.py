@@ -8,9 +8,13 @@ from veldra_spec.models import (
     Effort,
     Guardrails,
     MemoryConfig,
+    NodeConfig,
     PermissionMode,
     ThinkingMethod,
     ToolBinding,
+    WorkflowEdge,
+    WorkflowGraph,
+    WorkflowNode,
 )
 
 __all__ = [
@@ -21,6 +25,10 @@ __all__ = [
     "PermissionMode",
     "Effort",
     "ThinkingMethod",
+    "WorkflowGraph",
+    "WorkflowNode",
+    "WorkflowEdge",
+    "NodeConfig",
     "DEFAULT_ORCHESTRATOR_MODEL",
     "DEFAULT_WORKER_MODEL",
     "DEFAULT_CHEAP_MODEL",

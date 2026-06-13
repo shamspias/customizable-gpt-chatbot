@@ -45,6 +45,21 @@ def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
             errors.append(f"sub_agent '{sub}' cannot reference the agent itself")
         elif sub not in existing_agents:
             errors.append(f"sub_agent '{sub}' is not an existing agent — build it first or omit it")
+
+    g = spec.workflow_graph
+    if g and g.nodes:
+        ids = g.node_ids()
+        if g.entrypoint not in ids:
+            errors.append(f"workflow entrypoint '{g.entrypoint}' is not a node id")
+        if not any(n.type == "end" for n in g.nodes):
+            errors.append("workflow must contain an 'end' node")
+        for e in g.edges:
+            if e.source not in ids:
+                errors.append(f"workflow edge source '{e.source}' is not a node id")
+            if e.target not in ids:
+                errors.append(f"workflow edge target '{e.target}' is not a node id")
+        if any(n.type == "kb_search" for n in g.nodes) and not spec.knowledge_bases:
+            errors.append("workflow uses kb_search but no knowledge base is attached")
     return errors
 
 
@@ -54,11 +69,10 @@ def normalize(spec: AgentSpec, catalog: dict) -> AgentSpec:
     tools: list[ToolBinding] = []
     seen: set[str] = set()
     for t in spec.tools:
-        key = f"{t.mcp_server}.{t.tool_name}"
-        if key in seen:
+        if t.name in seen:
             continue
-        seen.add(key)
-        if key == "kb.search":
+        seen.add(t.name)
+        if t.name == "kb.search":
             t = t.model_copy(update={"permission_mode": "auto"})
         tools.append(t)
 
@@ -66,12 +80,8 @@ def normalize(spec: AgentSpec, catalog: dict) -> AgentSpec:
     has_kb_tool = "kb.search" in seen
     if kbs and not has_kb_tool:
         tools.append(
-            ToolBinding(
-                mcp_server="kb",
-                tool_name="search",
-                permission_mode="auto",
-                reason="answer from the attached documents",
-            )
+            ToolBinding(name="kb.search", permission_mode="auto",
+                        reason="answer from the attached documents")
         )
     elif has_kb_tool and not kbs:
         kbs = [catalog["kb_id"]]

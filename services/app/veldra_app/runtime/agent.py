@@ -97,7 +97,7 @@ async def run_agent(
     }  # wire -> sub spec
 
     system = build_system_prompt(spec, delegates)
-    perm = {f"{t.mcp_server}.{t.tool_name}": t.permission_mode for t in spec.tools}
+    perm = {t.name: t.permission_mode for t in spec.tools}
     tool_names = [name for name in perm if registry.has(name)]
     tool_defs = registry.anthropic_defs(tool_names)
     for wire, sub in delegate_tools.items():

@@ -7,15 +7,41 @@ const showJson = ref(false);
 const refineText = ref("");
 
 const tools = computed(() =>
-  (store.spec?.tools ?? []).map((t: any) => `${t.mcp_server}.${t.tool_name} (${t.permission_mode})`),
+  (store.spec?.tools ?? []).map((t: any) => `${t.name} (${t.permission_mode})`),
 );
 
-// The MVP runner is a fixed linear pipeline; render it as a small node list.
-const graph = computed(() =>
-  store.spec?.knowledge_bases?.length
-    ? ["start", "kb_retrieve", "llm", "end"]
-    : ["start", "llm", "end"],
-);
+// Real workflow graph if the spec has one (ordered by traversing edges), else the
+// inferred linear pipeline the agent loop runs.
+const hasWorkflow = computed(() => !!store.spec?.workflow_graph?.nodes?.length);
+
+const flow = computed(() => {
+  const wf = store.spec?.workflow_graph;
+  if (wf?.nodes?.length) {
+    const byId: Record<string, any> = Object.fromEntries(wf.nodes.map((n: any) => [n.id, n]));
+    const edges = wf.edges ?? [];
+    const out: any[] = [];
+    const seen = new Set<string>();
+    let cur = byId[wf.entrypoint] ? wf.entrypoint : wf.nodes[0]?.id;
+    let guard = 0;
+    while (cur && byId[cur] && !seen.has(cur) && guard++ < 50) {
+      seen.add(cur);
+      out.push({ type: byId[cur].type, label: byId[cur].label || byId[cur].type });
+      const e = edges.find((x: any) => x.source === cur && (x.when == null || x.when === "true"))
+        ?? edges.find((x: any) => x.source === cur);
+      cur = e?.target;
+    }
+    for (const n of wf.nodes) if (!seen.has(n.id)) out.push({ type: n.type, label: n.label || n.type });
+    return out;
+  }
+  const types = store.spec?.knowledge_bases?.length
+    ? ["start", "kb_search", "llm", "end"]
+    : ["start", "llm", "end"];
+  return types.map((t) => ({ type: t, label: t }));
+});
+
+const NODE_ICON: Record<string, string> = {
+  start: "▶", kb_search: "🔎", kb_retrieve: "🔎", llm: "✦", condition: "⌥", tool: "🛠", end: "■",
+};
 
 function refine() {
   const t = refineText.value.trim();
@@ -72,11 +98,15 @@ function refine() {
         </section>
 
         <section class="card">
-          <h3>Workflow</h3>
-          <div class="graph">
-            <template v-for="(n, i) in graph" :key="n">
-              <span class="node">{{ n }}</span>
-              <span v-if="i < graph.length - 1" class="arrow">→</span>
+          <h3>Workflow <span v-if="hasWorkflow" class="badge">graph</span></h3>
+          <div class="flow">
+            <template v-for="(n, i) in flow" :key="i">
+              <div class="fnode">
+                <span class="ficon">{{ NODE_ICON[n.type] || "•" }}</span>
+                <span class="ftype">{{ n.type }}</span>
+                <span v-if="n.label && n.label !== n.type" class="flabel">{{ n.label }}</span>
+              </div>
+              <span v-if="i < flow.length - 1" class="fdown">↓</span>
             </template>
           </div>
         </section>
@@ -110,9 +140,13 @@ function refine() {
 .card ul { margin: 0; padding-left: 18px; }
 .mono, .json { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .json { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; overflow: auto; max-height: 60vh; }
-.graph { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.node { background: var(--chip-bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 13px; }
-.arrow { color: var(--muted); }
+.badge { font-size: 10px; text-transform: none; letter-spacing: 0; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.flow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.fnode { display: flex; align-items: center; gap: 8px; background: var(--chip-bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; font-size: 13px; }
+.ficon { opacity: 0.85; }
+.ftype { font-weight: 550; }
+.flabel { color: var(--muted); font-size: 12px; }
+.fdown { color: var(--faint); margin-left: 14px; line-height: 1; }
 .refine { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; }
 .refine input { flex: 1; }
 .muted { color: var(--muted); }

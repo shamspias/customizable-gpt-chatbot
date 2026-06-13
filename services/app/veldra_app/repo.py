@@ -8,6 +8,7 @@ Callers manage the transaction (commit on the session).
 from __future__ import annotations
 
 import json
+import uuid
 from typing import Any
 
 from sqlalchemy import text
@@ -16,6 +17,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 def vec_literal(embedding: list[float]) -> str:
     return "[" + ",".join(repr(float(x)) for x in embedding) + "]"
+
+
+def is_uuid(value: str | None) -> bool:
+    """Guard so an invalid path param (e.g. 'None') yields a 404, not a DB DataError."""
+    if not value:
+        return False
+    try:
+        uuid.UUID(str(value))
+        return True
+    except ValueError:
+        return False
 
 
 # ───────────────────────── knowledge bases / documents ─────────────────────────
@@ -159,6 +171,8 @@ async def get_agent_by_name(session: AsyncSession, tenant_id: str, name: str) ->
 
 
 async def get_agent(session: AsyncSession, agent_id: str) -> dict | None:
+    if not is_uuid(agent_id):
+        return None
     row = (
         await session.execute(
             text("SELECT id, tenant_id, name, current_version FROM agents WHERE id = CAST(:id AS uuid)"),
@@ -225,6 +239,8 @@ async def upsert_agent_spec(
 async def get_spec(
     session: AsyncSession, agent_id: str, version: int | None = None
 ) -> dict | None:
+    if not is_uuid(agent_id):
+        return None
     if version is None:
         row = (
             await session.execute(

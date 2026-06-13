@@ -94,7 +94,7 @@ def build(request: str, key: str = typer.Option(None, help="idempotency key")) -
             spec = data.get("spec", {})
             console.print(f"\n[bold green]Built agent:[/] {spec.get('name')} ({agent_id})")
             console.print(f"  model: {spec.get('model')}  thinking: {spec.get('thinking_method')}")
-            tools = [f"{t['mcp_server']}.{t['tool_name']}" for t in spec.get("tools", [])]
+            tools = [t["name"] for t in spec.get("tools", [])]
             console.print(f"  tools: {tools or 'none'}")
             console.print(f"  policy: [dim]{(spec.get('system_prompt') or '')[:160]}…[/]")
         elif event == "error":

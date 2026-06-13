@@ -27,12 +27,11 @@ ThinkingMethod = Literal["react", "plan_execute"]  # MVP set; reflexion/tot/deba
 
 
 class ToolBinding(BaseModel):
-    """A tool the agent may call, addressed as `<mcp_server>.<tool_name>`."""
+    """A tool the agent may call, named exactly as it appears in the catalog (e.g. 'kb.search')."""
 
     model_config = ConfigDict(extra="forbid")
 
-    mcp_server: str = Field(description="Logical MCP server name, e.g. 'kb'.")
-    tool_name: str = Field(description="Tool exposed by that server, e.g. 'search'.")
+    name: str = Field(description="Tool name, copied verbatim from the catalog, e.g. 'kb.search'.")
     permission_mode: PermissionMode = Field(
         default="ask",
         description="auto = run silently; ask = require human approval; deny = never.",
@@ -55,6 +54,58 @@ class Guardrails(BaseModel):
     system_reminders: list[str] = Field(
         default_factory=list, description="Extra always-on instructions appended to the policy."
     )
+
+
+WorkflowNodeType = Literal["start", "kb_search", "llm", "condition", "end"]
+
+
+class NodeConfig(BaseModel):
+    """Flat, closed node config covering every node type (constrained-decoding friendly).
+
+    Templating: any string may reference pool variables with {var} — e.g. an `llm`
+    prompt of "Summarize: {context}" inserts the `context` written by an upstream node.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(default="", description="llm node: prompt template, with {var} substitution.")
+    query: str = Field(default="", description="kb_search node: query template (default '{input}').")
+    k: int = Field(default=6, ge=1, le=20, description="kb_search node: passages to retrieve.")
+    output_var: str = Field(default="output", description="Pool variable this node writes its result to.")
+    var: str = Field(default="", description="condition node: pool variable to test.")
+    contains: str = Field(default="", description="condition node: routes to the 'true' edge if var contains this.")
+
+
+class WorkflowNode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    type: WorkflowNodeType
+    label: str = ""
+    config: NodeConfig = Field(default_factory=NodeConfig)
+
+
+class WorkflowEdge(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str
+    target: str
+    when: str | None = Field(
+        default=None, description="condition branch: 'true' or 'false'; null = unconditional."
+    )
+
+
+class WorkflowGraph(BaseModel):
+    """A deterministic flow: start → (kb_search/llm/condition)* → end."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nodes: list[WorkflowNode] = Field(default_factory=list)
+    edges: list[WorkflowEdge] = Field(default_factory=list)
+    entrypoint: str = "start"
+
+    def node_ids(self) -> set[str]:
+        return {n.id for n in self.nodes}
 
 
 class AgentSpec(BaseModel):
@@ -85,12 +136,14 @@ class AgentSpec(BaseModel):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     guardrails: Guardrails = Field(default_factory=Guardrails)
 
-    # ── forward-compat (not exercised in MVP) ──
     sub_agents: list[str] = Field(
-        default_factory=list, description="[fwd v1+] names of delegate agents for teams."
+        default_factory=list,
+        description="Names of delegate agents (a team); each becomes a delegate tool.",
     )
-    workflow_graph_ref: str | None = Field(
-        default=None, description="[fwd v2] reference to a workflow graph that drives this agent."
+    workflow_graph: WorkflowGraph | None = Field(
+        default=None,
+        description="Optional deterministic workflow; when set, the runtime executes the "
+        "graph (start→…→end) instead of the free-form agent loop.",
     )
 
     @field_validator("name", "system_prompt")
@@ -101,4 +154,4 @@ class AgentSpec(BaseModel):
         return v
 
     def tool_keys(self) -> set[str]:
-        return {f"{t.mcp_server}.{t.tool_name}" for t in self.tools}
+        return {t.name for t in self.tools}

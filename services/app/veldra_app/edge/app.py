@@ -28,7 +28,7 @@ from veldra_app.edge.schemas import (
 )
 from veldra_app.orchestrator import build_agent, selfmod
 from veldra_app.rag import ingest_document
-from veldra_app.runtime import run_agent
+from veldra_app.runtime import execute
 
 router = APIRouter(prefix="/api")
 TENANT = DEFAULT_TENANT_ID
@@ -119,7 +119,7 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
 
     answer: str | None = None
     try:
-        async for event in run_agent(spec, req.message, tenant_id=TENANT, run_id=run_id):
+        async for event in execute(spec, req.message, tenant_id=TENANT, run_id=run_id):
             if event["event"] == "done":
                 answer = json.loads(event["data"]).get("answer")
             yield event
