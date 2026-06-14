@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import Icon from "../components/Icon.vue";
 import { useAgentStore } from "../stores/agent";
 
 const store = useAgentStore();
@@ -136,14 +137,14 @@ async function saveConfig() {
           <div class="dhead">
             <h2>Documents</h2>
             <div class="grow" />
-            <button class="ghost sm" :disabled="store.busy" @click="fileInput?.click()">＋ Upload</button>
+            <button class="ghost sm" :disabled="store.busy" @click="fileInput?.click()"><Icon name="upload" :size="15" />Upload</button>
             <input ref="fileInput" type="file" hidden accept=".pdf,.txt,.md" @change="onFile" />
           </div>
           <table v-if="store.kbDocs.length">
             <thead><tr><th>File</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
             <tbody>
               <tr v-for="d in store.kbDocs" :key="d.id">
-                <td>📄 {{ d.filename }}</td>
+                <td class="fname"><Icon name="file" :size="14" /> {{ d.filename }}</td>
                 <td>{{ d.num_pages || "—" }}</td>
                 <td>{{ d.chunk_count }}</td>
                 <td><span class="status" :class="d.status">{{ d.status }}</span></td>
@@ -203,4 +204,12 @@ td { padding: 10px; border-bottom: 1px solid var(--border); }
 .muted { color: var(--muted); }
 .pad { padding: 8px 2px; }
 .empty { margin: 60px auto; text-align: center; }
+.fname { display: flex; align-items: center; gap: 7px; }
+
+@media (max-width: 760px) {
+  .kb { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .list { max-height: 38vh; }
+  .grid2 { grid-template-columns: 1fr; }
+  .detail { padding: 14px; }
+}
 </style>

@@ -4,6 +4,7 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import { computed, onMounted, ref } from "vue";
 import { useAgentStore } from "../stores/agent";
+import Icon from "./Icon.vue";
 
 const store = useAgentStore();
 const nodes = ref<any[]>([]);
@@ -139,9 +140,9 @@ function toGraph() {
         <h3>Workflow builder</h3>
         <span class="muted">{{ store.spec?.name }}</span>
         <div class="grow" />
-        <button class="ghost sm" :disabled="!selectedId" @click="removeSelected">Delete node</button>
-        <button class="ghost sm" @click="store.showBuilder = false">Close</button>
-        <button class="primary sm" :disabled="store.busy" @click="store.saveWorkflow(toGraph())">Save workflow</button>
+        <button class="ghost sm" :disabled="!selectedId" @click="removeSelected"><Icon name="trash" :size="14" /><span class="hide-xs">Delete</span></button>
+        <button class="ghost sm" @click="store.showBuilder = false"><Icon name="x" :size="14" /><span class="hide-xs">Close</span></button>
+        <button class="primary sm" :disabled="store.busy" @click="store.saveWorkflow(toGraph())"><Icon name="check" :size="14" />Save</button>
       </header>
 
       <div class="body">
@@ -318,4 +319,16 @@ button.sm { padding: 6px 12px; font-size: 13px; }
 .link.danger { color: var(--danger); }
 .muted { color: var(--muted); font-size: 13px; }
 .hint { color: var(--faint); font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .overlay { padding: 0; }
+  .builder { border-radius: 0; }
+  .body { grid-template-columns: 1fr; grid-template-rows: auto minmax(170px, 1fr) auto; }
+  .palette { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; border-right: none;
+    border-bottom: 1px solid var(--border); gap: 8px; }
+  .palette__h, .palette .hint { display: none; }
+  .palette__btn { flex: none; }
+  .inspector { border-left: none; border-top: 1px solid var(--border); max-height: 44vh; }
+  .hide-xs { display: none; }
+}
 </style>

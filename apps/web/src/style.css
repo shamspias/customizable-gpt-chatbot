@@ -1,28 +1,33 @@
-/* Veldra design system — restrained, professional, dark-first (with light). */
+/* Veldra design system — modern, professional, dark-first (with light). */
 :root {
-  --bg: #0c0e12;
-  --bg-soft: #101319;
-  --surface: #161a21;
-  --surface-2: #1c212b;
-  --border: #252b36;
-  --border-strong: #333b48;
-  --ink: #e9ecf3;
-  --muted: #98a1b0;
-  --faint: #6b7484;
+  --bg: #0b0d11;
+  --bg-soft: #0f1218;
+  --bg-glass: rgba(15, 18, 24, 0.72);
+  --surface: #161a22;
+  --surface-2: #1c2230;
+  --border: #242b39;
+  --border-strong: #36404f;
+  --ink: #eaedf4;
+  --muted: #99a2b2;
+  --faint: #6a7383;
   --accent: #7c8cf8;
   --accent-2: #a78bfa;
+  --accent-grad: linear-gradient(135deg, #7c8cf8 0%, #a78bfa 100%);
   --accent-soft: rgba(124, 140, 248, 0.16);
-  --accent-ring: rgba(124, 140, 248, 0.35);
+  --accent-ring: rgba(124, 140, 248, 0.38);
   --ok: #4cc38a;
   --ok-soft: rgba(76, 195, 138, 0.14);
+  --warn: #e2b15a;
   --danger: #f3737b;
   --danger-soft: rgba(243, 115, 123, 0.14);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
   --radius: 14px;
-  --radius-sm: 9px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
 
-  /* Aliases for components written against the earlier token names. */
+  /* Back-compat aliases for component styles. */
   --card: var(--surface);
   --chip-bg: var(--surface-2);
   --ok-bg: var(--ok-soft);
@@ -40,32 +45,40 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f6f7f9;
-    --bg-soft: #eef1f5;
+    --bg: #f7f8fa;
+    --bg-soft: #eef1f6;
+    --bg-glass: rgba(255, 255, 255, 0.72);
     --surface: #ffffff;
-    --surface-2: #f1f3f7;
-    --border: #e3e7ee;
+    --surface-2: #f1f3f8;
+    --border: #e4e8ef;
     --border-strong: #d2d8e2;
-    --ink: #171a21;
-    --muted: #5a6472;
-    --faint: #8b93a1;
+    --ink: #161a21;
+    --muted: #59626f;
+    --faint: #8a93a1;
     --accent: #5b63e6;
     --accent-2: #7c5cf0;
+    --accent-grad: linear-gradient(135deg, #5b63e6 0%, #7c5cf0 100%);
     --accent-soft: rgba(91, 99, 230, 0.10);
-    --accent-ring: rgba(91, 99, 230, 0.30);
+    --accent-ring: rgba(91, 99, 230, 0.28);
     --ok: #1f9d63;
     --ok-soft: rgba(31, 157, 99, 0.10);
     --danger: #d64550;
     --danger-soft: rgba(214, 69, 80, 0.10);
     --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
     --shadow: 0 10px 30px rgba(16, 24, 40, 0.10);
+    --shadow-lg: 0 24px 60px rgba(16, 24, 40, 0.16);
     color-scheme: light;
   }
 }
 
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
-body { background: radial-gradient(1200px 600px at 80% -10%, var(--bg-soft), var(--bg)) fixed; }
+body {
+  background:
+    radial-gradient(900px 500px at 88% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent),
+    radial-gradient(800px 500px at 5% 110%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent),
+    var(--bg) fixed;
+}
 
 ::selection { background: var(--accent-soft); }
 
@@ -73,29 +86,37 @@ body { background: radial-gradient(1200px 600px at 80% -10%, var(--bg-soft), var
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 button {
-  font: inherit; font-weight: 550; padding: 9px 15px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
-  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, border-color 0.15s;
+  font: inherit; font-weight: 600; padding: 9px 15px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: var(--accent-grad); color: #fff; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: filter 0.15s ease, transform 0.06s ease, box-shadow 0.15s, border-color 0.15s, background 0.15s;
 }
-button:hover:not(:disabled) { filter: brightness(1.08); }
+button:hover:not(:disabled) { filter: brightness(1.07); }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
-button.ghost {
-  background: var(--surface-2); color: var(--ink); border-color: var(--border);
-}
-button.ghost:hover:not(:disabled) { border-color: var(--border-strong); filter: none; background: var(--surface); }
+button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
+button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
+button.sm { padding: 6px 11px; font-size: 13px; }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
-input[type="text"], input:not([type]), textarea {
+input[type="text"], input[type="number"], input:not([type]), textarea, select {
   font: inherit; padding: 10px 13px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 input::placeholder, textarea::placeholder { color: var(--faint); }
-input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 
 a { color: var(--accent); }
 
 @keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-@keyframes veldra-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes veldra-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes veldra-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes veldra-pop { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
