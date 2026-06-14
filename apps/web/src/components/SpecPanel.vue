@@ -40,7 +40,8 @@ const flow = computed(() => {
 });
 
 const NODE_ICON: Record<string, string> = {
-  start: "▶", kb_search: "🔎", kb_retrieve: "🔎", llm: "✦", condition: "⌥", tool: "🛠", end: "■",
+  start: "▶", end: "■", llm: "✦", classifier: "🏷", kb_search: "🔎", kb_retrieve: "🔎",
+  condition: "⌥", if_else: "⎇", code: "λ", template: "❏", aggregator: "⊕", tool: "🔧", http: "🌐",
 };
 
 function refine() {

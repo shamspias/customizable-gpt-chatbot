@@ -37,26 +37,43 @@ def _rrf(*ranked_lists: list[dict]) -> list[dict]:
     return fused
 
 
-async def _kb_config(kb_ids: list[str], tenant_id: str) -> dict:
-    """The governing retrieval config = the first KB's config (agents usually have one)."""
-    default = {"retrieval_mode": "hybrid", "embedding_model": None,
-               "rerank_model": None, "page_index_enabled": True}
+_DEFAULT_CFG = {"retrieval_mode": "hybrid", "embedding_model": None,
+                "rerank_model": None, "page_index_enabled": True}
+
+
+async def _kb_configs(kb_ids: list[str], tenant_id: str) -> list[dict]:
+    """Per-KB config rows (with defaults), in kb_ids order."""
     if not kb_ids:
-        return default
+        return []
     sm = get_sessionmaker()
+    out: list[dict] = []
     async with sm() as session:
-        kb = await repo.get_kb(session, kb_ids[0])
-    return {**default, **(kb or {})}
+        for kid in kb_ids:
+            kb = await repo.get_kb(session, kid)
+            if kb:
+                out.append({**_DEFAULT_CFG, **kb})
+    return out
+
+
+def _group_by_model(cfgs: list[dict], kb_ids: list[str]) -> dict[str | None, list[str]]:
+    """Group KB ids by embedding model so each group is queried in its own vector space."""
+    if not cfgs:
+        return {None: kb_ids}
+    groups: dict[str | None, list[str]] = {}
+    for kb in cfgs:
+        groups.setdefault(kb.get("embedding_model"), []).append(kb["id"])
+    return groups
 
 
 async def search(
     query: str, kb_ids: list[str], tenant_id: str, k: int = 6, mode: str | None = None
 ) -> tuple[str, list[dict]]:
-    cfg = await _kb_config(kb_ids, tenant_id)
-    mode = (mode or cfg["retrieval_mode"] or "hybrid").lower()
+    cfgs = await _kb_configs(kb_ids, tenant_id)
+    gov = cfgs[0] if cfgs else _DEFAULT_CFG  # governing mode/rerank = first KB
+    mode = (mode or gov["retrieval_mode"] or "hybrid").lower()
     if mode not in VALID_MODES:
         mode = "hybrid"
-    rerank_model = cfg.get("rerank_model")
+    rerank_model = gov.get("rerank_model")
     # Over-fetch when a second stage (RRF or rerank) will re-order the candidates.
     fetch = k * 4 if (mode == "hybrid" or reranker.is_configured(rerank_model)) else k
 
@@ -64,12 +81,15 @@ async def search(
     vec_rows: list[dict] = []
     lex: list[dict] = []
     if mode in ("semantic", "hybrid"):
-        emb = await embed_query(query, embed_config(cfg.get("embedding_model")))
-        vec_hits = await get_vector_store().query(emb, kb_ids, tenant_id, n=fetch)
-        async with sm() as session:
-            rows = await repo.get_chunks_by_ids(session, [cid for cid, _ in vec_hits])
-        by_id = {str(r["id"]): r for r in rows}
-        vec_rows = [by_id[cid] for cid, _ in vec_hits if cid in by_id]  # preserve vector order
+        # Embed the query once PER embedding model and search only that model's KBs —
+        # never compare a query vector against chunks from a different embedding space.
+        for model, group_kbs in _group_by_model(cfgs, kb_ids).items():
+            emb = await embed_query(query, embed_config(model))
+            vec_hits = await get_vector_store().query(emb, group_kbs, tenant_id, n=fetch)
+            async with sm() as session:
+                rows = await repo.get_chunks_by_ids(session, [cid for cid, _ in vec_hits])
+            by_id = {str(r["id"]): r for r in rows}
+            vec_rows.extend(by_id[cid] for cid, _ in vec_hits if cid in by_id)
     if mode in ("keyword", "hybrid"):
         async with sm() as session:
             lex = await repo.lexical_search(session, tenant_id, kb_ids, query, n=fetch)

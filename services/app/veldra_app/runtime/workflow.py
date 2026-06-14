@@ -19,7 +19,9 @@ Yields the same SSE events as the agent loop so the UI is identical.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import math
 import re
 from collections.abc import AsyncIterator
 from typing import Any
@@ -38,6 +40,7 @@ from veldra_app.tools_registry import get_registry
 NODE_MAX_TOKENS = 8192
 MAX_STEPS = 96
 HTTP_CAP = 16_000
+CODE_TIMEOUT = 2.0  # wall-clock guard for a code node
 
 _VAR = re.compile(r"\{(\w+)\}")
 
@@ -64,6 +67,15 @@ def _inputs(cfg, pool: dict) -> dict[str, str]:
     return {i.name: _tmpl(i.value, pool) for i in cfg.inputs if i.name}
 
 
+def _finite(s: str):
+    """Parse a finite number, or None (rejects nan/inf so they compare as strings)."""
+    try:
+        v = float(s)
+    except (ValueError, TypeError):
+        return None
+    return v if math.isfinite(v) else None
+
+
 def _compare(op: str, left: Any, right: str) -> bool:
     ls = _stringify(left)
     if op == "contains":
@@ -79,16 +91,13 @@ def _compare(op: str, left: Any, right: str) -> bool:
             return re.search(right, ls) is not None
         except re.error:
             return False
-    if op in ("eq", "ne"):
-        try:
-            equal = float(ls) == float(right)
-        except ValueError:
-            equal = ls == right
-        return equal if op == "eq" else not equal
-    if op in ("gt", "lt", "gte", "lte"):
-        try:
-            a, b = float(ls), float(right)
-        except ValueError:
+    if op == "eq":  # exact string equality (no surprising "1.10"=="1.1")
+        return ls == right
+    if op == "ne":
+        return ls != right
+    if op in ("gt", "lt", "gte", "lte"):  # numeric when both parse, else lexical
+        a, b = _finite(ls), _finite(right)
+        if a is None or b is None:
             a, b = ls, right
         return {"gt": a > b, "lt": a < b, "gte": a >= b, "lte": a <= b}[op]
     return False
@@ -97,9 +106,15 @@ def _compare(op: str, left: Any, right: str) -> bool:
 def _next(edges_from: dict, node_id: str, branch: str | None = None) -> str | None:
     edges = edges_from.get(node_id, [])
     if branch is not None:
+        # Branch-strict: a matching labelled edge, else an explicit unconditional edge,
+        # else terminate — never silently follow a different branch's edge.
         for e in edges:
             if e.when == branch:
                 return e.target
+        for e in edges:
+            if e.when is None:
+                return e.target
+        return None
     for e in edges:
         if e.when is None:
             return e.target
@@ -176,10 +191,14 @@ async def run_workflow(
 
         elif node.type == "code":
             variables = {k: v for k, v in pool.items() if k.isidentifier()}
-            try:
-                result = safe_eval(cfg.code, variables)
+            try:  # off-thread + wall-clock guard so a node can't block/pin the loop
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(safe_eval, cfg.code, variables), CODE_TIMEOUT
+                )
             except SandboxError as exc:
                 result = f"(code error: {exc})"
+            except TimeoutError:
+                result = "(code error: timed out)"
             _put(cfg, result)
 
         elif node.type == "tool":
