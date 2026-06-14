@@ -21,6 +21,7 @@ from sqlalchemy import (
     Boolean,
     Computed,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -233,6 +234,8 @@ class Run(Base):
     input: Mapped[dict | None] = mapped_column(JSONB)
     result: Mapped[dict | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
+    reward: Mapped[float | None] = mapped_column(Float)  # -1..1 feedback signal
+    feedback: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -279,8 +282,29 @@ class Audit(Base):
     __table_args__ = (Index("audit_tenant_idx", "tenant_id", "created_at"),)
 
 
+class Lesson(Base):
+    """Episodic memory: a concrete lesson an agent learned from a past run, injected
+    into its system prompt at runtime so it stops repeating mistakes (Reflexion)."""
+
+    __tablename__ = "lessons"
+
+    id: Mapped[str] = _pk()
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id"), nullable=False
+    )
+    agent_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_run_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False))
+    weight: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("1"))
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (Index("lessons_agent_idx", "agent_id", "created_at"),)
+
+
 __all__ = [
     "Base", "EMBED_DIM",
     "Tenant", "Agent", "SpecVersion", "KnowledgeBase", "Document",
-    "PageIndex", "Chunk", "Run", "RunStep", "Audit",
+    "PageIndex", "Chunk", "Run", "RunStep", "Audit", "Lesson",
 ]

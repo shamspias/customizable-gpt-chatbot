@@ -95,6 +95,13 @@ watch(
             <div v-else-if="m.role === 'assistant' && store.busy" class="typing"><span /><span /><span /></div>
             <CitationChips v-if="m.citations" :citations="m.citations" />
           </div>
+          <div v-if="m.role === 'assistant' && m.runId && !m.kind && m.text" class="rate">
+            <template v-if="m.rated == null">
+              <button class="ratebtn" title="Good answer" @click="store.rate(m, 1)"><Icon name="thumbsUp" :size="14" /></button>
+              <button class="ratebtn" title="Could be better — the agent will learn" @click="store.rate(m, -1)"><Icon name="thumbsDown" :size="14" /></button>
+            </template>
+            <span v-else class="rated"><Icon name="check" :size="13" /> feedback recorded</span>
+          </div>
         </div>
       </div>
 
@@ -158,6 +165,10 @@ watch(
 .thinking { margin-bottom: 8px; font-size: 12px; color: var(--muted); }
 .thinking summary { cursor: pointer; color: var(--accent); display: inline-flex; align-items: center; gap: 5px; }
 .thinking pre { white-space: pre-wrap; margin: 6px 0 0; padding: 8px; background: var(--surface-2); border-radius: 8px; max-height: 220px; overflow: auto; }
+.rate { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.ratebtn { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 4px 9px; border-radius: 8px; box-shadow: none; }
+.ratebtn:hover { border-color: var(--accent); color: var(--accent); filter: none; }
+.rated { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ok); }
 .typing { display: flex; gap: 5px; padding: 4px 2px; }
 .typing span { width: 7px; height: 7px; border-radius: 99px; background: var(--faint); animation: veldra-pulse 1.1s ease-in-out infinite; }
 .typing span:nth-child(2) { animation-delay: 0.18s; }

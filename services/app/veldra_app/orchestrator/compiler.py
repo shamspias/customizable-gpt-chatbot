@@ -131,6 +131,39 @@ def wants_workflow(text: str) -> bool:
     return any(k in t for k in WORKFLOW_KEYWORDS)
 
 
+def wants_team(text: str) -> bool:
+    """A team is implied by the word 'team', a plural 'agents', or ≥2 distinct roles."""
+    t = text.lower()
+    return "team" in t or "agents" in t or t.count(" agent") >= 2
+
+
+# Plan for a team: a coordinator + role members (each becomes its own agent).
+TEAM_PLAN_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["coordinator", "members"],
+    "properties": {
+        "coordinator": {
+            "type": "object", "additionalProperties": False, "required": ["name", "purpose"],
+            "properties": {"name": {"type": "string"}, "purpose": {"type": "string"}},
+        },
+        "members": {
+            "type": "array",
+            "items": {
+                "type": "object", "additionalProperties": False, "required": ["name", "purpose"],
+                "properties": {"name": {"type": "string"}, "purpose": {"type": "string"}},
+            },
+        },
+    },
+}
+
+TEAM_PLAN_SYSTEM = """\
+You are a team architect. Given a business need, design a SMALL team: one coordinator \
+plus 2-4 specialist member agents, each with a short distinct role. Return a plan with \
+the coordinator (name + purpose) and the members (name + one-line purpose each). Use \
+short PascalCase names (e.g. SalesAgent, InfoDeskAgent)."""
+
+MAX_TEAM_MEMBERS = 4
+
+
 async def parse_spec(
     system: str, messages: list[dict], include_workflow: bool = False, include_team: bool = False
 ) -> tuple[AgentSpec | None, bool]:
@@ -194,8 +227,112 @@ async def compile_with_repair(
     return None, last_errors
 
 
-async def build_agent(nl_request: str, tenant_id: str, run_id: str) -> AsyncIterator[dict]:
-    """Compile NL → AgentSpec, persist it as an immutable version, stream events."""
+async def _compile_and_save(
+    seed: str, catalog: dict, tenant_id: str, note: str,
+    *, name: str | None = None, include_workflow: bool = False, include_team: bool = False,
+    sub_agents: list[str] | None = None,
+) -> tuple[str, int, AgentSpec] | None:
+    """Compile one agent from a seed request and persist it; returns (id, version, spec)."""
+    system = _system_prompt(catalog, include_workflow=include_workflow)
+    spec, _errors = await compile_with_repair(
+        system, [{"role": "user", "content": seed}], catalog,
+        include_workflow=include_workflow, include_team=include_team,
+    )
+    if spec is None:
+        return None
+    updates: dict = {}
+    if name:
+        updates["name"] = name
+    if sub_agents is not None:
+        updates["sub_agents"] = sub_agents
+    if updates:
+        spec = spec.model_copy(update=updates)
+    sm = get_sessionmaker()
+    async with sm() as session:
+        agent_id, version = await repo.upsert_agent_spec(
+            session, tenant_id, spec.name, spec.model_dump(), note=note
+        )
+        await session.commit()
+    return agent_id, version, spec
+
+
+async def build_team(nl_request: str, tenant_id: str, run_id: str) -> AsyncIterator[dict]:
+    """Design a whole TEAM: plan roles → build + persist each member → a coordinator
+    that delegates to them. Streams progress; the final spec is the coordinator."""
+    yield status("planning team")
+    provider = get_provider()
+    plan = await provider.parse_json(
+        model=provider.orchestrator_model, system=TEAM_PLAN_SYSTEM,
+        messages=[{"role": "user", "content": nl_request}],
+        schema=TEAM_PLAN_SCHEMA, max_tokens=800,
+    )
+    members = (plan or {}).get("members") or []
+    if not members:  # plan failed → fall back to a single agent
+        async for e in build_agent(nl_request, tenant_id, run_id, _allow_team=False):
+            yield e
+        return
+    members = members[:MAX_TEAM_MEMBERS]
+
+    built: list[str] = []
+    for m in members:
+        name = (m.get("name") or "").strip()
+        purpose = (m.get("purpose") or "").strip()
+        if not name:
+            continue
+        yield status(f"building {name}")
+        catalog = await build_catalog(tenant_id)
+        seed = (f"Design the '{name}' agent. Role: {purpose}. It is one specialist member of "
+                f"a team built for this goal: {nl_request}")
+        res = await _compile_and_save(
+            seed, catalog, tenant_id, note=f"team member of: {nl_request[:120]}",
+            name=name, include_workflow=wants_workflow(purpose),
+        )
+        if res:
+            built.append(res[2].name)
+            yield ev("member", name=res[2].name, agent_id=res[0])
+
+    if not built:
+        async for e in build_agent(nl_request, tenant_id, run_id, _allow_team=False):
+            yield e
+        return
+
+    yield status("wiring coordinator")
+    coord = (plan.get("coordinator") or {})
+    coord_name = (coord.get("name") or "Coordinator").strip()
+    roster = "; ".join(built)
+    catalog = await build_catalog(tenant_id)  # now includes the new members
+    seed = (f"Design the coordinator agent named '{coord_name}'. {coord.get('purpose', '')} "
+            f"It leads a team and delegates subtasks to these members: {roster}. "
+            f"Overall goal: {nl_request}")
+    res = await _compile_and_save(
+        seed, catalog, tenant_id, note=f"team coordinator: {nl_request[:120]}",
+        name=coord_name, include_team=True, sub_agents=built,
+    )
+    if res is None:  # coordinator failed → surface the members anyway via the first one
+        yield ev("error", message="Built the team members but couldn't wire a coordinator. "
+                 "They're available in Agents.")
+        return
+    agent_id, version, spec = res
+    async with get_sessionmaker()() as session:
+        await repo.insert_audit(
+            session, tenant_id, "orchestrator", "build_team", "agent", agent_id,
+            {"request": nl_request, "members": built},
+        )
+        await session.commit()
+    yield ev("spec", agent_id=agent_id, version=version, spec=spec.model_dump())
+    yield ev("done", agent_id=agent_id, version=version)
+
+
+async def build_agent(
+    nl_request: str, tenant_id: str, run_id: str, _allow_team: bool = True
+) -> AsyncIterator[dict]:
+    """Compile NL → AgentSpec, persist it as an immutable version, stream events.
+
+    When the request implies multiple roles, build a whole TEAM instead."""
+    if _allow_team and wants_team(nl_request):
+        async for e in build_team(nl_request, tenant_id, run_id):
+            yield e
+        return
     tracer = get_tracer()
     with tracer.start_as_current_span("orchestrator.build"):
         yield status("planning")

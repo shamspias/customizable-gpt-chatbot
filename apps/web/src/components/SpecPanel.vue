@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import Icon from "./Icon.vue";
 import { useAgentStore } from "../stores/agent";
 
 const store = useAgentStore();
@@ -114,6 +115,20 @@ function refine() {
             </template>
           </div>
         </section>
+
+        <section class="card">
+          <h3>Self-improvement</h3>
+          <label class="toggle" @click="store.setAutoImprove(!store.spec.auto_improve)">
+            <span class="switch" :class="{ on: store.spec.auto_improve }"><span class="knob" /></span>
+            <span>Auto-improve <small class="muted">— learn from 👎 feedback automatically</small></span>
+          </label>
+          <div v-if="store.lessons.length" class="lessons">
+            <div v-for="l in store.lessons" :key="l.id" class="lesson">
+              <Icon name="graduation" :size="13" /><span>{{ l.content }}</span>
+            </div>
+          </div>
+          <p v-else class="muted small">No lessons yet — rate answers 👍/👎 to teach it.</p>
+        </section>
       </div>
 
       <div class="refine">
@@ -143,6 +158,15 @@ function refine() {
 .card.row .k { display: block; font-size: 11px; color: var(--muted); }
 .card.row .v { font-size: 14px; }
 .card ul { margin: 0; padding-left: 18px; }
+.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13.5px; }
+.switch { width: 38px; height: 22px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); position: relative; transition: background .15s; flex: none; }
+.switch.on { background: var(--accent); border-color: var(--accent); }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on .knob { left: 18px; }
+.lessons { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.lesson { display: flex; gap: 7px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; }
+.lesson :deep(.icon) { color: var(--accent); margin-top: 2px; flex: none; }
+.small { font-size: 12px; }
 .mono, .json { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .json { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; overflow: auto; max-height: 60vh; }
 .badge { font-size: 10px; text-transform: none; letter-spacing: 0; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }

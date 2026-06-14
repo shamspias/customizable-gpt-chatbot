@@ -16,6 +16,8 @@ export interface ChatMsg {
   kind?: "spec" | "error";
   thinking?: string;
   citations?: Citation[];
+  runId?: string;   // the run this assistant turn belongs to (for feedback)
+  rated?: number;   // -1 / 1 once the user has rated it
 }
 
 export const useAgentStore = defineStore("agent", () => {
@@ -38,6 +40,8 @@ export const useAgentStore = defineStore("agent", () => {
   const runSteps = ref<any | null>(null);
   // document editor
   const openDoc = ref<any | null>(null); // { document, text, page_index }
+  // learning
+  const lessons = ref<any[]>([]);
 
   async function upload(file: File) {
     busy.value = true;
@@ -92,7 +96,8 @@ export const useAgentStore = defineStore("agent", () => {
     messages.value.push(assistant);
     try {
       await streamPost(`/api/agents/${agentId.value}/ask`, { message, history }, (ev, data) => {
-        if (ev === "token") assistant.text += data.text;
+        if (ev === "run") assistant.runId = data.run_id;
+        else if (ev === "token") assistant.text += data.text;
         else if (ev === "thinking") assistant.thinking += data.text;
         else if (ev === "citations") assistant.citations = data.citations;
         else if (ev === "node") phase.value = `${data.type}`;
@@ -183,6 +188,7 @@ export const useAgentStore = defineStore("agent", () => {
     spec.value = d.spec;
     messages.value = [];
     view.value = "studio";
+    await loadLessons();
   }
 
   // ── knowledge bases ──
@@ -279,6 +285,36 @@ export const useAgentStore = defineStore("agent", () => {
     }
   }
 
+  // ── learning (feedback → reflect → lessons) ──
+  async function loadLessons() {
+    lessons.value = agentId.value ? await getJson(`/api/agents/${agentId.value}/lessons`) : [];
+  }
+  async function rate(msg: ChatMsg, reward: number) {
+    if (!msg.runId || msg.rated) return;
+    msg.rated = reward;
+    try {
+      const r = await postJson(`/api/runs/${msg.runId}/feedback`, { reward, note: null });
+      if (r?.learned?.lesson) {
+        messages.value.push({ role: "assistant", kind: "spec", text: `✦ Learned: ${r.learned.lesson}` });
+        await loadLessons();
+      }
+    } catch (e: any) {
+      error.value = String(e);
+    }
+  }
+  async function setAutoImprove(val: boolean) {
+    if (!agentId.value || !spec.value) return;
+    const newSpec = { ...spec.value, auto_improve: val };
+    await postJson(`/api/agents/${agentId.value}/selfmod/apply`, { spec: newSpec });
+    spec.value = newSpec;
+  }
+  async function reflectRun(runId: string) {
+    if (!agentId.value) return null;
+    const r = await postJson(`/api/agents/${agentId.value}/reflect`, { run_id: runId });
+    await loadLessons();
+    return r;
+  }
+
   // ── activity log ──
   async function listRuns() {
     runs.value = await getJson("/api/runs");
@@ -292,9 +328,10 @@ export const useAgentStore = defineStore("agent", () => {
 
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
-    view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc,
+    view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
+    rate, setAutoImprove, reflectRun, loadLessons,
   };
 });

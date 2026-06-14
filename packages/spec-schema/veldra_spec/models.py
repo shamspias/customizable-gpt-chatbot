@@ -208,6 +208,11 @@ class AgentSpec(BaseModel):
         description="Optional deterministic workflow; when set, the runtime executes the "
         "graph (start→…→end) instead of the free-form agent loop.",
     )
+    auto_improve: bool = Field(
+        default=False,
+        description="If true, the agent reflects on poorly-rated runs and improves its own "
+        "policy + episodic memory (self-improvement loop).",
+    )
 
     @field_validator("name", "system_prompt")
     @classmethod

@@ -59,6 +59,15 @@ class KbUpdateRequest(BaseModel):
     page_index_enabled: bool | None = None
 
 
+class FeedbackRequest(BaseModel):
+    reward: float = Field(description="-1 (bad) .. 1 (good).")
+    note: str | None = None
+
+
+class ReflectRequest(BaseModel):
+    run_id: str = Field(description="The run to reflect on and learn from.")
+
+
 class DocEditRequest(BaseModel):
     text: str = Field(description="Edited document text to re-embed.")
 

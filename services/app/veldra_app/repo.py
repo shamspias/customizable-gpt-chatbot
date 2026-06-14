@@ -21,6 +21,7 @@ from veldra_app.models import (
     Chunk,
     Document,
     KnowledgeBase,
+    Lesson,
     PageIndex,
     Run,
     RunStep,
@@ -454,6 +455,45 @@ async def get_run_steps(session: AsyncSession, run_id: str) -> list[dict]:
         select(RunStep.ordinal, RunStep.type, RunStep.name, RunStep.payload, RunStep.created_at)
         .where(RunStep.run_id == run_id)
         .order_by(RunStep.ordinal)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+async def set_run_feedback(
+    session: AsyncSession, run_id: str, reward: float | None, feedback: str | None
+) -> dict | None:
+    """Attach a reward (-1..1) + optional note to a run; returns the run (with agent_id)."""
+    if not is_uuid(run_id):
+        return None
+    await session.execute(
+        update(Run).where(Run.id == run_id).values(reward=reward, feedback=feedback)
+    )
+    return await get_run(session, run_id)
+
+
+# ───────────────────────── episodic memory (lessons) ─────────────────────────
+async def add_lesson(
+    session: AsyncSession, tenant_id: str, agent_id: str, content: str,
+    source_run_id: str | None = None,
+) -> str:
+    return str(
+        await session.scalar(
+            insert(Lesson)
+            .values(tenant_id=tenant_id, agent_id=agent_id, content=content,
+                    source_run_id=source_run_id)
+            .returning(Lesson.id)
+        )
+    )
+
+
+async def list_lessons(session: AsyncSession, agent_id: str, limit: int = 20) -> list[dict]:
+    if not is_uuid(agent_id):
+        return []
+    res = await session.execute(
+        select(Lesson.id, Lesson.content, Lesson.source_run_id, Lesson.created_at)
+        .where(Lesson.agent_id == agent_id)
+        .order_by(Lesson.created_at.desc())
+        .limit(limit)
     )
     return [dict(r) for r in res.mappings()]
 

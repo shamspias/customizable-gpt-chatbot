@@ -14,7 +14,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from sse_starlette.sse import EventSourceResponse
 from veldra_spec import AgentSpec
 
-from veldra_app import events, repo
+from veldra_app import events, learning, repo
 from veldra_app.config import DEFAULT_TENANT_ID
 from veldra_app.db import get_sessionmaker
 from veldra_app.edge.schemas import (
@@ -23,8 +23,10 @@ from veldra_app.edge.schemas import (
     AskRequest,
     BuildRequest,
     DocEditRequest,
+    FeedbackRequest,
     KbCreateRequest,
     KbUpdateRequest,
+    ReflectRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
     UploadResponse,
@@ -234,7 +236,15 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
             agent_id=agent_id, agent_version=agent["current_version"],
         )
         await s.commit()
+        # Inject episodic memory: the agent applies what it has learned (Reflexion).
+        lessons = await repo.list_lessons(s, agent_id, limit=10)
+    if lessons:
+        spec = spec.model_copy(
+            update={"system_prompt": spec.system_prompt + learning.lessons_block(lessons)}
+        )
 
+    # Tell the client which run this is, so it can attach 👍/👎 feedback.
+    yield events.ev("run", run_id=run_id)
     answer: str | None = None
     try:
         async for event in execute(
@@ -345,3 +355,40 @@ async def get_run_steps(run_id: str) -> dict:
             raise HTTPException(404, "run not found")
         steps = await repo.get_run_steps(s, run_id)
     return {"run": run, "steps": steps}
+
+
+# ───────────────────────── learning (feedback → reflect → lessons) ─────────────────────────
+@router.post("/runs/{run_id}/feedback")
+async def run_feedback(run_id: str, req: FeedbackRequest) -> dict:
+    """Rate a run. A 👎 on an auto-improving agent triggers reflection immediately."""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        run = await repo.set_run_feedback(s, run_id, req.reward, req.note)
+        if run is None:
+            raise HTTPException(404, "run not found")
+        agent_id = str(run["agent_id"]) if run.get("agent_id") else None
+        spec = await repo.get_spec(s, agent_id) if agent_id else None
+        await s.commit()
+    learned = None
+    if req.reward < 0 and agent_id and spec and spec.get("auto_improve"):
+        try:
+            learned = await learning.reflect(agent_id, run_id, TENANT)
+        except Exception as exc:  # feedback must always succeed even if reflection fails
+            learned = {"error": str(exc)}
+    return {"ok": True, "learned": learned}
+
+
+@router.post("/agents/{agent_id}/reflect")
+async def agent_reflect(agent_id: str, req: ReflectRequest) -> dict:
+    """Reflect on a run now and learn a lesson (manual self-improvement)."""
+    try:
+        return await learning.reflect(agent_id, req.run_id, TENANT)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/agents/{agent_id}/lessons")
+async def agent_lessons(agent_id: str) -> list[dict]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_lessons(s, agent_id)
