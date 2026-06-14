@@ -76,6 +76,18 @@ class ReflectRequest(BaseModel):
     run_id: str = Field(description="The run to reflect on and learn from.")
 
 
+class SkillRequest(BaseModel):
+    name: str = Field(min_length=1, description="Skill name (referenced by agents).")
+    description: str = ""
+    content: str = Field(default="", description="The skill's Markdown playbook.")
+
+
+class SkillUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    content: str | None = None
+
+
 class DocEditRequest(BaseModel):
     text: str = Field(description="Edited document text to re-embed.")
 

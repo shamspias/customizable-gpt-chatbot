@@ -283,6 +283,27 @@ class Audit(Base):
     __table_args__ = (Index("audit_tenant_idx", "tenant_id", "created_at"),)
 
 
+class Skill(Base):
+    """A reusable, editable Markdown 'skill' (a focused how-to / playbook). Agents
+    list skills by name; the runtime injects the skill's content into the agent's
+    system prompt so it can follow the procedure (à la Claude/Hermes skills)."""
+
+    __tablename__ = "skills"
+
+    id: Mapped[str] = _pk()
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    content: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (
+        Index("skills_tenant_name_idx", "tenant_id", "name", unique=True),
+    )
+
+
 class Lesson(Base):
     """Episodic memory: a concrete lesson an agent learned from a past run, injected
     into its system prompt at runtime so it stops repeating mistakes (Reflexion)."""
@@ -307,5 +328,5 @@ class Lesson(Base):
 __all__ = [
     "Base", "EMBED_DIM",
     "Tenant", "Agent", "SpecVersion", "KnowledgeBase", "Document",
-    "PageIndex", "Chunk", "Run", "RunStep", "Audit", "Lesson",
+    "PageIndex", "Chunk", "Run", "RunStep", "Audit", "Lesson", "Skill",
 ]

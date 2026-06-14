@@ -8,6 +8,7 @@ import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { useAgentStore } from "./stores/agent";
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
+import SkillsView from "./views/SkillsView.vue";
 import StudioView from "./views/StudioView.vue";
 import WorkflowsView from "./views/WorkflowsView.vue";
 
@@ -15,15 +16,15 @@ const store = useAgentStore();
 const NAV = [
   { id: "studio", label: "Studio", icon: "sparkles" },
   { id: "knowledge", label: "Knowledge", icon: "book" },
+  { id: "skills", label: "Skills", icon: "scroll" },
   { id: "workflows", label: "Agents", icon: "workflow" },
   { id: "activity", label: "Activity", icon: "activity" },
 ] as const;
 
 const current = computed(
   () =>
-    (({ studio: StudioView, knowledge: KnowledgeView, workflows: WorkflowsView, activity: LogsView }) as any)[
-      store.view
-    ],
+    (({ studio: StudioView, knowledge: KnowledgeView, skills: SkillsView,
+        workflows: WorkflowsView, activity: LogsView }) as any)[store.view],
 );
 const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Veldra");
 const palette = ref<InstanceType<typeof CommandPalette> | null>(null);

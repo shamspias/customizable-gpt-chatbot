@@ -192,6 +192,11 @@ class AgentSpec(BaseModel):
     )
 
     tools: list[ToolBinding] = Field(default_factory=list)
+    skills: list[str] = Field(
+        default_factory=list,
+        description="Names of Markdown skills (playbooks) this agent follows; their "
+        "content is injected into the agent's instructions at runtime.",
+    )
     knowledge_bases: list[str] = Field(
         default_factory=list, description="KB ids/names the agent can search via kb.search."
     )

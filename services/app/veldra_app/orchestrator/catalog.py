@@ -22,7 +22,10 @@ async def build_catalog(tenant_id: str = DEFAULT_TENANT_ID) -> dict:
         kb_id = await repo.get_or_create_kb(session, tenant_id, "default")
         await session.commit()
         agents = [a["name"] for a in await repo.list_agents(session, tenant_id)]
-    return {"tools": registry.catalog(), "kb_id": kb_id, "kb_name": "default", "agents": agents}
+        skills = [{"name": s["name"], "description": s["description"]}
+                  for s in await repo.list_skills(session, tenant_id)]
+    return {"tools": registry.catalog(), "kb_id": kb_id, "kb_name": "default",
+            "agents": agents, "skills": skills}
 
 
 def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
@@ -39,6 +42,12 @@ def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
     for kb in spec.knowledge_bases:
         if kb not in valid_kbs:
             errors.append(f"knowledge base id '{kb}' does not exist — use '{catalog['kb_id']}'")
+    valid_skills = {s["name"] for s in catalog.get("skills", [])}
+    for sk in spec.skills:
+        if sk not in valid_skills:
+            errors.append(
+                f"skill '{sk}' is not available — choose from {sorted(valid_skills)} or omit it"
+            )
     existing_agents = set(catalog.get("agents", []))
     for sub in spec.sub_agents:
         if sub == spec.name:

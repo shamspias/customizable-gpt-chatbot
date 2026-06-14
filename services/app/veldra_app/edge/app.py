@@ -30,6 +30,8 @@ from veldra_app.edge.schemas import (
     ReflectRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
+    SkillRequest,
+    SkillUpdateRequest,
     TagsRequest,
     UploadResponse,
     UrlIngestRequest,
@@ -188,6 +190,44 @@ async def upload(file: UploadFile = File(...)) -> UploadResponse:
     return _ingest_response(result)
 
 
+# ───────────────────────── skills (markdown playbooks) ─────────────────────────
+@router.get("/skills")
+async def list_skills() -> list[dict]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_skills(s, TENANT)
+
+
+@router.post("/skills")
+async def create_skill(req: SkillRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        sid = await repo.create_skill(s, TENANT, req.name, req.description, req.content)
+        await s.commit()
+        return await repo.get_skill(s, sid)
+
+
+@router.put("/skills/{skill_id}")
+@router.patch("/skills/{skill_id}")
+async def update_skill(skill_id: str, req: SkillUpdateRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        if await repo.get_skill(s, skill_id) is None:
+            raise HTTPException(404, "skill not found")
+        await repo.update_skill(s, skill_id, **req.model_dump(exclude_none=True))
+        await s.commit()
+        return await repo.get_skill(s, skill_id)
+
+
+@router.delete("/skills/{skill_id}")
+async def delete_skill(skill_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        await repo.delete_skill(s, skill_id)
+        await s.commit()
+    return {"deleted": skill_id}
+
+
 # ───────────────────────── build (NL -> agent) ─────────────────────────
 async def _build_stream(req: BuildRequest) -> AsyncIterator[dict]:
     sm = get_sessionmaker()
@@ -247,12 +287,17 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
             agent_id=agent_id, agent_version=agent["current_version"],
         )
         await s.commit()
-        # Inject episodic memory: the agent applies what it has learned (Reflexion).
+        # Inject episodic memory + granted skills into the agent's instructions.
         lessons = await repo.list_lessons(s, agent_id, limit=10)
+        skills = await repo.get_skills_by_names(s, TENANT, spec.skills)
+    extra = ""
+    if skills:
+        blocks = "\n\n".join(f"### Skill: {sk['name']}\n{sk['content']}" for sk in skills)
+        extra += f"\n\n## Skills (follow these playbooks)\n{blocks}"
     if lessons:
-        spec = spec.model_copy(
-            update={"system_prompt": spec.system_prompt + learning.lessons_block(lessons)}
-        )
+        extra += learning.lessons_block(lessons)
+    if extra:
+        spec = spec.model_copy(update={"system_prompt": spec.system_prompt + extra})
 
     # Tell the client which run this is, so it can attach 👍/👎 feedback.
     yield events.ev("run", run_id=run_id)

@@ -42,6 +42,9 @@ Knowledge base available in this workspace:
 Existing agents you may delegate to (build a team via `sub_agents`):
 {agent_lines}
 
+Skills you may give the agent (add the EXACT name to `skills`; its playbook is injected):
+{skill_lines}
+
 Agent design:
 - `system_prompt`: a production-quality policy/persona — what the agent does, its \
 tone, domain-specific rules, how it uses its tools, and how it cites sources.
@@ -53,6 +56,8 @@ invent a tool name. Leave `tools` empty if none are needed.
 "react" for tool-using agents, "plan_execute" for multi-step planners.
 - TEAM: to coordinate DISTINCT ROLES, list existing agent names (only from the list \
 above) in `sub_agents`; the coordinator calls each as a tool. Empty for a standalone agent.
+- SKILLS: if a listed skill fits the task, add its exact name to `skills` (only names \
+from the list above). Leave empty if none apply.
 - `guardrails.max_steps` 1..64. Keep `name` short and descriptive.
 {workflow_guide}
 Return only the AgentSpec."""
@@ -105,12 +110,15 @@ def _system_prompt(catalog: dict, include_workflow: bool = False) -> str:
     tool_lines = "\n".join(f'- {t["name"]}: {t["description"]}' for t in catalog["tools"])
     agents = catalog.get("agents", [])
     agent_lines = "\n".join(f"- {a}" for a in agents) if agents else "- (none yet)"
+    skills = catalog.get("skills", [])
+    skill_lines = "\n".join(f'- {s["name"]}: {s["description"]}' for s in skills) or "- (none yet)"
     guide = (WORKFLOW_GUIDE + WORKFLOW_EXAMPLE) if include_workflow else ""
     return SYSTEM_TEMPLATE.format(
         tool_lines=tool_lines,
         kb_id=catalog["kb_id"],
         kb_name=catalog["kb_name"],
         agent_lines=agent_lines,
+        skill_lines=skill_lines,
         default_model=get_provider().default_model,
         workflow_guide=guide,
     )
@@ -165,7 +173,8 @@ MAX_TEAM_MEMBERS = 4
 
 
 async def parse_spec(
-    system: str, messages: list[dict], include_workflow: bool = False, include_team: bool = False
+    system: str, messages: list[dict], include_workflow: bool = False,
+    include_team: bool = False, include_skills: bool = False,
 ) -> tuple[AgentSpec | None, bool]:
     """Constrained-decode an AgentSpec via the active provider. Returns (spec, refused).
 
@@ -180,6 +189,8 @@ async def parse_spec(
         props.pop("workflow_graph", None)
     if not include_team:
         props.pop("sub_agents", None)
+    if not include_skills:
+        props.pop("skills", None)
     schema = prepare_json_schema(raw)
     data = await provider.parse_json(
         model=provider.orchestrator_model, system=system, messages=messages,
@@ -198,9 +209,12 @@ async def compile_with_repair(
     include_workflow: bool = False, include_team: bool = False
 ) -> tuple[AgentSpec | None, list[str]]:
     messages = list(seed_messages)
+    include_skills = bool(catalog.get("skills"))
     last_errors: list[str] = ["the model did not return a usable spec"]
     for _ in range(MAX_REPAIR_ATTEMPTS):
-        spec, refused = await parse_spec(system, messages, include_workflow, include_team)
+        spec, refused = await parse_spec(
+            system, messages, include_workflow, include_team, include_skills
+        )
         if refused:
             return None, ["the request was declined by the model's safety system"]
         if spec is None:

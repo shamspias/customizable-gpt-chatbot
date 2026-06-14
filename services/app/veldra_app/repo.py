@@ -25,6 +25,7 @@ from veldra_app.models import (
     PageIndex,
     Run,
     RunStep,
+    Skill,
     SpecVersion,
 )
 
@@ -582,6 +583,65 @@ async def add_lesson(
         delete(Lesson).where(Lesson.agent_id == agent_id, Lesson.id.not_in(keep))
     )
     return lesson_id
+
+
+# ───────────────────────── skills (markdown playbooks) ─────────────────────────
+_SKILL_COLS = (Skill.id, Skill.name, Skill.description, Skill.content, Skill.created_at)
+
+
+async def list_skills(session: AsyncSession, tenant_id: str) -> list[dict]:
+    res = await session.execute(
+        select(*_SKILL_COLS).where(Skill.tenant_id == tenant_id).order_by(Skill.name)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+async def get_skill(session: AsyncSession, skill_id: str) -> dict | None:
+    if not is_uuid(skill_id):
+        return None
+    res = await session.execute(select(*_SKILL_COLS).where(Skill.id == skill_id))
+    row = res.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_skills_by_names(
+    session: AsyncSession, tenant_id: str, names: list[str]
+) -> list[dict]:
+    """Resolve skill content for a set of names (for runtime injection)."""
+    if not names:
+        return []
+    res = await session.execute(
+        select(Skill.name, Skill.content)
+        .where(Skill.tenant_id == tenant_id, Skill.name.in_(names))
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+async def create_skill(
+    session: AsyncSession, tenant_id: str, name: str, description: str, content: str
+) -> str:
+    return str(
+        await session.scalar(
+            insert(Skill)
+            .values(tenant_id=tenant_id, name=name, description=description, content=content)
+            .returning(Skill.id)
+        )
+    )
+
+
+async def update_skill(session: AsyncSession, skill_id: str, **fields: Any) -> None:
+    if not is_uuid(skill_id):
+        return
+    allowed = {k: v for k, v in fields.items()
+               if k in {"name", "description", "content"} and v is not None}
+    if allowed:
+        await session.execute(update(Skill).where(Skill.id == skill_id).values(**allowed))
+
+
+async def delete_skill(session: AsyncSession, skill_id: str) -> None:
+    if not is_uuid(skill_id):
+        return
+    await session.execute(delete(Skill).where(Skill.id == skill_id))
 
 
 async def list_lessons(session: AsyncSession, agent_id: str, limit: int = 20) -> list[dict]:

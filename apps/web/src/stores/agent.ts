@@ -27,7 +27,7 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
-  const view = ref<"studio" | "knowledge" | "workflows" | "activity">("studio");
+  const view = ref<"studio" | "knowledge" | "workflows" | "activity" | "skills">("studio");
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
   const kbDocs = ref<any[]>([]);
@@ -44,6 +44,9 @@ export const useAgentStore = defineStore("agent", () => {
   const lessons = ref<any[]>([]);
   // agent tags / filtering
   const agentTags = ref<string[]>([]);
+  // skills (markdown playbooks)
+  const skills = ref<any[]>([]);
+  const openSkill = ref<any | null>(null);
   // floating Faust admin bot
   const faustOpen = ref(false);
   const faustMsgs = ref<ChatMsg[]>([]);
@@ -210,6 +213,29 @@ export const useAgentStore = defineStore("agent", () => {
   async function deleteDocs(kbId: string, ids: string[]) {
     await postJson(`/api/kb/${kbId}/documents/delete`, { ids });
     await Promise.all([selectKb(kbId), listKbs()]);
+  }
+
+  // ── skills (markdown playbooks) ──
+  async function listSkills() {
+    skills.value = await getJson("/api/skills");
+  }
+  async function createSkill(name: string) {
+    const s = await postJson("/api/skills", { name, description: "", content: `# ${name}\n\n` });
+    await listSkills();
+    openSkill.value = s;
+  }
+  async function saveSkill(id: string, fields: Record<string, any>) {
+    const r = await fetch(`/api/skills/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await listSkills();
+  }
+  async function deleteSkill(id: string) {
+    await fetch(`/api/skills/${id}`, { method: "DELETE" });
+    if (openSkill.value?.id === id) openSkill.value = null;
+    await listSkills();
   }
 
   // ── floating Faust admin bot ──
@@ -389,11 +415,12 @@ export const useAgentStore = defineStore("agent", () => {
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
-    agentTags, faustOpen, faustMsgs, faustBusy,
+    agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
     rate, setAutoImprove, reflectRun, loadLessons,
     loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askFaust,
+    listSkills, createSkill, saveSkill, deleteSkill,
   };
 });

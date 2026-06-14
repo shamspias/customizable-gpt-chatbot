@@ -89,6 +89,11 @@ function refine() {
           <p v-else class="muted">none</p>
         </section>
 
+        <section class="card" v-if="store.spec.skills?.length">
+          <h3>Skills</h3>
+          <ul><li v-for="s in store.spec.skills" :key="s">{{ s }}</li></ul>
+        </section>
+
         <section class="card">
           <h3>Knowledge bases</h3>
           <ul v-if="store.spec.knowledge_bases?.length">
