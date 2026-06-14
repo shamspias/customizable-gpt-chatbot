@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import CommandPalette from "./components/CommandPalette.vue";
 import DiffModal from "./components/DiffModal.vue";
 import HermisBot from "./components/HermisBot.vue";
 import Icon from "./components/Icon.vue";
@@ -25,6 +26,7 @@ const current = computed(
     ],
 );
 const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Veldra");
+const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 </script>
 
 <template>
@@ -48,7 +50,10 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
         </button>
       </nav>
       <div class="grow" />
-      <div class="foot"><span class="dotlive" />local-first · talk an agent into existence</div>
+      <button class="cmdk" @click="palette?.show()">
+        <Icon name="search" :size="14" /><span>Search & commands</span><kbd>⌘K</kbd>
+      </button>
+      <div class="foot"><span class="dotlive" />local-first · the agent that grows with you</div>
     </aside>
 
     <main class="main">
@@ -75,6 +80,7 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
     <DiffModal />
     <WorkflowBuilder />
     <HermisBot />
+    <CommandPalette ref="palette" />
   </div>
 </template>
 
@@ -89,8 +95,7 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
 .mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px;
   background: var(--accent-soft); color: var(--accent); }
 .mark svg { width: 19px; height: 19px; }
-.word { font-weight: 750; font-size: 18px; letter-spacing: -0.02em;
-  background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.word { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--ink); }
 .nav { display: flex; flex-direction: column; gap: 3px; }
 .navbtn {
   display: flex; align-items: center; gap: 11px; background: none; border: none; color: var(--muted);
@@ -99,6 +104,9 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
 .navbtn:hover { background: var(--surface-2); color: var(--ink); filter: none; }
 .navbtn.active { background: var(--accent-soft); color: var(--accent); }
 .grow { flex: 1; }
+.cmdk { width: 100%; justify-content: flex-start; gap: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 12.5px; font-weight: 500; padding: 8px 10px; margin-bottom: 8px; }
+.cmdk:hover { border-color: var(--border-strong); color: var(--ink); filter: none; }
+.cmdk kbd { margin-left: auto; font-size: 10.5px; border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; background: var(--surface-2); color: var(--faint); }
 .foot { color: var(--faint); font-size: 11px; line-height: 1.5; padding: 8px; display: flex; align-items: center; gap: 7px; }
 .dotlive { width: 7px; height: 7px; border-radius: 99px; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); flex: none; }
 

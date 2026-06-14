@@ -10,20 +10,33 @@ const input = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
 const scroller = ref<HTMLElement | null>(null);
 const showSpec = ref(false); // mobile spec drawer
+const buildMode = ref<"single" | "company">("single"); // empty-state build target
 const mode = computed(() => (store.agentId ? "ask" : "build"));
 
 const EXAMPLES = [
   "Answer questions from these docs and always cite the page.",
   "Triage support emails and draft replies grounded in our docs.",
-  "An agro farm: route buyers to a sales agent, questions to an info desk.",
+  "A research assistant that searches my docs, then summarizes with citations.",
 ];
+const COMPANY_EXAMPLES = [
+  "A digital marketing agency: strategy, content, and client-support agents.",
+  "An online store: a sales agent, an order-support agent, and a returns agent.",
+  "A clinic: reception/booking, billing, and a patient-FAQ agent from our docs.",
+];
+const examples = computed(() => (buildMode.value === "company" ? COMPANY_EXAMPLES : EXAMPLES));
 
 async function submit() {
   const t = input.value.trim();
   if (!t || store.busy) return;
   input.value = "";
-  if (!store.agentId) await store.build(t);
-  else await store.ask(t);
+  if (store.agentId) {
+    await store.ask(t);
+  } else if (buildMode.value === "company") {
+    // Frame as a team build so the orchestrator creates a coordinator + role agents.
+    await store.build(`Set up a team of agents for this company: ${t}`);
+  } else {
+    await store.build(t);
+  }
 }
 function newAgent() {
   store.agentId = null;
@@ -74,12 +87,22 @@ watch(
 
       <div ref="scroller" class="messages">
         <div v-if="!store.messages.length" class="hero">
-          <div class="halo"><Icon name="sparkles" :size="26" /></div>
-          <h1>Build an agent by describing it</h1>
-          <p>Upload a document, then tell Veldra what you want. It designs the policy,
-            tools, knowledge, a team, and even a workflow — then you chat with it.</p>
+          <div class="seg">
+            <button :class="{ on: buildMode === 'single' }" @click="buildMode = 'single'">
+              <Icon name="bot" :size="15" />Single agent
+            </button>
+            <button :class="{ on: buildMode === 'company' }" @click="buildMode = 'company'">
+              <Icon name="layers" :size="15" />Company team
+            </button>
+          </div>
+          <div class="halo"><Icon :name="buildMode === 'company' ? 'layers' : 'sparkles'" :size="26" /></div>
+          <h1>{{ buildMode === 'company' ? 'Set up agents for your company' : 'Build an agent by describing it' }}</h1>
+          <p v-if="buildMode === 'company'">Describe your company and what it does. Veldra designs a
+            <strong>team</strong> — a coordinator plus specialist agents for each role — and wires them together.</p>
+          <p v-else>Upload a document, then tell Veldra what you want. It designs the policy,
+            tools, knowledge, and even a workflow — then you chat with it.</p>
           <div class="examples">
-            <button v-for="ex in EXAMPLES" :key="ex" class="example" @click="input = ex">
+            <button v-for="ex in examples" :key="ex" class="example" @click="input = ex">
               <Icon name="spark" :size="15" />{{ ex }}
             </button>
           </div>
@@ -107,7 +130,7 @@ watch(
 
       <div class="composer">
         <textarea v-model="input" rows="1"
-          :placeholder="mode === 'build' ? 'Describe the agent you want…' : 'Message your agent…'"
+          :placeholder="mode === 'ask' ? 'Message your agent…' : buildMode === 'company' ? 'Describe your company…' : 'Describe the agent you want…'"
           :disabled="store.busy" @input="grow" @keydown.enter.exact.prevent="submit" />
         <button class="sendbtn" :disabled="store.busy || !input.trim()" @click="submit"
                 :title="mode === 'build' ? 'Build' : 'Send'">
@@ -146,7 +169,10 @@ watch(
 .docs { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); }
 .doc { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px; }
 .messages { flex: 1; overflow: auto; padding: 24px 18px; display: flex; flex-direction: column; gap: 14px; }
-.hero { margin: auto; text-align: center; max-width: 480px; color: var(--muted); animation: veldra-rise 0.3s ease both; }
+.hero { margin: auto; text-align: center; max-width: 500px; color: var(--muted); animation: veldra-rise 0.3s ease both; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; margin-bottom: 22px; background: var(--surface); }
+.seg button { background: none; border: none; box-shadow: none; color: var(--muted); border-radius: 999px; padding: 7px 15px; font-size: 13px; font-weight: 550; }
+.seg button.on { background: var(--accent-soft); color: var(--accent); }
 .halo { width: 60px; height: 60px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 18px; color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 7%, transparent); }
 .hero h1 { color: var(--ink); font-size: 23px; letter-spacing: -0.02em; margin: 0 0 10px; }
 .hero p { line-height: 1.65; margin: 0 0 20px; }

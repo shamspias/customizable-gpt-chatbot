@@ -1,32 +1,33 @@
-/* Veldra design system — modern, professional, dark-first (with light). */
+/* Veldra design system — clean, professional, content-first (dark + light).
+   Restrained near-monochrome surfaces, one calm accent, minimal decoration. */
 :root {
-  --bg: #0b0d11;
-  --bg-soft: #0f1218;
-  --bg-glass: rgba(15, 18, 24, 0.72);
-  --surface: #161a22;
-  --surface-2: #1c2230;
-  --border: #242b39;
-  --border-strong: #36404f;
-  --ink: #eaedf4;
-  --muted: #99a2b2;
-  --faint: #6a7383;
-  --accent: #7c8cf8;
-  --accent-2: #c084fc;
-  --accent-grad: linear-gradient(135deg, #6ea8fe 0%, #8b8cf8 45%, #c084fc 100%);
-  --accent-soft: rgba(124, 140, 248, 0.16);
-  --accent-ring: rgba(124, 140, 248, 0.38);
-  --accent-glow: 0 4px 16px rgba(124, 140, 248, 0.35);
-  --ok: #4cc38a;
-  --ok-soft: rgba(76, 195, 138, 0.14);
-  --warn: #e2b15a;
-  --danger: #f3737b;
-  --danger-soft: rgba(243, 115, 123, 0.14);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-lg: 20px;
+  --bg: #0a0c10;
+  --bg-soft: #0e1117;
+  --bg-glass: rgba(14, 17, 23, 0.8);
+  --surface: #14181f;
+  --surface-2: #1a1f28;
+  --border: #222831;
+  --border-strong: #323a46;
+  --ink: #e8ebf1;
+  --muted: #9aa3b2;
+  --faint: #69727f;
+  --accent: #6e8bff;
+  --accent-2: #6e8bff;
+  --accent-grad: #6e8bff;            /* solid — no flashy multi-stop gradient */
+  --accent-soft: rgba(110, 139, 255, 0.13);
+  --accent-ring: rgba(110, 139, 255, 0.32);
+  --accent-glow: none;
+  --ok: #46c08a;
+  --ok-soft: rgba(70, 192, 138, 0.13);
+  --warn: #d8a64e;
+  --danger: #ec6a72;
+  --danger-soft: rgba(236, 106, 114, 0.13);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --radius: 12px;
+  --radius-sm: 9px;
+  --radius-lg: 18px;
 
   /* Back-compat aliases for component styles. */
   --card: var(--surface);
@@ -46,60 +47,56 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f7f8fa;
-    --bg-soft: #eef1f6;
-    --bg-glass: rgba(255, 255, 255, 0.72);
+    --bg: #fbfbfd;
+    --bg-soft: #f3f4f7;
+    --bg-glass: rgba(255, 255, 255, 0.82);
     --surface: #ffffff;
-    --surface-2: #f1f3f8;
-    --border: #e4e8ef;
-    --border-strong: #d2d8e2;
-    --ink: #161a21;
-    --muted: #59626f;
-    --faint: #8a93a1;
-    --accent: #5b63e6;
-    --accent-2: #9333ea;
-    --accent-grad: linear-gradient(135deg, #4f7cf0 0%, #6d5ce8 45%, #9333ea 100%);
-    --accent-soft: rgba(91, 99, 230, 0.10);
-    --accent-ring: rgba(91, 99, 230, 0.28);
-    --accent-glow: 0 4px 16px rgba(91, 99, 230, 0.28);
+    --surface-2: #f4f5f8;
+    --border: #e6e8ee;
+    --border-strong: #d3d7e0;
+    --ink: #14171d;
+    --muted: #5b6472;
+    --faint: #8b93a1;
+    --accent: #4f5dd6;
+    --accent-2: #4f5dd6;
+    --accent-grad: #4f5dd6;
+    --accent-soft: rgba(79, 93, 214, 0.09);
+    --accent-ring: rgba(79, 93, 214, 0.26);
     --ok: #1f9d63;
     --ok-soft: rgba(31, 157, 99, 0.10);
-    --danger: #d64550;
-    --danger-soft: rgba(214, 69, 80, 0.10);
-    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
-    --shadow: 0 10px 30px rgba(16, 24, 40, 0.10);
-    --shadow-lg: 0 24px 60px rgba(16, 24, 40, 0.16);
+    --danger: #d6454f;
+    --danger-soft: rgba(214, 69, 79, 0.09);
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+    --shadow: 0 8px 26px rgba(16, 24, 40, 0.08);
+    --shadow-lg: 0 20px 50px rgba(16, 24, 40, 0.14);
     color-scheme: light;
   }
 }
 
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
+/* A single, very subtle top vignette — calm and flat, no colored blobs. */
 body {
   background:
-    radial-gradient(900px 500px at 88% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent),
-    radial-gradient(800px 500px at 5% 110%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent),
-    var(--bg) fixed;
+    radial-gradient(120% 80% at 50% -20%, var(--bg-soft), var(--bg) 60%);
 }
 
 ::selection { background: var(--accent-soft); }
 
 /* Scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 button {
-  font: inherit; font-weight: 600; padding: 9px 15px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; background: var(--accent-grad); color: #fff; cursor: pointer;
+  font: inherit; font-weight: 550; padding: 8px 14px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  transition: filter 0.15s ease, transform 0.06s ease, box-shadow 0.15s, border-color 0.15s, background 0.15s;
+  transition: filter 0.14s ease, transform 0.05s ease, border-color 0.14s, background 0.14s;
 }
-button:not(.ghost):not(:disabled) { box-shadow: var(--accent-glow); }
-button:hover:not(:disabled) { filter: brightness(1.07); }
-button.ghost:not(:disabled) { box-shadow: none; }
-button:active:not(:disabled) { transform: translateY(1px); }
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:active:not(:disabled) { transform: translateY(0.5px); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
 button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
@@ -107,9 +104,9 @@ button.sm { padding: 6px 11px; font-size: 13px; }
 button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
 input[type="text"], input[type="number"], input:not([type]), textarea, select {
-  font: inherit; padding: 10px 13px; border-radius: var(--radius-sm);
+  font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 input::placeholder, textarea::placeholder { color: var(--faint); }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
@@ -117,9 +114,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 a { color: var(--accent); }
 
 @keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-@keyframes veldra-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes veldra-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 @keyframes veldra-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes veldra-pop { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes veldra-pop { from { opacity: 0; transform: scale(0.98) translateY(6px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
