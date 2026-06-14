@@ -49,6 +49,24 @@ function onFile(e: Event) {
   if (f && store.selectedKb) store.uploadToKb(store.selectedKb, f);
   (e.target as HTMLInputElement).value = "";
 }
+
+// ── add from URL + document editor ──
+const urlInput = ref("");
+function addUrl() {
+  const u = urlInput.value.trim();
+  if (!u || !store.selectedKb) return;
+  store.ingestUrl(store.selectedKb, u);
+  urlInput.value = "";
+}
+const editText = ref("");
+watch(() => store.openDoc, (d) => { editText.value = d?.text || ""; });
+function openEditor(docId: string) {
+  if (store.selectedKb) store.viewDoc(store.selectedKb, docId);
+}
+async function saveDocText() {
+  if (store.selectedKb && store.openDoc) await store.saveDoc(store.selectedKb, store.openDoc.document.id, editText.value);
+}
+
 async function saveConfig() {
   if (!store.selectedKb) return;
   await store.updateKb(store.selectedKb, {
@@ -140,23 +158,62 @@ async function saveConfig() {
             <button class="ghost sm" :disabled="store.busy" @click="fileInput?.click()"><Icon name="upload" :size="15" />Upload</button>
             <input ref="fileInput" type="file" hidden accept=".pdf,.txt,.md" @change="onFile" />
           </div>
+          <div class="urlrow">
+            <Icon name="globe" :size="15" class="urlic" />
+            <input v-model="urlInput" placeholder="Index a web page — https://…" @keyup.enter="addUrl" />
+            <button class="ghost sm" :disabled="store.busy || !urlInput.trim()" @click="addUrl">Fetch &amp; index</button>
+          </div>
           <table v-if="store.kbDocs.length">
             <thead><tr><th>File</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              <tr v-for="d in store.kbDocs" :key="d.id">
+              <tr v-for="d in store.kbDocs" :key="d.id" class="docrow" @click="openEditor(d.id)">
                 <td class="fname"><Icon name="file" :size="14" /> {{ d.filename }}</td>
                 <td>{{ d.num_pages || "—" }}</td>
                 <td>{{ d.chunk_count }}</td>
                 <td><span class="status" :class="d.status">{{ d.status }}</span></td>
-                <td><button class="link danger" @click="store.deleteDoc(store.selectedKb!, d.id)">delete</button></td>
+                <td class="rowact">
+                  <button class="iconbtn" title="Edit" @click.stop="openEditor(d.id)"><Icon name="pencil" :size="14" /></button>
+                  <button class="iconbtn danger" title="Delete" @click.stop="store.deleteDoc(store.selectedKb!, d.id)"><Icon name="trash" :size="14" /></button>
+                </td>
               </tr>
             </tbody>
           </table>
-          <p v-else class="muted pad">No documents yet — upload a PDF, Markdown, or text file.</p>
+          <p v-else class="muted pad">No documents yet — upload a file or index a web page.</p>
         </div>
       </template>
       <div v-else class="empty muted">Select or create a knowledge base.</div>
     </section>
+
+    <!-- ── document editor + page-index tree (drawer) ── -->
+    <transition name="drawer">
+      <div v-if="store.openDoc" class="drawer-wrap" @click.self="store.closeDoc()">
+        <div class="drawer">
+          <div class="drawer-h">
+            <Icon name="file" :size="16" /><strong class="dt">{{ store.openDoc.document.filename }}</strong>
+            <div class="grow" />
+            <button class="primary sm" :disabled="store.busy" @click="saveDocText"><Icon name="save" :size="14" />Save &amp; re-embed</button>
+            <button class="ghost sm" aria-label="Close" title="Close" @click="store.closeDoc()"><Icon name="x" :size="16" /></button>
+          </div>
+          <div class="drawer-body">
+            <label class="field">
+              <span>Content <small class="muted">— edits are re-chunked &amp; re-embedded on save</small></span>
+              <textarea v-model="editText" class="doctext" spellcheck="false" />
+            </label>
+            <div class="field">
+              <span><Icon name="tree" :size="13" /> Page index <small class="muted">({{ store.openDoc.page_index.length }} nodes)</small></span>
+              <div v-if="store.openDoc.page_index.length" class="ptree">
+                <div v-for="(p, i) in store.openDoc.page_index" :key="i" class="pnode" :class="p.kind">
+                  <span class="pk">{{ p.kind }}</span>
+                  <span class="pl">{{ p.label || p.section_path || ('Page ' + (p.page_number ?? '?')) }}</span>
+                  <span class="pc muted">{{ p.char_start }}–{{ p.char_end }}</span>
+                </div>
+              </div>
+              <p v-else class="muted small">No page index (disabled for this KB, or not built yet).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -205,6 +262,39 @@ td { padding: 10px; border-bottom: 1px solid var(--border); }
 .pad { padding: 8px 2px; }
 .empty { margin: 60px auto; text-align: center; }
 .fname { display: flex; align-items: center; gap: 7px; }
+.small { font-size: 12px; }
+
+/* url ingest row */
+.urlrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.urlrow input { flex: 1; }
+.urlic { color: var(--muted); flex: none; }
+
+/* document rows */
+.docrow { cursor: pointer; }
+.docrow:hover { background: var(--surface-2); }
+.rowact { display: flex; gap: 4px; justify-content: flex-end; }
+.iconbtn { background: none; border: 1px solid transparent; color: var(--muted); padding: 5px; border-radius: 8px; }
+.iconbtn:hover { background: var(--surface-2); border-color: var(--border); color: var(--ink); filter: none; }
+.iconbtn.danger:hover { color: var(--danger); }
+
+/* editor drawer */
+.drawer-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.5); display: flex; justify-content: flex-end; }
+.drawer { width: min(640px, 96vw); background: var(--bg); height: 100%; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); }
+.drawer-h { display: flex; align-items: center; gap: 9px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.drawer-h .dt { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-body { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+.doctext { width: 100%; min-height: 320px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 13px; line-height: 1.55; }
+.ptree { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.pnode { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.pnode:last-child { border-bottom: none; }
+.pnode.section { padding-left: 26px; }
+.pk { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 1px 7px; border-radius: 999px; }
+.pl { flex: 1; }
+.pc { font-size: 11.5px; font-family: ui-monospace, Menlo, monospace; }
+.drawer-enter-active, .drawer-leave-active { transition: opacity 0.2s; }
+.drawer-enter-active .drawer, .drawer-leave-active .drawer { transition: transform 0.22s ease; }
+.drawer-enter-from, .drawer-leave-to { opacity: 0; }
+.drawer-enter-from .drawer, .drawer-leave-to .drawer { transform: translateX(100%); }
 
 @media (max-width: 760px) {
   .kb { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }

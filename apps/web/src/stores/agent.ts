@@ -25,7 +25,7 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
-  const view = ref<"studio" | "knowledge" | "workflows">("studio");
+  const view = ref<"studio" | "knowledge" | "workflows" | "activity">("studio");
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
   const kbDocs = ref<any[]>([]);
@@ -33,6 +33,11 @@ export const useAgentStore = defineStore("agent", () => {
   const busy = ref(false);
   const diff = ref<any | null>(null);
   const error = ref<string | null>(null);
+  // activity log
+  const runs = ref<any[]>([]);
+  const runSteps = ref<any | null>(null);
+  // document editor
+  const openDoc = ref<any | null>(null); // { document, text, page_index }
 
   async function upload(file: File) {
     busy.value = true;
@@ -227,14 +232,69 @@ export const useAgentStore = defineStore("agent", () => {
   }
   async function deleteDoc(kbId: string, docId: string) {
     await fetch(`/api/kb/${kbId}/documents/${docId}`, { method: "DELETE" });
+    if (openDoc.value?.document?.id === docId) openDoc.value = null;
     await selectKb(kbId);
     await listKbs();
+  }
+  async function viewDoc(kbId: string, docId: string) {
+    openDoc.value = await getJson(`/api/kb/${kbId}/documents/${docId}`);
+  }
+  function closeDoc() {
+    openDoc.value = null;
+  }
+  async function saveDoc(kbId: string, docId: string, text: string) {
+    busy.value = true;
+    error.value = null;
+    try {
+      const r = await fetch(`/api/kb/${kbId}/documents/${docId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await viewDoc(kbId, docId);
+      await selectKb(kbId);
+    } catch (e: any) {
+      error.value = String(e);
+    } finally {
+      busy.value = false;
+    }
+  }
+  async function ingestUrl(kbId: string, url: string) {
+    busy.value = true;
+    error.value = null;
+    try {
+      const r = await fetch(`/api/kb/${kbId}/ingest-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await selectKb(kbId);
+      await listKbs();
+    } catch (e: any) {
+      error.value = String(e);
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  // ── activity log ──
+  async function listRuns() {
+    runs.value = await getJson("/api/runs");
+  }
+  async function openRun(runId: string) {
+    runSteps.value = await getJson(`/api/runs/${runId}/steps`);
+  }
+  function closeRun() {
+    runSteps.value = null;
   }
 
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
-    view, agents, kbs, kbDocs, selectedKb,
+    view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
+    viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
   };
 });

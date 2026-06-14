@@ -22,15 +22,18 @@ from veldra_app.edge.schemas import (
     AgentSummary,
     AskRequest,
     BuildRequest,
+    DocEditRequest,
     KbCreateRequest,
     KbUpdateRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
     UploadResponse,
+    UrlIngestRequest,
     WorkflowSaveRequest,
 )
 from veldra_app.orchestrator import build_agent, selfmod
 from veldra_app.rag import ingest_document
+from veldra_app.rag.ingest import ingest_url, reingest_text
 from veldra_app.runtime import execute
 
 router = APIRouter(prefix="/api")
@@ -115,6 +118,39 @@ async def upload_to_kb(kb_id: str, file: UploadFile = File(...)) -> UploadRespon
         data, file.filename or "document",
         file.content_type or "application/octet-stream", TENANT, kb_id=kb_id,
     )
+    return _ingest_response(result)
+
+
+@router.post("/kb/{kb_id}/ingest-url", response_model=UploadResponse)
+async def ingest_from_url(kb_id: str, req: UrlIngestRequest) -> UploadResponse:
+    """Fetch a web page and index it into the KB (web page index)."""
+    try:
+        result = await ingest_url(req.url, TENANT, kb_id=kb_id)
+    except Exception as exc:
+        raise HTTPException(400, f"could not ingest URL: {exc}") from exc
+    return _ingest_response(result)
+
+
+@router.get("/kb/{kb_id}/documents/{doc_id}")
+async def get_document(kb_id: str, doc_id: str) -> dict:
+    """Document detail + editable text + the page-index tree."""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        doc = await repo.get_document(s, doc_id)
+        if doc is None:
+            raise HTTPException(404, "document not found")
+        text = await repo.get_document_text(s, doc_id)
+        page_index = await repo.get_page_index(s, doc_id)
+    return {"document": doc, "text": text, "page_index": page_index}
+
+
+@router.put("/kb/{kb_id}/documents/{doc_id}", response_model=UploadResponse)
+async def edit_document(kb_id: str, doc_id: str, req: DocEditRequest) -> UploadResponse:
+    """Replace a saved document's content with edited text and re-embed it."""
+    try:
+        result = await reingest_text(doc_id, req.text, TENANT)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
     return _ingest_response(result)
 
 
@@ -289,3 +325,23 @@ async def get_agent(agent_id: str) -> AgentDetail:
         id=str(agent["id"]), name=agent["name"],
         current_version=agent["current_version"], spec=spec,
     )
+
+
+# ───────────────────────── activity / logs (runs + steps) ─────────────────────────
+@router.get("/runs")
+async def list_runs() -> list[dict]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_runs(s, TENANT)
+
+
+@router.get("/runs/{run_id}/steps")
+async def get_run_steps(run_id: str) -> dict:
+    """A run plus its full, ordered step log — every tracked bit."""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        run = await repo.get_run(s, run_id)
+        if run is None:
+            raise HTTPException(404, "run not found")
+        steps = await repo.get_run_steps(s, run_id)
+    return {"run": run, "steps": steps}

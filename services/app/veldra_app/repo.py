@@ -415,3 +415,91 @@ async def insert_audit(
             target_type=target_type, target_id=target_id, detail=detail,
         )
     )
+
+
+# ───────────────────────── observability (runs + steps) ─────────────────────────
+async def list_runs(session: AsyncSession, tenant_id: str, limit: int = 60) -> list[dict]:
+    """Recent runs (build/ask/selfmod) with the agent name, newest first."""
+    res = await session.execute(
+        select(
+            Run.id, Run.kind, Run.status, Run.agent_id, Run.agent_version,
+            Run.error, Run.created_at, Run.finished_at, Agent.name.label("agent_name"),
+        )
+        .join(Agent, Agent.id == Run.agent_id, isouter=True)
+        .where(Run.tenant_id == tenant_id)
+        .order_by(Run.created_at.desc())
+        .limit(limit)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+async def get_run(session: AsyncSession, run_id: str) -> dict | None:
+    if not is_uuid(run_id):
+        return None
+    res = await session.execute(
+        select(
+            Run.id, Run.kind, Run.status, Run.agent_id, Run.agent_version,
+            Run.input, Run.result, Run.error, Run.created_at, Run.finished_at,
+        ).where(Run.id == run_id)
+    )
+    row = res.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_run_steps(session: AsyncSession, run_id: str) -> list[dict]:
+    """The full append-only step log for a run — every tracked bit."""
+    if not is_uuid(run_id):
+        return []
+    res = await session.execute(
+        select(RunStep.ordinal, RunStep.type, RunStep.name, RunStep.payload, RunStep.created_at)
+        .where(RunStep.run_id == run_id)
+        .order_by(RunStep.ordinal)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+# ───────────────────────── document content (view / edit / re-embed) ─────────────
+async def get_document(session: AsyncSession, doc_id: str) -> dict | None:
+    if not is_uuid(doc_id):
+        return None
+    res = await session.execute(
+        select(
+            Document.id, Document.kb_id, Document.filename, Document.content_type,
+            Document.num_pages, Document.status, Document.created_at,
+        ).where(Document.id == doc_id)
+    )
+    row = res.mappings().first()
+    return dict(row) if row else None
+
+
+async def get_document_text(session: AsyncSession, doc_id: str) -> str:
+    """Reconstruct editable text from the document's chunks (in order)."""
+    if not is_uuid(doc_id):
+        return ""
+    res = await session.execute(
+        select(Chunk.content).where(Chunk.document_id == doc_id).order_by(Chunk.ordinal)
+    )
+    return "\n\n".join(r[0] for r in res.all())
+
+
+async def get_page_index(session: AsyncSession, doc_id: str) -> list[dict]:
+    """The structural page/section index rows for a document (the tree)."""
+    if not is_uuid(doc_id):
+        return []
+    res = await session.execute(
+        select(
+            PageIndex.id, PageIndex.parent_id, PageIndex.kind, PageIndex.label,
+            PageIndex.page_number, PageIndex.section_path, PageIndex.char_start, PageIndex.char_end,
+        )
+        .where(PageIndex.document_id == doc_id)
+        .order_by(PageIndex.char_start)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
+async def clear_document_index(session: AsyncSession, doc_id: str) -> None:
+    """Drop a document's chunks + page index (before a re-ingest of edited text)."""
+    if not is_uuid(doc_id):
+        return
+    await session.execute(delete(Chunk).where(Chunk.document_id == doc_id))
+    await session.execute(delete(PageIndex).where(PageIndex.document_id == doc_id))

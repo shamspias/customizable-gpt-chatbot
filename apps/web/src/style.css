@@ -11,10 +11,11 @@
   --muted: #99a2b2;
   --faint: #6a7383;
   --accent: #7c8cf8;
-  --accent-2: #a78bfa;
-  --accent-grad: linear-gradient(135deg, #7c8cf8 0%, #a78bfa 100%);
+  --accent-2: #c084fc;
+  --accent-grad: linear-gradient(135deg, #6ea8fe 0%, #8b8cf8 45%, #c084fc 100%);
   --accent-soft: rgba(124, 140, 248, 0.16);
   --accent-ring: rgba(124, 140, 248, 0.38);
+  --accent-glow: 0 4px 16px rgba(124, 140, 248, 0.35);
   --ok: #4cc38a;
   --ok-soft: rgba(76, 195, 138, 0.14);
   --warn: #e2b15a;
@@ -56,10 +57,11 @@
     --muted: #59626f;
     --faint: #8a93a1;
     --accent: #5b63e6;
-    --accent-2: #7c5cf0;
-    --accent-grad: linear-gradient(135deg, #5b63e6 0%, #7c5cf0 100%);
+    --accent-2: #9333ea;
+    --accent-grad: linear-gradient(135deg, #4f7cf0 0%, #6d5ce8 45%, #9333ea 100%);
     --accent-soft: rgba(91, 99, 230, 0.10);
     --accent-ring: rgba(91, 99, 230, 0.28);
+    --accent-glow: 0 4px 16px rgba(91, 99, 230, 0.28);
     --ok: #1f9d63;
     --ok-soft: rgba(31, 157, 99, 0.10);
     --danger: #d64550;
@@ -94,7 +96,9 @@ button {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   transition: filter 0.15s ease, transform 0.06s ease, box-shadow 0.15s, border-color 0.15s, background 0.15s;
 }
+button:not(.ghost):not(:disabled) { box-shadow: var(--accent-glow); }
 button:hover:not(:disabled) { filter: brightness(1.07); }
+button.ghost:not(:disabled) { box-shadow: none; }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }

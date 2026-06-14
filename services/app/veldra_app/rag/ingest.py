@@ -1,10 +1,15 @@
-"""Document ingestion: parse -> page index -> chunk -> embed -> store."""
+"""Document ingestion: parse -> page index -> chunk -> embed -> store.
+
+Also supports editing a saved document (`reingest_text` re-embeds new content) and
+ingesting a web page (`ingest_url` fetches + extracts text → page index)."""
 
 from __future__ import annotations
 
 import io
+import re
 import uuid
 from dataclasses import dataclass
+from html import unescape
 
 from veldra_llm import EmbeddingConfig, embed_texts
 
@@ -89,73 +94,119 @@ async def ingest_document(
 
     try:
         pages = _parse_pages(data, filename, content_type)
-
-        # Build page index + chunks with document-absolute char offsets.
-        page_rows: list[dict] = []
-        all_chunks: list = []
-        base = 0
-        for page_number, text in pages:
-            page_rows.append(
-                {
-                    "document_id": doc_id,
-                    "kind": "page",
-                    "label": f"Page {page_number}",
-                    "page_number": page_number,
-                    "section_path": None,
-                    "char_start": base,
-                    "char_end": base + len(text),
-                }
-            )
-            all_chunks.extend(chunk_page(text, page_number, base))
-            base += len(text) + 1  # +1 for the implicit page separator
-
-        if not all_chunks:
-            async with sm() as session:
-                await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
-                await session.commit()
-            return IngestResult(doc_id, kb_id, filename, len(pages), 0)
-
-        cfg = embed_config(kb_embed_model)
-        embeddings = await embed_texts([c.content for c in all_chunks], cfg)
-        ids = [str(uuid.uuid4()) for _ in all_chunks]
-
-        chunk_rows = [
-            {
-                "id": ids[i],
-                "document_id": doc_id,
-                "kb_id": kb_id,
-                "tenant_id": tenant_id,
-                "ordinal": i,
-                "content": c.content,
-                "page_number": c.page_number,
-                "section_path": None,
-                "char_start": c.char_start,
-                "char_end": c.char_end,
-                "token_count": c.token_count,
-                "embedding": emb,  # list[float]; pgvector adapts it on insert
-            }
-            for i, (c, emb) in enumerate(zip(all_chunks, embeddings, strict=True))
-        ]
-
-        async with sm() as session:
-            if build_page_index:
-                await repo.insert_page_index(session, page_rows)
-            await repo.insert_chunks(session, chunk_rows)
-            await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
-            await session.commit()
-
-        # Mirror vectors to the configured store (no-op for pgvector; upsert for qdrant).
-        from veldra_app.rag.vectorstores import get_vector_store
-
-        await get_vector_store().upsert(
-            [
-                {"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
-                for i in range(len(ids))
-            ]
-        )
-        return IngestResult(doc_id, kb_id, filename, len(pages), len(chunk_rows))
+        n = await _index_pages(doc_id, kb_id, tenant_id, pages, kb_embed_model, build_page_index)
+        return IngestResult(doc_id, kb_id, filename, len(pages), n)
     except Exception as exc:
         async with sm() as session:
             await repo.set_document_status(session, doc_id, "failed", error=str(exc))
             await session.commit()
         raise
+
+
+async def _index_pages(
+    doc_id: str, kb_id: str, tenant_id: str,
+    pages: list[tuple[int, str]], kb_embed_model: str | None, build_page_index: bool,
+) -> int:
+    """Chunk → embed → store a document's pages (shared by ingest + re-ingest)."""
+    sm = get_sessionmaker()
+    page_rows: list[dict] = []
+    all_chunks: list = []
+    base = 0
+    for page_number, text in pages:
+        page_rows.append({
+            "document_id": doc_id, "kind": "page", "label": f"Page {page_number}",
+            "page_number": page_number, "section_path": None,
+            "char_start": base, "char_end": base + len(text),
+        })
+        all_chunks.extend(chunk_page(text, page_number, base))
+        base += len(text) + 1  # +1 for the implicit page separator
+
+    if not all_chunks:
+        async with sm() as session:
+            await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
+            await session.commit()
+        return 0
+
+    embeddings = await embed_texts([c.content for c in all_chunks], embed_config(kb_embed_model))
+    ids = [str(uuid.uuid4()) for _ in all_chunks]
+    chunk_rows = [
+        {
+            "id": ids[i], "document_id": doc_id, "kb_id": kb_id, "tenant_id": tenant_id,
+            "ordinal": i, "content": c.content, "page_number": c.page_number,
+            "section_path": None, "char_start": c.char_start, "char_end": c.char_end,
+            "token_count": c.token_count, "embedding": emb,
+        }
+        for i, (c, emb) in enumerate(zip(all_chunks, embeddings, strict=True))
+    ]
+    async with sm() as session:
+        if build_page_index:
+            await repo.insert_page_index(session, page_rows)
+        await repo.insert_chunks(session, chunk_rows)
+        await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
+        await session.commit()
+
+    from veldra_app.rag.vectorstores import get_vector_store
+
+    await get_vector_store().upsert(
+        [{"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
+         for i in range(len(ids))]
+    )
+    return len(chunk_rows)
+
+
+async def reingest_text(doc_id: str, text: str, tenant_id: str = DEFAULT_TENANT_ID) -> IngestResult:
+    """Replace a saved document's content with edited text and re-embed it."""
+    sm = get_sessionmaker()
+    async with sm() as session:
+        doc = await repo.get_document(session, doc_id)
+        if not doc:
+            raise ValueError("document not found")
+        kb = await repo.get_kb(session, doc["kb_id"]) or {}
+        await repo.clear_document_index(session, doc_id)
+        await repo.set_document_status(session, doc_id, "ingesting")
+        await session.commit()
+    try:
+        n = await _index_pages(
+            doc_id, doc["kb_id"], tenant_id, [(1, text)],
+            kb.get("embedding_model"), kb.get("page_index_enabled", True),
+        )
+        return IngestResult(doc_id, doc["kb_id"], doc["filename"], 1, n)
+    except Exception as exc:
+        async with sm() as session:
+            await repo.set_document_status(session, doc_id, "failed", error=str(exc))
+            await session.commit()
+        raise
+
+
+def _html_to_text(html: str) -> tuple[str, str]:
+    """Extract (title, readable text) from an HTML page — light, dependency-free."""
+    title_m = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+    title = re.sub(r"\s+", " ", title_m.group(1)).strip() if title_m else ""
+    body = re.sub(r"(?is)<(script|style|head|nav|footer|svg)[^>]*>.*?</\1>", " ", html)
+    body = re.sub(r"(?is)<br\s*/?>", "\n", body)
+    body = re.sub(r"(?is)</(p|div|h[1-6]|li|tr|section|article)>", "\n", body)
+    body = re.sub(r"(?is)<[^>]+>", " ", body)
+    body = unescape(body)
+    body = re.sub(r"[ \t]+", " ", body)
+    body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", body).strip()
+    return title, body
+
+
+async def ingest_url(
+    url: str, tenant_id: str = DEFAULT_TENANT_ID, kb_id: str | None = None
+) -> IngestResult:
+    """Fetch a web page, extract its text, and ingest it (web page index)."""
+    import httpx
+
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True,
+                                 headers={"User-Agent": "Veldra/0.1 (+ingest)"}) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        html = r.text
+    title, text = _html_to_text(html)
+    if not text.strip():
+        raise ValueError("no readable text found at that URL")
+    name = (title or url).strip()[:120]
+    return await ingest_document(
+        text.encode("utf-8"), f"{name}.md", "text/plain", tenant_id, kb_id=kb_id
+    )

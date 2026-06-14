@@ -59,6 +59,14 @@ class KbUpdateRequest(BaseModel):
     page_index_enabled: bool | None = None
 
 
+class DocEditRequest(BaseModel):
+    text: str = Field(description="Edited document text to re-embed.")
+
+
+class UrlIngestRequest(BaseModel):
+    url: str = Field(min_length=4, description="Web page URL to fetch and index.")
+
+
 class AgentSummary(BaseModel):
     id: str
     name: str
