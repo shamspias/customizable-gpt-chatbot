@@ -50,6 +50,21 @@ function onFile(e: Event) {
   (e.target as HTMLInputElement).value = "";
 }
 
+// ── doc multi-select ──
+const selDocs = ref<Set<string>>(new Set());
+watch(() => store.selectedKb, () => { selDocs.value = new Set(); });
+function toggleDoc(id: string) {
+  const s = new Set(selDocs.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  selDocs.value = s;
+}
+async function bulkDeleteDocs() {
+  const ids = [...selDocs.value];
+  if (!ids.length || !store.selectedKb || !confirm(`Delete ${ids.length} document(s)?`)) return;
+  await store.deleteDocs(store.selectedKb, ids);
+  selDocs.value = new Set();
+}
+
 // ── add from URL + document editor ──
 const urlInput = ref("");
 function addUrl() {
@@ -155,6 +170,9 @@ async function saveConfig() {
           <div class="dhead">
             <h2>Documents</h2>
             <div class="grow" />
+            <button v-if="selDocs.size" class="danger sm" @click="bulkDeleteDocs">
+              <Icon name="trash" :size="14" />Delete {{ selDocs.size }}
+            </button>
             <button class="ghost sm" :disabled="store.busy" @click="fileInput?.click()"><Icon name="upload" :size="15" />Upload</button>
             <input ref="fileInput" type="file" hidden accept=".pdf,.txt,.md" @change="onFile" />
           </div>
@@ -164,9 +182,10 @@ async function saveConfig() {
             <button class="ghost sm" :disabled="store.busy || !urlInput.trim()" @click="addUrl">Fetch &amp; index</button>
           </div>
           <table v-if="store.kbDocs.length">
-            <thead><tr><th>File</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th></th><th>File</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              <tr v-for="d in store.kbDocs" :key="d.id" class="docrow" @click="openEditor(d.id)">
+              <tr v-for="d in store.kbDocs" :key="d.id" class="docrow" :class="{ sel: selDocs.has(d.id) }" @click="openEditor(d.id)">
+                <td class="cbcell"><input class="cb" type="checkbox" :checked="selDocs.has(d.id)" @click.stop="toggleDoc(d.id)" /></td>
                 <td class="fname"><Icon name="file" :size="14" /> {{ d.filename }}</td>
                 <td>{{ d.num_pages || "—" }}</td>
                 <td>{{ d.chunk_count }}</td>
@@ -272,6 +291,10 @@ td { padding: 10px; border-bottom: 1px solid var(--border); }
 /* document rows */
 .docrow { cursor: pointer; }
 .docrow:hover { background: var(--surface-2); }
+.docrow.sel { background: var(--accent-soft); }
+.cbcell { width: 30px; }
+.cb { width: 15px; height: 15px; accent-color: var(--accent); }
+.danger { background: var(--danger); color: #fff; border: none; box-shadow: none; }
 .rowact { display: flex; gap: 4px; justify-content: flex-end; }
 .iconbtn { background: none; border: 1px solid transparent; color: var(--muted); padding: 5px; border-radius: 8px; }
 .iconbtn:hover { background: var(--surface-2); border-color: var(--border); color: var(--ink); filter: none; }

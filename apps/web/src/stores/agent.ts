@@ -42,6 +42,12 @@ export const useAgentStore = defineStore("agent", () => {
   const openDoc = ref<any | null>(null); // { document, text, page_index }
   // learning
   const lessons = ref<any[]>([]);
+  // agent tags / filtering
+  const agentTags = ref<string[]>([]);
+  // floating Hermis admin bot
+  const hermisOpen = ref(false);
+  const hermisMsgs = ref<ChatMsg[]>([]);
+  const hermisBusy = ref(false);
 
   async function upload(file: File) {
     busy.value = true;
@@ -178,9 +184,62 @@ export const useAgentStore = defineStore("agent", () => {
     }
   }
 
-  // ── agents listing / loading ──
-  async function listAgents() {
-    agents.value = await getJson("/api/agents");
+  // ── agents listing / loading + tags + bulk ──
+  async function listAgents(tag?: string | null) {
+    agents.value = await getJson(`/api/agents${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`);
+  }
+  async function loadAgentTags() {
+    agentTags.value = await getJson("/api/agent-tags");
+  }
+  async function setAgentTags(id: string, tags: string[]) {
+    await fetch(`/api/agents/${id}/tags`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    await Promise.all([listAgents(), loadAgentTags()]);
+  }
+  async function deleteAgents(ids: string[]) {
+    await postJson("/api/agents/delete", { ids });
+    await Promise.all([listAgents(), loadAgentTags()]);
+  }
+  async function deleteRuns(ids: string[]) {
+    await postJson("/api/runs/delete", { ids });
+    if (runSteps.value && ids.includes(runSteps.value.run?.id)) runSteps.value = null;
+    await listRuns();
+  }
+  async function deleteDocs(kbId: string, ids: string[]) {
+    await postJson(`/api/kb/${kbId}/documents/delete`, { ids });
+    await Promise.all([selectKb(kbId), listKbs()]);
+  }
+
+  // ── floating Hermis admin bot ──
+  async function askHermis(message: string) {
+    hermisBusy.value = true;
+    hermisMsgs.value.push({ role: "user", text: message });
+    const a = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
+    hermisMsgs.value.push(a);
+    const history = hermisMsgs.value
+      .filter((m) => m.text && m.kind === undefined && m !== a)
+      .map((m) => ({ role: m.role, text: m.text }));
+    try {
+      await streamPost("/api/hermis/ask", { message, history }, (ev, data) => {
+        if (ev === "run") a.runId = data.run_id;
+        else if (ev === "token") a.text += data.text;
+        else if (ev === "thinking") a.thinking += data.text;
+        else if (ev === "tool_use") phase.value = `· ${data.name}`;
+        else if (ev === "tool_result") phase.value = "";
+        else if (ev === "error") a.text += `\n\n_[${data.message}]_`;
+      });
+    } catch (e: any) {
+      a.text += `\n\n_[error: ${e}]_`;
+    } finally {
+      hermisBusy.value = false;
+      phase.value = "";
+      // Hermis just acted on the platform — refresh whatever view is open.
+      listAgents().catch(() => {});
+      if (view.value === "activity") listRuns().catch(() => {});
+      if (view.value === "knowledge" && selectedKb.value) selectKb(selectedKb.value).catch(() => {});
+    }
   }
   async function loadAgent(id: string) {
     const d = await getJson(`/api/agents/${id}`);
@@ -329,9 +388,11 @@ export const useAgentStore = defineStore("agent", () => {
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
+    agentTags, hermisOpen, hermisMsgs, hermisBusy,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
     rate, setAutoImprove, reflectRun, loadLessons,
+    loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askHermis,
   };
 });

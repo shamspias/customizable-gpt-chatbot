@@ -1,10 +1,34 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import Icon from "../components/Icon.vue";
 import { useAgentStore } from "../stores/agent";
 
 const store = useAgentStore();
+const kindFilter = ref<string | null>(null);
+const selected = ref<Set<string>>(new Set());
 onMounted(() => store.listRuns());
+
+const KINDS = ["build", "ask", "selfmod"];
+const filtered = computed(() =>
+  store.runs.filter((r: any) => !kindFilter.value || r.kind === kindFilter.value),
+);
+const allSelected = computed(
+  () => filtered.value.length > 0 && filtered.value.every((r: any) => selected.value.has(r.id)),
+);
+function toggle(id: string) {
+  const s = new Set(selected.value);
+  s.has(id) ? s.delete(id) : s.add(id);
+  selected.value = s;
+}
+function toggleAll() {
+  selected.value = allSelected.value ? new Set() : new Set(filtered.value.map((r: any) => r.id));
+}
+async function bulkDelete() {
+  const ids = [...selected.value];
+  if (!ids.length || !confirm(`Delete ${ids.length} log entr${ids.length === 1 ? "y" : "ies"}?`)) return;
+  await store.deleteRuns(ids);
+  selected.value = new Set();
+}
 
 function fmt(ts: string | null) {
   if (!ts) return "";
@@ -30,17 +54,34 @@ function pretty(p: any) {
         <button class="ghost sm" @click="store.listRuns()" aria-label="Refresh"><Icon name="refresh" :size="15" /></button>
       </div>
       <p class="muted sub">Every build, ask, and edit — with the full step trace.</p>
-      <div v-if="store.runs.length" class="runs">
-        <button v-for="r in store.runs" :key="r.id" class="run"
-                :class="{ active: store.runSteps?.run?.id === r.id }" @click="store.openRun(r.id)">
-          <span class="st" :class="r.status" />
-          <span class="kic"><Icon :name="KIND_ICON[r.kind] || 'activity'" :size="15" /></span>
-          <span class="rmeta">
-            <span class="rk">{{ r.kind }}<span v-if="r.agent_name" class="ag"> · {{ r.agent_name }}</span></span>
-            <span class="rt">{{ fmt(r.created_at) }}</span>
-          </span>
-          <span class="badge" :class="r.status">{{ r.status }}</span>
-        </button>
+
+      <div class="filters">
+        <button class="chip" :class="{ on: !kindFilter }" @click="kindFilter = null; selected = new Set()">All</button>
+        <button v-for="k in KINDS" :key="k" class="chip" :class="{ on: kindFilter === k }"
+                @click="kindFilter = k; selected = new Set()">{{ k }}</button>
+      </div>
+
+      <div v-if="selected.size" class="bulkbar">
+        <label class="selall"><input type="checkbox" :checked="allSelected" @change="toggleAll" /> {{ selected.size }}</label>
+        <div class="grow" />
+        <button class="danger sm" @click="bulkDelete"><Icon name="trash" :size="13" />Delete</button>
+      </div>
+
+      <div v-if="filtered.length" class="runs">
+        <div v-for="r in filtered" :key="r.id" class="run"
+             :class="{ active: store.runSteps?.run?.id === r.id, sel: selected.has(r.id) }">
+          <input class="cb" type="checkbox" :checked="selected.has(r.id)" @click.stop="toggle(r.id)" />
+          <button class="runbody" @click="store.openRun(r.id)">
+            <span class="st" :class="r.status" />
+            <span class="kic"><Icon :name="KIND_ICON[r.kind] || 'activity'" :size="15" /></span>
+            <span class="rmeta">
+              <span class="rk">{{ r.kind }}<span v-if="r.agent_name" class="ag"> · {{ r.agent_name }}</span></span>
+              <span class="rt">{{ fmt(r.created_at) }}</span>
+            </span>
+            <span class="badge" :class="r.status">{{ r.status }}</span>
+          </button>
+          <button class="del" title="Delete" @click.stop="store.deleteRuns([r.id])"><Icon name="trash" :size="13" /></button>
+        </div>
       </div>
       <div v-else class="empty muted"><div class="halo"><Icon name="activity" :size="24" /></div>No activity yet.</div>
     </aside>
@@ -92,10 +133,23 @@ function pretty(p: any) {
 .lhead h2 { margin: 0; font-size: 19px; }
 .grow { flex: 1; }
 .sub { margin: 2px 0 12px; font-size: 12.5px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 12px; box-shadow: none; text-transform: capitalize; }
+.chip:hover { border-color: var(--border-strong); color: var(--ink); filter: none; }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bulkbar { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 6px 11px; margin-bottom: 10px; }
+.selall { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.bulkbar .grow { flex: 1; }
+.danger { background: var(--danger); color: #fff; border: none; box-shadow: none; }
 .runs { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
-.run { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; text-align: left; color: var(--ink); cursor: pointer; }
-.run:hover { border-color: var(--border-strong); filter: none; }
+.run { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; color: var(--ink); }
+.run:hover { border-color: var(--border-strong); }
 .run.active { border-color: var(--accent); background: var(--accent-soft); }
+.run.sel { border-color: var(--accent); }
+.cb { width: 15px; height: 15px; flex: none; accent-color: var(--accent); }
+.runbody { flex: 1; display: flex; align-items: center; gap: 9px; background: none; border: none; box-shadow: none; padding: 4px 0; text-align: left; color: var(--ink); cursor: pointer; min-width: 0; }
+.del { background: none; border: none; box-shadow: none; color: var(--faint); padding: 5px; border-radius: 7px; flex: none; }
+.del:hover { color: var(--danger); background: var(--surface-2); filter: none; }
 .st { width: 8px; height: 8px; border-radius: 99px; background: var(--faint); flex: none; }
 .st.done { background: var(--ok); } .st.running { background: var(--accent); animation: veldra-pulse 1.1s infinite; } .st.error { background: var(--danger); }
 .kic { color: var(--accent); display: grid; place-items: center; }

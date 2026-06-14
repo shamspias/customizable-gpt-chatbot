@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import DiffModal from "./components/DiffModal.vue";
+import HermisBot from "./components/HermisBot.vue";
 import Icon from "./components/Icon.vue";
 import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { useAgentStore } from "./stores/agent";
@@ -73,6 +74,7 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
 
     <DiffModal />
     <WorkflowBuilder />
+    <HermisBot />
   </div>
 </template>
 
