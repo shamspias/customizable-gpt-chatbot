@@ -47,6 +47,10 @@ export const useAgentStore = defineStore("agent", () => {
   // skills (markdown playbooks)
   const skills = ref<any[]>([]);
   const openSkill = ref<any | null>(null);
+  // settings panel (theme + config + tools catalog)
+  const settingsOpen = ref(false);
+  const config = ref<any | null>(null);
+  const toolCatalog = ref<any[]>([]);
   // confirm dialog (promise-based, replaces native confirm())
   const confirmState = ref<{
     title: string; message: string; confirmLabel: string; danger: boolean;
@@ -218,6 +222,24 @@ export const useAgentStore = defineStore("agent", () => {
   async function deleteDocs(kbId: string, ids: string[]) {
     await postJson(`/api/kb/${kbId}/documents/delete`, { ids });
     await Promise.all([selectKb(kbId), listKbs()]);
+  }
+
+  // ── settings ──
+  async function openSettings() {
+    settingsOpen.value = true;
+    try {
+      if (!config.value) config.value = await getJson("/api/config");
+      if (!toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools");
+    } catch { /* settings still opens with the theme controls */ }
+  }
+  async function exportAgent(id: string) {
+    const d = await getJson(`/api/agents/${id}`);
+    const blob = new Blob([JSON.stringify(d.spec, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(d.name || "agent").replace(/\W+/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   // ── confirm dialog ──
@@ -440,6 +462,7 @@ export const useAgentStore = defineStore("agent", () => {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
     agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill, confirmState,
+    settingsOpen, config, toolCatalog, openSettings, exportAgent,
     confirmAction, resolveConfirm,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,

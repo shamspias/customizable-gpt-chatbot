@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import DiffModal from "./components/DiffModal.vue";
 import FaustBot from "./components/FaustBot.vue";
 import Icon from "./components/Icon.vue";
+import SettingsPanel from "./components/SettingsPanel.vue";
 import WorkflowBuilder from "./components/WorkflowBuilder.vue";
+import { applyTheme } from "./theme";
 import { useAgentStore } from "./stores/agent";
+
+onMounted(applyTheme);
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
 import SkillsView from "./views/SkillsView.vue";
@@ -55,6 +59,9 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
       <button class="cmdk" @click="palette?.show()">
         <Icon name="search" :size="14" /><span>Search & commands</span><kbd>⌘K</kbd>
       </button>
+      <button class="cmdk" @click="store.openSettings()">
+        <Icon name="settings" :size="14" /><span>Settings</span>
+      </button>
       <div class="foot"><span class="dotlive" />local-first · the agent that grows with you</div>
     </aside>
 
@@ -84,6 +91,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
     <FaustBot />
     <CommandPalette ref="palette" />
     <ConfirmDialog />
+    <SettingsPanel />
   </div>
 </template>
 

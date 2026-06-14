@@ -28,6 +28,7 @@ const COMMANDS = computed<Cmd[]>(() => [
   { id: "new", label: "New agent", hint: "Start a fresh build", icon: "plus", run: newAgent },
   { id: "company", label: "Set up agents for a company", hint: "Auto-build a team", icon: "layers", run: () => { newAgent(); } },
   { id: "faust", label: "Open Faust", hint: "Platform assistant", icon: "bot", run: () => { store.faustOpen = true; } },
+  { id: "settings", label: "Open Settings", hint: "Theme, accent, config", icon: "settings", run: () => store.openSettings() },
 ]);
 
 const filtered = computed(() => {

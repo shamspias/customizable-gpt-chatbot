@@ -101,7 +101,8 @@ async function openBuilder(id: string) {
         </div>
         <div class="actions">
           <button class="ghost sm" @click="store.loadAgent(a.id)"><Icon name="sparkles" :size="14" />Chat</button>
-          <button class="sm" @click="openBuilder(a.id)"><Icon name="workflow" :size="14" />Builder</button>
+          <button class="ghost sm" @click="openBuilder(a.id)"><Icon name="workflow" :size="14" />Builder</button>
+          <button class="ghost sm icononly" title="Export spec JSON" @click="store.exportAgent(a.id)"><Icon name="save" :size="14" /></button>
         </div>
       </div>
     </div>
@@ -146,6 +147,7 @@ async function openBuilder(id: string) {
 .iconbtn { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 5px; border-radius: 8px; box-shadow: none; }
 .actions { display: flex; gap: 8px; }
 .actions button { flex: 1; }
+.actions .icononly { flex: 0 0 auto; padding: 6px 9px; }
 .empty { margin: 70px auto; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .empty .halo { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 18px; color: var(--accent); background: var(--accent-soft); }
 .empty p { margin: 0; }

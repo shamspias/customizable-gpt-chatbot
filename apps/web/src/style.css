@@ -1,5 +1,30 @@
-/* Veldra design system — clean, professional, content-first (dark + light).
-   Restrained near-monochrome surfaces, one calm accent, minimal decoration. */
+/* Veldra design system — Tailwind CSS v4 utilities/theme layers (no preflight, so it
+   coexists with the existing component styles) + a runtime theme system. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Map semantic CSS variables → Tailwind tokens (inline = utilities reference the live
+   var, so changing a var at runtime re-themes every `bg-surface` / `text-accent` / … ). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --radius-veldra: var(--radius);
+  --radius-veldra-sm: var(--radius-sm);
+  --radius-veldra-lg: var(--radius-lg);
+}
+
 :root {
   --bg: #0a0c10;
   --bg-soft: #0e1117;
@@ -10,19 +35,20 @@
   --border-strong: #323a46;
   --ink: #e8ebf1;
   --muted: #9aa3b2;
-  --faint: #828b99;                  /* AA-contrast on dark surfaces */
-  --accent: #88a0ff;                 /* bright enough for accent TEXT on dark */
-  --accent-2: #88a0ff;
-  --accent-strong: #5566ef;          /* darker — for FILLED surfaces under white text (AA) */
+  --faint: #828b99;
+  --accent: #88a0ff;
+  --accent-2: var(--accent);
+  --accent-strong: #5566ef;
   --accent-grad: var(--accent-strong);
-  --accent-soft: rgba(110, 139, 255, 0.14);
-  --accent-ring: rgba(110, 139, 255, 0.32);
+  /* soft/ring derive from the active accent, so a preset only sets accent + strong. */
+  --accent-soft: color-mix(in srgb, var(--accent-strong) 16%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent-strong) 34%, transparent);
   --accent-glow: none;
   --ok: #46c08a;
-  --ok-soft: rgba(70, 192, 138, 0.13);
+  --ok-soft: color-mix(in srgb, var(--ok) 14%, transparent);
   --warn: #d8a64e;
   --danger: #ec6a72;
-  --danger-soft: rgba(236, 106, 114, 0.13);
+  --danger-soft: color-mix(in srgb, var(--danger) 14%, transparent);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.32);
   --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.5);
@@ -30,7 +56,6 @@
   --radius-sm: 9px;
   --radius-lg: 18px;
 
-  /* Back-compat aliases for component styles. */
   --card: var(--surface);
   --chip-bg: var(--surface-2);
   --ok-bg: var(--ok-soft);
@@ -46,46 +71,43 @@
   background: var(--bg);
 }
 
+/* ── light neutrals: system (no explicit theme) + explicit data-theme="light" ── */
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #fbfbfd;
-    --bg-soft: #f3f4f7;
-    --bg-glass: rgba(255, 255, 255, 0.82);
-    --surface: #ffffff;
-    --surface-2: #f4f5f8;
-    --border: #e6e8ee;
-    --border-strong: #d3d7e0;
-    --ink: #14171d;
-    --muted: #5b6472;
-    --faint: #6b7280;
-    --accent: #4f5dd6;
-    --accent-2: #4f5dd6;
-    --accent-strong: #4a57cf;
-    --accent-grad: var(--accent-strong);
-    --accent-soft: rgba(79, 93, 214, 0.09);
-    --accent-ring: rgba(79, 93, 214, 0.26);
-    --ok: #1f9d63;
-    --ok-soft: rgba(31, 157, 99, 0.10);
-    --danger: #d6454f;
-    --danger-soft: rgba(214, 69, 79, 0.09);
-    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-    --shadow: 0 8px 26px rgba(16, 24, 40, 0.08);
-    --shadow-lg: 0 20px 50px rgba(16, 24, 40, 0.14);
-    color-scheme: light;
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --bg: #fbfbfd; --bg-soft: #f3f4f7; --bg-glass: rgba(255, 255, 255, 0.82);
+    --surface: #ffffff; --surface-2: #f4f5f8; --border: #e6e8ee; --border-strong: #d3d7e0;
+    --ink: #14171d; --muted: #5b6472; --faint: #6b7280;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,.05); --shadow: 0 8px 26px rgba(16,24,40,.08);
+    --shadow-lg: 0 20px 50px rgba(16,24,40,.14); color-scheme: light;
   }
+}
+:root[data-theme="light"] {
+  --bg: #fbfbfd; --bg-soft: #f3f4f7; --bg-glass: rgba(255, 255, 255, 0.82);
+  --surface: #ffffff; --surface-2: #f4f5f8; --border: #e6e8ee; --border-strong: #d3d7e0;
+  --ink: #14171d; --muted: #5b6472; --faint: #6b7280;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05); --shadow: 0 8px 26px rgba(16,24,40,.08);
+  --shadow-lg: 0 20px 50px rgba(16,24,40,.14); color-scheme: light;
+}
+
+/* ── accent presets (user-selectable). A preset sets only accent + accent-strong. ── */
+:root[data-accent="violet"]  { --accent: #b794ff; --accent-strong: #7c3aed; }
+:root[data-accent="emerald"] { --accent: #34d399; --accent-strong: #0d9f6e; }
+:root[data-accent="amber"]   { --accent: #fbbf24; --accent-strong: #b45309; }
+:root[data-accent="rose"]    { --accent: #fb7185; --accent-strong: #e11d48; }
+:root[data-accent="cyan"]    { --accent: #22d3ee; --accent-strong: #0e7490; }
+:root[data-accent="slate"]   { --accent: #94a3b8; --accent-strong: #475569; }
+/* On light backgrounds the bright accent is too low-contrast as text → use the fill. */
+:root[data-theme="light"] { --accent: var(--accent-strong); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) { --accent: var(--accent-strong); }
 }
 
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
-/* A single, very subtle top vignette — calm and flat, no colored blobs. */
-body {
-  background:
-    radial-gradient(120% 80% at 50% -20%, var(--bg-soft), var(--bg) 60%);
-}
+body { background: radial-gradient(120% 80% at 50% -20%, var(--bg-soft), var(--bg) 60%); }
 
 ::selection { background: var(--accent-soft); }
 
-/* Scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 *::-webkit-scrollbar { width: 9px; height: 9px; }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
@@ -103,7 +125,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
 button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
 button.sm { padding: 6px 11px; font-size: 13px; }
-/* Consistent destructive action across the app: a quiet outline that turns solid on hover. */
 button.danger { background: transparent; color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 button.danger:hover:not(:disabled) { background: var(--danger); color: #fff;

@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import ast
 import datetime
+import json as _json
 import operator
+import re as _re
 from pathlib import Path
 
 import httpx
@@ -107,6 +109,48 @@ async def _fs_list(args: dict, ctx: ToolContext) -> ToolResult:
     return ToolResult(content="\n".join(files) or "(workspace empty)")
 
 
+# ───────────────────────── data shaping (deterministic, no IO) ─────────────────────────
+def _walk_path(data, path: str):
+    """Resolve a dotted/bracket path like 'items[0].price' over parsed JSON."""
+    cur = data
+    for part in _re.findall(r"[^.\[\]]+", path or ""):
+        if isinstance(cur, list):
+            cur = cur[int(part)]
+        elif isinstance(cur, dict):
+            cur = cur[part]
+        else:
+            raise KeyError(part)
+    return cur
+
+
+async def _json_query(args: dict, ctx: ToolContext) -> ToolResult:
+    """Extract a value from a JSON string by path (e.g. 'data.items[0].name')."""
+    try:
+        data = _json.loads(args.get("json") or "")
+    except _json.JSONDecodeError as exc:
+        return ToolResult(content=f"Error: invalid JSON ({exc}).", is_error=True)
+    path = (args.get("path") or "").strip()
+    if not path:
+        return ToolResult(content=_json.dumps(data)[:READ_CAP])
+    try:
+        val = _walk_path(data, path)
+    except (KeyError, IndexError, ValueError):
+        return ToolResult(content=f"Error: path '{path}' not found.", is_error=True)
+    return ToolResult(content=val if isinstance(val, str) else _json.dumps(val))
+
+
+async def _regex_extract(args: dict, ctx: ToolContext) -> ToolResult:
+    """Return all matches of a regex pattern in text (group 1 if present, else whole match)."""
+    pattern = args.get("pattern") or ""
+    text = args.get("text") or ""
+    try:
+        rx = _re.compile(pattern)
+    except _re.error as exc:
+        return ToolResult(content=f"Error: bad pattern ({exc}).", is_error=True)
+    out = [m.group(1) if m.groups() else m.group(0) for m in rx.finditer(text)]
+    return ToolResult(content=_json.dumps(out))
+
+
 _STR = {"type": "string"}
 
 
@@ -129,4 +173,12 @@ def build_tools() -> list[Tool]:
               "properties": {"path": _STR}, "required": ["path"]}, _fs_read, True),
         Tool("fs.list", "List files in the agent's workspace.",
              {"type": "object", "additionalProperties": False, "properties": {}}, _fs_list, True),
+        Tool("json.query",
+             "Extract a value from a JSON string by path, e.g. 'data.items[0].name'.",
+             {"type": "object", "additionalProperties": False,
+              "properties": {"json": _STR, "path": _STR}, "required": ["json"]}, _json_query, True),
+        Tool("regex.extract", "Return all regex matches in text (capture group 1 if present).",
+             {"type": "object", "additionalProperties": False,
+              "properties": {"pattern": _STR, "text": _STR}, "required": ["pattern", "text"]},
+             _regex_extract, True),
     ]

@@ -135,7 +135,7 @@ async def _prepare(
         {
             "id": ids[i], "document_id": doc_id, "kb_id": kb_id, "tenant_id": tenant_id,
             "ordinal": i, "content": c.content, "page_number": c.page_number,
-            "section_path": None, "char_start": c.char_start, "char_end": c.char_end,
+            "section_path": c.section_path, "char_start": c.char_start, "char_end": c.char_end,
             "token_count": c.token_count, "embedding": emb,
         }
         for i, (c, emb) in enumerate(zip(all_chunks, embeddings, strict=True))

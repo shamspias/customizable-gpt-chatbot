@@ -16,6 +16,7 @@ import tiktoken
 
 _ENC = tiktoken.get_encoding("cl100k_base")
 _PARA = re.compile(r"\n\s*\n")
+_HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(\S.*?)\s*#*$")
 
 
 @dataclass
@@ -25,10 +26,27 @@ class Chunk:
     char_start: int
     char_end: int
     token_count: int
+    section_path: str | None = None
 
 
 def _ntokens(text: str) -> int:
     return len(_ENC.encode(text))
+
+
+def _update_sections(stack: dict[int, str], paragraph: str) -> None:
+    """If the paragraph opens with a Markdown heading, update the section stack."""
+    first = paragraph.lstrip().split("\n", 1)[0]
+    m = _HEADING.match(first)
+    if not m:
+        return
+    level = len(m.group(1))
+    stack[level] = m.group(2).strip()
+    for deeper in [lvl for lvl in stack if lvl > level]:
+        del stack[deeper]
+
+
+def _section_path(stack: dict[int, str]) -> str | None:
+    return " › ".join(stack[lvl] for lvl in sorted(stack)) or None
 
 
 def _paragraph_spans(text: str) -> list[tuple[int, int]]:
@@ -53,39 +71,45 @@ def chunk_page(
     """Chunk a single page's text into ~target_tokens chunks. char offsets are
     absolute within the document (base_offset = this page's start in the doc)."""
     chunks: list[Chunk] = []
+    stack: dict[int, str] = {}      # active Markdown heading stack → section_path
     cur_start: int | None = None
     cur_end = 0
     cur_tokens = 0
+    cur_section: str | None = None
 
     def flush() -> None:
-        nonlocal cur_start, cur_end, cur_tokens
+        nonlocal cur_start, cur_end, cur_tokens, cur_section
         if cur_start is None:
             return
         content = text[cur_start:cur_end].strip()
         if content:
             chunks.append(
                 Chunk(content, page_number, base_offset + cur_start, base_offset + cur_end,
-                      _ntokens(content))
+                      _ntokens(content), cur_section)
             )
-        cur_start, cur_end, cur_tokens = None, 0, 0
+        cur_start, cur_end, cur_tokens, cur_section = None, 0, 0, None
 
     for start, end in _paragraph_spans(text):
         para = text[start:end]
+        _update_sections(stack, para)  # headings refine the section before this content
         ptok = _ntokens(para)
         if ptok > target_tokens:
             # Oversized paragraph (e.g. a table): emit current, then split by sentences.
             flush()
+            path = _section_path(stack)
             for s2, e2 in _sentence_subspans(text, start, end, target_tokens):
                 seg = text[s2:e2].strip()
                 if seg:
                     chunks.append(
-                        Chunk(seg, page_number, base_offset + s2, base_offset + e2, _ntokens(seg))
+                        Chunk(seg, page_number, base_offset + s2, base_offset + e2,
+                              _ntokens(seg), path)
                     )
             continue
         if cur_start is not None and cur_tokens + ptok > target_tokens:
             flush()
         if cur_start is None:
             cur_start = start
+            cur_section = _section_path(stack)
         cur_end = end
         cur_tokens += ptok
     flush()

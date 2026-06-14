@@ -8,6 +8,7 @@ second process exists.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -49,6 +50,32 @@ TENANT = DEFAULT_TENANT_ID
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/config")
+async def get_config() -> dict:
+    """Safe, secret-free view of the active configuration (for the Settings panel)."""
+    from veldra_app.config import get_settings
+
+    s = get_settings()
+    return {
+        "llm_provider": s.llm_provider,
+        "orchestrator_model": s.orchestrator_model,
+        "worker_model": s.worker_model,
+        "ollama_model": s.ollama_model,
+        "embed_provider": s.embed_provider,
+        "embed_dim": s.embed_dim,
+        "vector_store": os.getenv("VELDRA_VECTOR_STORE", "pgvector"),
+        "env": s.env,
+    }
+
+
+@router.get("/tools")
+async def list_tools() -> list[dict]:
+    """The catalog of built-in tools agents can be granted."""
+    from veldra_app.tools_registry import get_registry
+
+    return get_registry().catalog()
 
 
 # ───────────────────────── knowledge bases ─────────────────────────
