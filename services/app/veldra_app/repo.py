@@ -409,6 +409,18 @@ async def delete_runs(session: AsyncSession, tenant_id: str, ids: list[str]) -> 
     return res.rowcount or 0
 
 
+async def delete_all_runs(
+    session: AsyncSession, tenant_id: str, kind: str | None = None
+) -> int:
+    """Delete ALL runs for a tenant in one statement (optionally a single kind) — no
+    row cap. Used by Hermis's 'clear logs' so it never silently leaves runs behind."""
+    stmt = delete(Run).where(Run.tenant_id == tenant_id)
+    if kind:
+        stmt = stmt.where(Run.kind == kind)
+    res = await session.execute(stmt)
+    return res.rowcount or 0
+
+
 async def delete_documents(session: AsyncSession, kb_id: str, ids: list[str]) -> int:
     """Bulk-delete documents in a KB (chunks/page_index cascade via FK)."""
     valid = [i for i in ids if is_uuid(i)]

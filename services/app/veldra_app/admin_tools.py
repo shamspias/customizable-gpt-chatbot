@@ -122,13 +122,14 @@ async def _list_runs(args: dict, ctx: ToolContext) -> ToolResult:
 
 
 async def _clear_runs(args: dict, ctx: ToolContext) -> ToolResult:
-    """Delete activity-log runs, optionally only those of a given kind (build|ask|selfmod)."""
+    """Delete activity-log runs, optionally only those of a given kind (build|ask|selfmod).
+
+    Deletes in one statement (no row cap) so a 'clear all logs' never silently leaves
+    older runs behind, and the reported count is exact."""
     sm = get_sessionmaker()
-    kind = (args.get("kind") or "").strip().lower()
+    kind = (args.get("kind") or "").strip().lower() or None
     async with sm() as s:
-        rows = await repo.list_runs(s, ctx.tenant_id, limit=1000)
-        ids = [str(r["id"]) for r in rows if (not kind or r["kind"] == kind)]
-        n = await repo.delete_runs(s, ctx.tenant_id, ids)
+        n = await repo.delete_all_runs(s, ctx.tenant_id, kind)
         await repo.insert_audit(s, ctx.tenant_id, "hermis", "clear_runs", "runs", None,
                                 {"kind": kind or "all", "deleted": n})
         await s.commit()

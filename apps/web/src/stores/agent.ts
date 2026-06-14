@@ -215,12 +215,13 @@ export const useAgentStore = defineStore("agent", () => {
   // ── floating Hermis admin bot ──
   async function askHermis(message: string) {
     hermisBusy.value = true;
+    // Build history BEFORE adding this turn, so the current message isn't duplicated.
+    const history = hermisMsgs.value
+      .filter((m) => m.text && m.kind === undefined)
+      .map((m) => ({ role: m.role, text: m.text }));
     hermisMsgs.value.push({ role: "user", text: message });
     const a = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
     hermisMsgs.value.push(a);
-    const history = hermisMsgs.value
-      .filter((m) => m.text && m.kind === undefined && m !== a)
-      .map((m) => ({ role: m.role, text: m.text }));
     try {
       await streamPost("/api/hermis/ask", { message, history }, (ev, data) => {
         if (ev === "run") a.runId = data.run_id;
