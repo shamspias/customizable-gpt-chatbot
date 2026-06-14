@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
+import ConfirmDialog from "./components/ConfirmDialog.vue";
 import DiffModal from "./components/DiffModal.vue";
 import FaustBot from "./components/FaustBot.vue";
 import Icon from "./components/Icon.vue";
@@ -82,6 +83,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
     <WorkflowBuilder />
     <FaustBot />
     <CommandPalette ref="palette" />
+    <ConfirmDialog />
   </div>
 </template>
 

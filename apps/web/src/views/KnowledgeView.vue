@@ -61,9 +61,25 @@ function toggleDoc(id: string) {
 }
 async function bulkDeleteDocs() {
   const ids = [...selDocs.value];
-  if (!ids.length || !store.selectedKb || !confirm(`Delete ${ids.length} document(s)?`)) return;
+  if (!ids.length || !store.selectedKb) return;
+  const ok = await store.confirmAction({
+    title: `Delete ${ids.length} document${ids.length === 1 ? "" : "s"}?`,
+    message: "Their chunks and page index are removed from this knowledge base.",
+  });
+  if (!ok) return;
   await store.deleteDocs(store.selectedKb, ids);
   selDocs.value = new Set();
+}
+async function delDoc(id: string) {
+  if (!store.selectedKb) return;
+  const ok = await store.confirmAction({ title: "Delete this document?", message: "It will be removed from the knowledge base." });
+  if (ok) await store.deleteDoc(store.selectedKb, id);
+}
+async function delKb(id: string, name: string) {
+  const ok = await store.confirmAction({
+    title: `Delete “${name}”?`, message: "The knowledge base and all its documents are removed.",
+  });
+  if (ok) await store.deleteKb(id);
 }
 
 // ── add from URL + document editor ──
@@ -111,7 +127,7 @@ async function saveConfig() {
             {{ k.document_count }} doc{{ k.document_count === 1 ? "" : "s" }}
           </div>
         </div>
-        <button class="link danger" @click.stop="store.deleteKb(k.id)">delete</button>
+        <button class="link danger" @click.stop="delKb(k.id, k.name)">delete</button>
       </div>
       <p v-if="!store.kbs.length" class="muted pad">No knowledge bases yet.</p>
     </aside>
@@ -204,7 +220,7 @@ async function saveConfig() {
                 <td><span class="status" :class="d.status">{{ d.status }}</span></td>
                 <td class="rowact">
                   <button class="iconbtn" title="Edit" @click.stop="openEditor(d.id)"><Icon name="pencil" :size="14" /></button>
-                  <button class="iconbtn danger" title="Delete" @click.stop="store.deleteDoc(store.selectedKb!, d.id)"><Icon name="trash" :size="14" /></button>
+                  <button class="iconbtn danger" title="Delete" @click.stop="delDoc(d.id)"><Icon name="trash" :size="14" /></button>
                 </td>
               </tr>
             </tbody>

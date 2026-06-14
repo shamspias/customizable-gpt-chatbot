@@ -103,6 +103,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
 button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
 button.sm { padding: 6px 11px; font-size: 13px; }
+/* Consistent destructive action across the app: a quiet outline that turns solid on hover. */
+button.danger { background: transparent; color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+button.danger:hover:not(:disabled) { background: var(--danger); color: #fff;
+  border-color: var(--danger); filter: none; }
 button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
 input[type="text"], input[type="number"], input:not([type]), textarea, select {

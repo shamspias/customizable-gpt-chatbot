@@ -25,9 +25,20 @@ function toggleAll() {
 }
 async function bulkDelete() {
   const ids = [...selected.value];
-  if (!ids.length || !confirm(`Delete ${ids.length} log entr${ids.length === 1 ? "y" : "ies"}?`)) return;
+  if (!ids.length) return;
+  const ok = await store.confirmAction({
+    title: `Delete ${ids.length} log entr${ids.length === 1 ? "y" : "ies"}?`,
+    message: "This removes the run(s) and their step traces from the activity log.",
+  });
+  if (!ok) return;
   await store.deleteRuns(ids);
   selected.value = new Set();
+}
+async function delRun(id: string) {
+  const ok = await store.confirmAction({
+    title: "Delete this log entry?", message: "Removes the run and its step trace.",
+  });
+  if (ok) await store.deleteRuns([id]);
 }
 
 function fmt(ts: string | null) {
@@ -80,7 +91,7 @@ function pretty(p: any) {
             </span>
             <span class="badge" :class="r.status">{{ r.status }}</span>
           </button>
-          <button class="del" title="Delete" @click.stop="store.deleteRuns([r.id])"><Icon name="trash" :size="13" /></button>
+          <button class="del" title="Delete" @click.stop="delRun(r.id)"><Icon name="trash" :size="13" /></button>
         </div>
       </div>
       <div v-else class="empty muted"><div class="halo"><Icon name="activity" :size="24" /></div>No activity yet.</div>

@@ -153,6 +153,128 @@ async def _delete_document(args: dict, ctx: ToolContext) -> ToolResult:
     return ToolResult(content=f"Deleted {deleted} document(s) matching '{fname}'.")
 
 
+# ───────────────────────── create / write (Faust authors content) ─────────────────────────
+async def _skill_id_by_name(s, tenant_id: str, name: str) -> str | None:
+    for sk in await repo.list_skills(s, tenant_id):
+        if sk["name"].lower() == (name or "").strip().lower():
+            return str(sk["id"])
+    return None
+
+
+async def _create_skill(args: dict, ctx: ToolContext) -> ToolResult:
+    name = (args.get("name") or "").strip()
+    if not name:
+        return ToolResult(content="Error: name is required.", is_error=True)
+    content = args.get("content") or ""
+    description = args.get("description") or ""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        if await _skill_id_by_name(s, ctx.tenant_id, name):
+            return ToolResult(
+                content=f"A skill named '{name}' already exists; use admin.write_skill.",
+                is_error=True)
+        await repo.create_skill(s, ctx.tenant_id, name, description, content)
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "create_skill", "skill", name, {})
+        await s.commit()
+    return ToolResult(content=f"Created skill '{name}' ({len(content)} chars).")
+
+
+async def _write_skill(args: dict, ctx: ToolContext) -> ToolResult:
+    """Write/overwrite a skill's Markdown content (Faust generates the text)."""
+    name = (args.get("name") or "").strip()
+    content = args.get("content") or ""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        sid = await _skill_id_by_name(s, ctx.tenant_id, name)
+        if not sid:  # create-on-write convenience
+            await repo.create_skill(s, ctx.tenant_id, name, args.get("description") or "", content)
+            await s.commit()
+            return ToolResult(content=f"Created skill '{name}' with generated content.")
+        await repo.update_skill(s, sid, content=content,
+                                description=args.get("description") or None)
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "write_skill", "skill", name, {})
+        await s.commit()
+    return ToolResult(content=f"Updated skill '{name}' ({len(content)} chars).")
+
+
+async def _delete_skill(args: dict, ctx: ToolContext) -> ToolResult:
+    name = (args.get("name") or "").strip()
+    sm = get_sessionmaker()
+    async with sm() as s:
+        sid = await _skill_id_by_name(s, ctx.tenant_id, name)
+        if not sid:
+            return ToolResult(content=f"No skill named '{name}'.", is_error=True)
+        await repo.delete_skill(s, sid)
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "delete_skill", "skill", name, {})
+        await s.commit()
+    return ToolResult(content=f"Deleted skill '{name}'.")
+
+
+async def _list_skills(args: dict, ctx: ToolContext) -> ToolResult:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        rows = await repo.list_skills(s, ctx.tenant_id)
+    return ToolResult(content=json.dumps([{"name": r["name"], "description": r["description"]}
+                                          for r in rows]) or "[]")
+
+
+async def _create_kb(args: dict, ctx: ToolContext) -> ToolResult:
+    name = (args.get("name") or "").strip()
+    if not name:
+        return ToolResult(content="Error: name is required.", is_error=True)
+    sm = get_sessionmaker()
+    async with sm() as s:
+        kid = await repo.create_kb(s, ctx.tenant_id, name)
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "create_kb", "kb", str(kid),
+                                {"name": name})
+        await s.commit()
+    return ToolResult(content=f"Created knowledge base '{name}'.")
+
+
+async def _write_document(args: dict, ctx: ToolContext) -> ToolResult:
+    """Write generated text into a knowledge base as a new document (ingest + embed)."""
+    from veldra_app.rag import ingest_document
+
+    kb_name = (args.get("kb") or "default").strip()
+    filename = (args.get("filename") or "note.md").strip()
+    text = args.get("text") or ""
+    if not text.strip():
+        return ToolResult(content="Error: text is required.", is_error=True)
+    sm = get_sessionmaker()
+    async with sm() as s:
+        kid = None
+        for kb in await repo.list_kbs(s, ctx.tenant_id):
+            if kb["name"].lower() == kb_name.lower():
+                kid = str(kb["id"])
+                break
+    res = await ingest_document(text.encode("utf-8"), filename, "text/markdown",
+                                ctx.tenant_id, kb_name=kb_name, kb_id=kid)
+    return ToolResult(content=f"Wrote '{res.filename}' into KB ({res.num_chunks} chunks).")
+
+
+async def _create_agent(args: dict, ctx: ToolContext) -> ToolResult:
+    """Build a new agent (or team) from a natural-language description."""
+    from veldra_app import repo as _repo
+    from veldra_app.orchestrator import build_agent
+
+    request = (args.get("request") or "").strip()
+    if not request:
+        return ToolResult(content="Error: request is required.", is_error=True)
+    sm = get_sessionmaker()
+    async with sm() as s:
+        run_id = await _repo.create_run(s, ctx.tenant_id, "build", {"request": request})
+        await s.commit()
+    name = None
+    async for ev in build_agent(request, ctx.tenant_id, run_id):
+        if ev["event"] == "spec":
+            name = json.loads(ev["data"]).get("spec", {}).get("name")
+    async with sm() as s:
+        await _repo.finish_run(s, run_id, "done")
+        await s.commit()
+    msg = f"Built agent '{name}'." if name else "Could not build a valid agent."
+    return ToolResult(content=msg)
+
+
 def build_admin_tools() -> list[Tool]:
     return [
         Tool("admin.list_agents", "List all agents with their tags and current version.",
@@ -173,4 +295,23 @@ def build_admin_tools() -> list[Tool]:
         Tool("admin.delete_document",
              "Delete knowledge-base documents whose filename contains the text.",
              _obj({"filename": _STR}, ["filename"]), _delete_document, False),
+        # ── create / write content ──
+        Tool("admin.list_skills", "List available skills (name + description).",
+             _obj({}, []), _list_skills, True),
+        Tool("admin.create_skill", "Create a new skill (Markdown playbook).",
+             _obj({"name": _STR, "description": _STR, "content": _STR}, ["name"]),
+             _create_skill, False),
+        Tool("admin.write_skill",
+             "Write/overwrite a skill's Markdown content (you generate the text).",
+             _obj({"name": _STR, "content": _STR, "description": _STR}, ["name", "content"]),
+             _write_skill, False),
+        Tool("admin.delete_skill", "Delete a skill by name.",
+             _obj({"name": _STR}, ["name"]), _delete_skill, False),
+        Tool("admin.create_kb", "Create a new knowledge base.",
+             _obj({"name": _STR}, ["name"]), _create_kb, False),
+        Tool("admin.write_document",
+             "Write generated text into a knowledge base as a document (kb defaults to 'default').",
+             _obj({"kb": _STR, "filename": _STR, "text": _STR}, ["text"]), _write_document, False),
+        Tool("admin.create_agent", "Build a new agent (or team) from a description.",
+             _obj({"request": _STR}, ["request"]), _create_agent, False),
     ]

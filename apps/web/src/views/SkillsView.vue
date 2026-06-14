@@ -31,6 +31,13 @@ async function save() {
   dirty.value = false;
   saved.value = true;
 }
+async function delSkill() {
+  if (!store.openSkill) return;
+  const ok = await store.confirmAction({
+    title: `Delete “${store.openSkill.name}”?`, message: "This skill will be removed.",
+  });
+  if (ok) await store.deleteSkill(store.openSkill.id);
+}
 </script>
 
 <template>
@@ -62,7 +69,7 @@ async function save() {
           <span v-if="saved" class="savedtag"><Icon name="check" :size="13" /> saved</span>
           <div class="grow" />
           <button class="primary sm" :disabled="!dirty" @click="save"><Icon name="save" :size="14" />Save</button>
-          <button class="ghost sm" @click="store.deleteSkill(store.openSkill.id)"><Icon name="trash" :size="14" /></button>
+          <button class="ghost sm" title="Delete skill" @click="delSkill"><Icon name="trash" :size="14" /></button>
         </div>
         <div class="grid2">
           <label class="field"><span>Name</span><input v-model="form.name" @input="touch" /></label>

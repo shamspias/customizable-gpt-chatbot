@@ -29,7 +29,13 @@ function setFilter(t: string | null) {
 }
 async function bulkDelete() {
   const ids = [...selected.value];
-  if (!ids.length || !confirm(`Delete ${ids.length} agent(s)? This cannot be undone.`)) return;
+  if (!ids.length) return;
+  const ok = await store.confirmAction({
+    title: `Delete ${ids.length} agent${ids.length === 1 ? "" : "s"}?`,
+    message: "This permanently removes the agent(s), their versions, runs, and lessons.",
+    confirmLabel: "Delete",
+  });
+  if (!ok) return;
   await store.deleteAgents(ids);
   selected.value = new Set();
 }

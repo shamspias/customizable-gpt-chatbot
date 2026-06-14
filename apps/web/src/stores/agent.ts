@@ -47,6 +47,11 @@ export const useAgentStore = defineStore("agent", () => {
   // skills (markdown playbooks)
   const skills = ref<any[]>([]);
   const openSkill = ref<any | null>(null);
+  // confirm dialog (promise-based, replaces native confirm())
+  const confirmState = ref<{
+    title: string; message: string; confirmLabel: string; danger: boolean;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
   // floating Faust admin bot
   const faustOpen = ref(false);
   const faustMsgs = ref<ChatMsg[]>([]);
@@ -213,6 +218,25 @@ export const useAgentStore = defineStore("agent", () => {
   async function deleteDocs(kbId: string, ids: string[]) {
     await postJson(`/api/kb/${kbId}/documents/delete`, { ids });
     await Promise.all([selectKb(kbId), listKbs()]);
+  }
+
+  // ── confirm dialog ──
+  function confirmAction(opts: {
+    title?: string; message: string; confirmLabel?: string; danger?: boolean;
+  }): Promise<boolean> {
+    return new Promise((resolve) => {
+      confirmState.value = {
+        title: opts.title ?? "Are you sure?",
+        message: opts.message,
+        confirmLabel: opts.confirmLabel ?? "Delete",
+        danger: opts.danger ?? true,
+        resolve,
+      };
+    });
+  }
+  function resolveConfirm(ok: boolean) {
+    confirmState.value?.resolve(ok);
+    confirmState.value = null;
   }
 
   // ── skills (markdown playbooks) ──
@@ -415,7 +439,8 @@ export const useAgentStore = defineStore("agent", () => {
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
-    agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill,
+    agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill, confirmState,
+    confirmAction, resolveConfirm,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
