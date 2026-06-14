@@ -3,24 +3,47 @@
 **Veldra is a self-hostable, local-first agent-harness platform.** Install it, open
 the web app, and describe what you want in plain language. An orchestrator AI
 compiles your request into a *working agent* — writing its policy, selecting its
-tools, attaching a RAG knowledge base, choosing a reasoning method, and even wiring
-a **team** of agents. Reshape anything later just by talking to it; the orchestrator
-proposes a reviewable diff you approve.
+tools and **skills**, attaching a RAG knowledge base, choosing a reasoning method,
+and even wiring a whole **team** of agents for a company. Reshape anything later by
+talking to it; agents **learn from your feedback** and improve themselves over time.
 
 > **The one load-bearing idea:** an agent is *data*, not code — a versioned
 > `AgentSpec` row in Postgres. "Build me an agent" = compile natural language →
 > validated `AgentSpec`. "Change it" = a JSON-Patch you approve. The runtime is a
 > pure interpreter of that spec.
 
+## ✨ What it does
+
+- **Talk an agent — or a company team — into existence.** Describe a single agent,
+  or pick *Company team* and describe your business: the orchestrator plans a
+  coordinator + specialist agents and wires them together.
+- **Skills (`.md` playbooks).** Write reusable Markdown playbooks; the orchestrator
+  attaches the relevant ones when building, and their content is injected into the
+  agent's instructions at runtime.
+- **Editable knowledge bases.** Upload PDFs/markdown or **index a web page**; edit a
+  saved document and it re-embeds; view its **page-index tree**; choose the retrieval
+  mode (**semantic / keyword / hybrid**), a per-KB **embedding model**, optional
+  **reranker**, and **vector storage** (pgvector or Qdrant).
+- **A Dify-class visual workflow builder.** start · end · llm · classifier ·
+  kb_search · if_else · condition · code (sandboxed) · tool · http · template ·
+  aggregator — with a per-node inspector and typed variable passing.
+- **Self-improvement (Reflexion).** 👍/👎 any answer; on 👎 an auto-improving agent
+  reflects and stores a *lesson* (episodic memory) that's injected next time.
+- **Faust**, the floating admin bot with a soul. Ask it to rename / tag / re-policy /
+  delete agents, inspect & clear activity logs, or delete documents — it acts through
+  audited admin tools and learns from feedback like any agent.
+- **Full activity log** of every build / ask / edit with the complete step trace.
+- **⌘K command palette**, selection + tags + bulk-delete across agents / logs / docs.
+
 ## ✅ Status — verified running locally
 
-This MVP has been run end-to-end against a **local Ollama** (`qwen3.5:0.8b`), no
-cloud key required. Verified working: upload → embed → retrieve with citations;
-NL → `AgentSpec`; the streaming agent loop with tool-calling; the tool suite
-(`math.eval`, `fs.write`, …); config-only self-modification with versioning; and
-**agent teams** (a coordinator delegating to a sub-agent). Small local models
-produce valid structure but rambly prose — see [Models](#models) for picking a
-better one.
+Run end-to-end against a **local Ollama** (`qwen3.5:0.8b`), no cloud key required, and
+deployed via Docker. Verified: upload/web-ingest → embed → retrieve with citations;
+NL → `AgentSpec`; the streaming agent loop + tool suite; **company team** builds;
+**skills** injection; **self-improvement** (feedback → lesson → injection); the visual
+builder executing rich workflows; and Faust admin operations. Small local models
+produce valid structure but basic prose / flaky multi-arg tool calls — point
+`VELDRA_OLLAMA_ORCHESTRATOR_MODEL` at a bigger model (see [Models](#models)).
 
 ## 🖥️ Where's the front-end?
 
@@ -30,8 +53,24 @@ served at **http://localhost:8000**; in dev mode it runs on **http://localhost:5
 
 It's a chat-to-build UI: upload documents, describe the agent you want (left), watch
 the orchestrator stream its plan and render the generated **spec** — policy, tools,
-knowledge bases, team, and the workflow — on the right; then chat with the agent
-(streamed answers + clickable citations), and refine it with a diff-approval modal.
+skills, knowledge bases, team, and the workflow — on the right; then chat with the
+agent (streamed answers + clickable citations), and refine it with a diff-approval
+modal. The shell has five sections — **Studio · Knowledge · Skills · Agents ·
+Activity** — plus a ⌘K command palette and the floating **Faust** assistant.
+
+## 📸 Screenshots
+
+Drop PNGs into `docs/screenshots/` and they render here:
+
+| | |
+|---|---|
+| ![Studio](docs/screenshots/studio.png) | ![Workflow builder](docs/screenshots/builder.png) |
+| **Studio** — build an agent or a company team | **Builder** — the visual workflow canvas |
+| ![Knowledge](docs/screenshots/knowledge.png) | ![Activity](docs/screenshots/activity.png) |
+| **Knowledge** — editable KB + retrieval config | **Activity** — every run with its step trace |
+
+> To capture them: `make up`, open http://localhost:8000, and screenshot each section
+> (the filenames above). They're git-ignored placeholders until you add them.
 
 ## Quick start — one command
 
@@ -79,19 +118,25 @@ uv run veldra ask "what does section 3 say about pricing?"
   `kb.search` (RAG over your docs), `time.now`, `math.eval`, `http.fetch`, and
   workspace files `fs.read` / `fs.write` / `fs.list` (so agents can *create* artifacts).
   All bounded and local-first; untrusted code execution is gated behind the v1 sandbox.
-- **Agent teams** — give an agent `sub_agents` (names of other agents) and it gets a
-  `team__<name>` tool for each; the coordinator delegates subtasks and they run as
-  nested agents (depth-capped).
-- **Workflows** — for a deterministic multi-step pipeline, an agent carries a
-  `workflow_graph` (`start → kb_search → llm → condition → end`) the runtime executes
-  with a variable pool (`{input}`, `{context}`, …); the spec panel renders the graph.
-  Ask for a "workflow"/"pipeline" and the orchestrator builds one (best with a capable
-  model); or define it programmatically.
-- **Knowledge bases** — upload PDF/markdown/text; structure-aware page-indexed chunks
-  with `page`/`section`/`char-span` citations; hybrid pgvector + `tsvector` retrieval (RRF).
-- **Self-modification** — "make answers more concise", "give it the http.fetch tool":
-  the orchestrator emits a JSON-Patch you approve; every change is a new immutable
-  version (rollback = repin). Granting new tools is gated as "sensitive".
+- **Skills** — reusable Markdown playbooks (a Skills section to author them). The
+  orchestrator attaches relevant skills when building; their content is injected into
+  the agent's instructions at runtime.
+- **Agent teams** — say "build a team…" (or pick *Company team*) and the orchestrator
+  plans a coordinator + specialist agents and **creates them all**, wiring `sub_agents`
+  so the coordinator delegates (depth-capped).
+- **Workflows** — a `workflow_graph` the runtime executes with a typed variable pool.
+  Node types: start · end · llm · classifier · kb_search · if_else · condition · code
+  (sandboxed expression) · tool · http · template · aggregator. Build it by asking, or
+  on the **visual canvas** (per-node inspector, branch edges, code editor).
+- **Knowledge bases** — upload PDF/markdown/text **or index a web page**; edit a saved
+  document (re-embeds) and view its **page-index tree**; per-KB **retrieval mode**
+  (semantic/keyword/hybrid), **embedding model**, **reranker**, and **vector store**
+  (pgvector / Qdrant). Citations carry `page`/`section`/`char-span`.
+- **Self-modification + self-improvement** — refine by talking (a JSON-Patch you
+  approve; immutable versions, rollback = repin; new tools gated as "sensitive"). And
+  with **auto-improve** on, 👎 feedback makes the agent reflect and store a lesson it
+  applies next time.
+- **Faust** — the floating admin bot: manage agents / logs / documents by chatting.
 
 ## Models / providers
 
