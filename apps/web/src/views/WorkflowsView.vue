@@ -52,6 +52,10 @@ async function openBuilder(id: string) {
   await store.loadAgent(id);
   store.showBuilder = true;
 }
+// Open the agent on its own shareable test page (#/agent/<id>).
+function openChat(id: string) {
+  window.location.hash = `#/agent/${id}`;
+}
 function newAgent() {
   store.agentId = null;
   store.spec = null;
@@ -114,7 +118,7 @@ function newAgent() {
           </template>
         </div>
         <div class="actions">
-          <button class="ghost sm" @click="store.loadAgent(a.id)"><Icon name="sparkles" :size="14" />Chat</button>
+          <button class="ghost sm" title="Open this agent on its own test page" @click="openChat(a.id)"><Icon name="sparkles" :size="14" />Chat</button>
           <button class="ghost sm" @click="openBuilder(a.id)"><Icon name="workflow" :size="14" />Builder</button>
           <button class="ghost sm icononly" aria-label="Export spec JSON" title="Export spec JSON" @click="store.exportAgent(a.id)"><Icon name="save" :size="14" /></button>
         </div>

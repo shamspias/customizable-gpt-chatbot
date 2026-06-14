@@ -12,6 +12,7 @@ const store = useAgentStore();
 const nodes = ref<any[]>([]);
 const edges = ref<any[]>([]);
 const selectedId = ref<string | null>(null);
+const materialized = ref(false); // true when showing the inferred pipeline (no saved graph yet)
 let counter = 0;
 
 // Grouped palette (logic + IO + transforms), matching the runtime node set.
@@ -56,6 +57,7 @@ function loadFromSpec() {
   nodes.value = [];
   edges.value = [];
   const wf = store.spec?.workflow_graph;
+  materialized.value = !(wf?.nodes?.length);
   if (wf?.nodes?.length) {
     const byId: Record<string, any> = Object.fromEntries(wf.nodes.map((n: any) => [n.id, n]));
     const adj: Record<string, string[]> = {};
@@ -78,9 +80,27 @@ function loadFromSpec() {
       edges.value.push({ id: `e_${e.source}_${e.target}_${++counter}`, source: e.source, target: e.target,
                          label: e.when ?? undefined, data: { when: e.when ?? null } });
   } else {
-    nodes.value.push(vnode("start", "start", "Input", {}, 60, 120));
-    nodes.value.push(vnode("end", "end", "Done", defaultConfig("end"), 360, 120));
-    edges.value.push({ id: "e_start_end", source: "start", target: "end", data: { when: null } });
+    // No saved graph (the agent runs the free-form loop). Materialize its *inferred*
+    // pipeline so the builder always opens on a real, runnable workflow that mirrors
+    // what the agent already does — never a meaningless bare start→end. This matches
+    // the pipeline SpecPanel renders: start → [kb_search if it has KBs] → llm → end.
+    const hasKb = !!store.spec?.knowledge_bases?.length;
+    const y = 170;
+    let x = 60;
+    const chain: string[] = [];
+    const push = (id: string, type: string, label: string, cfg: any) => {
+      nodes.value.push(vnode(id, type, label, cfg, x, y));
+      chain.push(id);
+      x += 240;
+    };
+    push("start", "start", "Input", {});
+    if (hasKb) push("kb_search", "kb_search", "Retrieve", defaultConfig("kb_search"));
+    const llmCfg = defaultConfig("llm");
+    if (!hasKb) llmCfg.prompt = "{input}"; // no KB → answer directly (system prompt drives it)
+    push("llm", "llm", "Answer", llmCfg);
+    push("end", "end", "Done", defaultConfig("end"));
+    for (let i = 0; i < chain.length - 1; i++)
+      edges.value.push({ id: `e_${chain[i]}_${chain[i + 1]}`, source: chain[i], target: chain[i + 1], data: { when: null } });
   }
 }
 
@@ -153,6 +173,7 @@ function toGraph() {
       <header>
         <h3>Workflow builder</h3>
         <span class="muted">{{ store.spec?.name }}</span>
+        <span v-if="materialized" class="pill" title="This mirrors what the agent does now. Edit and Save to make it a real graph the runtime executes step-by-step.">inferred · save to make it a graph</span>
         <div class="grow" />
         <button class="ghost sm" aria-label="Delete node" title="Delete node" :disabled="!selectedId" @click="removeSelected"><Icon name="trash" :size="14" /><span class="hide-xs">Delete</span></button>
         <button class="ghost sm" aria-label="Close" title="Close" @click="store.showBuilder = false"><Icon name="x" :size="14" /><span class="hide-xs">Close</span></button>
@@ -332,6 +353,7 @@ button.sm { padding: 6px 12px; font-size: 13px; }
 .link { background: none; border: none; cursor: pointer; font-size: 12px; color: var(--accent); padding: 0; }
 .link.danger { color: var(--danger); }
 .muted { color: var(--muted); font-size: 13px; }
+.pill { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 9px; }
 .hint { color: var(--faint); font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 760px) {

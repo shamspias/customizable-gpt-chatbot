@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import DiffModal from "./components/DiffModal.vue";
@@ -9,8 +9,7 @@ import SettingsPanel from "./components/SettingsPanel.vue";
 import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { applyTheme } from "./theme";
 import { useAgentStore } from "./stores/agent";
-
-onMounted(applyTheme);
+import AgentChatView from "./views/AgentChatView.vue";
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
 import SkillsView from "./views/SkillsView.vue";
@@ -18,6 +17,18 @@ import StudioView from "./views/StudioView.vue";
 import WorkflowsView from "./views/WorkflowsView.vue";
 
 const store = useAgentStore();
+
+// Minimal hash router: #/agent/<id> opens a standalone, shareable agent test page;
+// everything else is the main app shell. No vue-router dependency needed.
+function parseHash(): { name: "agent"; id: string } | { name: "app" } {
+  const m = (window.location.hash || "").match(/^#\/agent\/(.+)$/);
+  return m ? { name: "agent", id: decodeURIComponent(m[1]) } : { name: "app" };
+}
+const route = ref(parseHash());
+function onHash() { route.value = parseHash(); }
+function exitAgentChat() { window.location.hash = ""; }
+onMounted(() => { applyTheme(); window.addEventListener("hashchange", onHash); });
+onUnmounted(() => window.removeEventListener("hashchange", onHash));
 const NAV = [
   { id: "studio", label: "Studio", icon: "sparkles" },
   { id: "knowledge", label: "Knowledge", icon: "book" },
@@ -41,7 +52,10 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 </script>
 
 <template>
-  <div class="app">
+  <!-- standalone, shareable per-agent test chat at #/agent/<id> -->
+  <AgentChatView v-if="route.name === 'agent'" :agent-id="route.id" @exit="exitAgentChat" />
+
+  <div v-else class="app">
     <aside class="sidebar">
       <div class="brand">
         <span class="mark">
@@ -109,14 +123,16 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
         <Icon :name="n.icon" :size="21" /><span>{{ n.label }}</span>
       </button>
     </nav>
-
-    <DiffModal />
-    <WorkflowBuilder />
-    <FaustBot />
-    <CommandPalette ref="palette" />
-    <ConfirmDialog />
-    <SettingsPanel />
   </div>
+
+  <!-- global overlays: mounted once, outside the route branch so they work on the
+       standalone agent page too (builder, confirm dialogs, Faust, …). -->
+  <DiffModal />
+  <WorkflowBuilder />
+  <FaustBot />
+  <CommandPalette ref="palette" />
+  <ConfirmDialog />
+  <SettingsPanel />
 </template>
 
 <style scoped>

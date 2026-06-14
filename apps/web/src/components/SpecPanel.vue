@@ -51,6 +51,9 @@ function refine() {
   store.proposeSelfMod(t);
   refineText.value = "";
 }
+function openTestPage() {
+  if (store.agentId) window.location.hash = `#/agent/${store.agentId}`;
+}
 </script>
 
 <template>
@@ -64,6 +67,8 @@ function refine() {
       <header class="panel__head">
         <h2>{{ store.spec.name }}</h2>
         <div class="head-actions">
+          <button v-if="store.agentId" class="link" title="Open this agent on its own shareable test page"
+                  @click="openTestPage">↗ test page</button>
           <button class="link" @click="store.showBuilder = true">⚒ builder</button>
           <button class="link" @click="showJson = !showJson">{{ showJson ? "view card" : "view JSON" }}</button>
         </div>
