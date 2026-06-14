@@ -11,8 +11,8 @@ import json
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from veldra_spec import AgentSpec
 from sse_starlette.sse import EventSourceResponse
+from veldra_spec import AgentSpec
 
 from veldra_app import events, repo
 from veldra_app.config import DEFAULT_TENANT_ID
@@ -23,6 +23,7 @@ from veldra_app.edge.schemas import (
     AskRequest,
     BuildRequest,
     KbCreateRequest,
+    KbUpdateRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
     UploadResponse,
@@ -59,10 +60,34 @@ async def list_kbs() -> list[dict]:
 @router.post("/kb")
 async def create_kb(req: KbCreateRequest) -> dict:
     sm = get_sessionmaker()
+    cfg = req.model_dump(exclude={"name"}, exclude_none=True)
     async with sm() as s:
-        kb_id = await repo.create_kb(s, TENANT, req.name)
+        kb_id = await repo.create_kb(s, TENANT, req.name, **cfg)
         await s.commit()
-    return {"id": kb_id, "name": req.name}
+        kb = await repo.get_kb(s, kb_id)
+    return kb or {"id": kb_id, "name": req.name}
+
+
+@router.get("/kb/{kb_id}")
+async def get_kb(kb_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        kb = await repo.get_kb(s, kb_id)
+    if kb is None:
+        raise HTTPException(404, "knowledge base not found")
+    return kb
+
+
+@router.patch("/kb/{kb_id}")
+@router.put("/kb/{kb_id}")
+async def update_kb(kb_id: str, req: KbUpdateRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        if await repo.get_kb(s, kb_id) is None:
+            raise HTTPException(404, "knowledge base not found")
+        await repo.update_kb(s, kb_id, **req.model_dump(exclude_none=True))
+        await s.commit()
+        return await repo.get_kb(s, kb_id)
 
 
 @router.delete("/kb/{kb_id}")

@@ -41,6 +41,22 @@ class UploadResponse(BaseModel):
 
 class KbCreateRequest(BaseModel):
     name: str = Field(min_length=1, description="Knowledge base name.")
+    description: str | None = None
+    retrieval_mode: str | None = Field(
+        default=None, description="semantic | keyword | hybrid (default hybrid)."
+    )
+    embedding_model: str | None = Field(default=None, description="'provider:model' or null.")
+    rerank_model: str | None = Field(default=None, description="'provider:model' or null=none.")
+    page_index_enabled: bool | None = None
+
+
+class KbUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    retrieval_mode: str | None = None
+    embedding_model: str | None = None
+    rerank_model: str | None = None
+    page_index_enabled: bool | None = None
 
 
 class AgentSummary(BaseModel):

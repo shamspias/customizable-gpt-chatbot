@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+from pydantic import ValidationError
 from veldra_llm import get_provider, prepare_json_schema
 from veldra_spec import AgentSpec
-from pydantic import ValidationError
 
 from veldra_app import repo
 from veldra_app.db import get_sessionmaker

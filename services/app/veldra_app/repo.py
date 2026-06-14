@@ -55,12 +55,52 @@ async def get_or_create_kb(session: AsyncSession, tenant_id: str, name: str = "d
     )
 
 
-async def create_kb(session: AsyncSession, tenant_id: str, name: str) -> str:
+# Columns describing a KB's retrieval behaviour (returned to the UI + retriever).
+_KB_COLS = (
+    KnowledgeBase.id, KnowledgeBase.name, KnowledgeBase.description,
+    KnowledgeBase.retrieval_mode, KnowledgeBase.embedding_model,
+    KnowledgeBase.rerank_model, KnowledgeBase.page_index_enabled,
+    KnowledgeBase.created_at,
+)
+
+
+async def create_kb(
+    session: AsyncSession, tenant_id: str, name: str, **config: Any
+) -> str:
+    allowed = {
+        k: v for k, v in config.items()
+        if k in {"description", "retrieval_mode", "embedding_model",
+                 "rerank_model", "page_index_enabled"} and v is not None
+    }
     return str(
         await session.scalar(
-            insert(KnowledgeBase).values(tenant_id=tenant_id, name=name).returning(KnowledgeBase.id)
+            insert(KnowledgeBase)
+            .values(tenant_id=tenant_id, name=name, **allowed)
+            .returning(KnowledgeBase.id)
         )
     )
+
+
+async def get_kb(session: AsyncSession, kb_id: str) -> dict | None:
+    if not is_uuid(kb_id):
+        return None
+    res = await session.execute(select(*_KB_COLS).where(KnowledgeBase.id == kb_id))
+    row = res.mappings().first()
+    return dict(row) if row else None
+
+
+async def update_kb(session: AsyncSession, kb_id: str, **fields: Any) -> None:
+    if not is_uuid(kb_id):
+        return
+    allowed = {
+        k: v for k, v in fields.items()
+        if k in {"name", "description", "retrieval_mode", "embedding_model",
+                 "rerank_model", "page_index_enabled"} and v is not None
+    }
+    if allowed:
+        await session.execute(
+            update(KnowledgeBase).where(KnowledgeBase.id == kb_id).values(**allowed)
+        )
 
 
 async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
@@ -71,10 +111,7 @@ async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
         .scalar_subquery()
     )
     res = await session.execute(
-        select(
-            KnowledgeBase.id, KnowledgeBase.name, KnowledgeBase.created_at,
-            doc_count.label("document_count"),
-        )
+        select(*_KB_COLS, doc_count.label("document_count"))
         .where(KnowledgeBase.tenant_id == tenant_id)
         .order_by(KnowledgeBase.created_at)
     )

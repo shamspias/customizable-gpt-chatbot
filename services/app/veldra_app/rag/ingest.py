@@ -14,9 +14,13 @@ from veldra_app.db import get_sessionmaker
 from veldra_app.rag.chunking import chunk_page
 
 
-def embed_config() -> EmbeddingConfig:
+def embed_config(model: str | None = None) -> EmbeddingConfig:
+    """Build the embedding config; an optional 'provider:model' overrides the KB's model.
+
+    NOTE: pgvector's `embedding` column has a fixed dimension, so a per-KB model must
+    match that dimension (swap models of equal dim, or use Qdrant for mixed dims)."""
     s = get_settings()
-    return EmbeddingConfig(
+    cfg = EmbeddingConfig(
         provider=s.embed_provider,
         dim=s.embed_dim,
         openai_api_key=s.openai_api_key,
@@ -24,6 +28,14 @@ def embed_config() -> EmbeddingConfig:
         ollama_model=s.ollama_embed_model,
         ollama_base_url=s.ollama_base_url,
     )
+    if model and ":" in model:
+        provider, name = (p.strip() for p in model.split(":", 1))
+        cfg.provider = provider
+        if provider == "openai":
+            cfg.openai_model = name
+        elif provider == "ollama":
+            cfg.ollama_model = name
+    return cfg
 
 
 @dataclass
@@ -68,8 +80,12 @@ async def ingest_document(
     async with sm() as session:
         if kb_id is None:
             kb_id = await repo.get_or_create_kb(session, tenant_id, kb_name)
+        kb = await repo.get_kb(session, kb_id) or {}
         doc_id = await repo.create_document(session, kb_id, tenant_id, filename, content_type, s3_key)
         await session.commit()
+    # Per-KB embedding model + page-index toggle govern this ingest.
+    kb_embed_model = kb.get("embedding_model")
+    build_page_index = kb.get("page_index_enabled", True)
 
     try:
         pages = _parse_pages(data, filename, content_type)
@@ -99,7 +115,8 @@ async def ingest_document(
                 await session.commit()
             return IngestResult(doc_id, kb_id, filename, len(pages), 0)
 
-        embeddings = await embed_texts([c.content for c in all_chunks], embed_config())
+        cfg = embed_config(kb_embed_model)
+        embeddings = await embed_texts([c.content for c in all_chunks], cfg)
         ids = [str(uuid.uuid4()) for _ in all_chunks]
 
         chunk_rows = [
@@ -121,7 +138,8 @@ async def ingest_document(
         ]
 
         async with sm() as session:
-            await repo.insert_page_index(session, page_rows)
+            if build_page_index:
+                await repo.insert_page_index(session, page_rows)
             await repo.insert_chunks(session, chunk_rows)
             await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
             await session.commit()

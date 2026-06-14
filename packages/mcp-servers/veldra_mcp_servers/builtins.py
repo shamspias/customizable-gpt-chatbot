@@ -15,7 +15,6 @@ import operator
 from pathlib import Path
 
 import httpx
-
 from veldra_mcp import Tool, ToolContext, ToolResult
 
 WORKSPACE_ROOT = Path("data/workspace")
@@ -24,7 +23,7 @@ READ_CAP = 16000
 
 # ───────────────────────── time ─────────────────────────
 async def _time_now(args: dict, ctx: ToolContext) -> ToolResult:
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     return ToolResult(content=f"Current time (UTC): {now.isoformat(timespec='seconds')}")
 
 

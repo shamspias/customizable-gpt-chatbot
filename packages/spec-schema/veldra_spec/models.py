@@ -56,7 +56,40 @@ class Guardrails(BaseModel):
     )
 
 
-WorkflowNodeType = Literal["start", "kb_search", "llm", "condition", "end"]
+# Rich, Dify-class node set. `condition` is kept for back-compat (substring routing);
+# `if_else` is the operator-based branch. All routing nodes branch via edge `when`.
+WorkflowNodeType = Literal[
+    "start",
+    "end",
+    "llm",          # prompt an LLM (streams tokens)
+    "kb_search",    # retrieve from knowledge bases (with citations)
+    "condition",    # legacy substring branch (true/false)
+    "if_else",      # operator branch (==, !=, >, <, contains, regex, …) → true/false
+    "code",         # sandboxed safe-expression transform over variables
+    "tool",         # invoke a built-in tool (math.eval, time.now, http.fetch, …)
+    "http",         # HTTP request node
+    "template",     # render a text template over variables
+    "aggregator",   # merge several variables/branch outputs into one
+    "classifier",   # LLM intent routing → branches via the matched class name
+]
+
+CompareOp = Literal[
+    "contains", "not_contains", "eq", "ne", "gt", "lt", "gte", "lte",
+    "regex", "empty", "not_empty",
+]
+HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+
+class NodeInput(BaseModel):
+    """A named input binding: `name` = `value`, where value may template {vars}.
+
+    Used for tool arguments, http headers, template/code variable bindings, and the
+    sources an aggregator merges (a closed shape keeps constrained decoding happy)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Argument / variable / header name.")
+    value: str = Field(default="", description="Value or template, e.g. '{input}' or 'Bearer {token}'.")
 
 
 class NodeConfig(BaseModel):
@@ -64,16 +97,44 @@ class NodeConfig(BaseModel):
 
     Templating: any string may reference pool variables with {var} — e.g. an `llm`
     prompt of "Summarize: {context}" inserts the `context` written by an upstream node.
+    Each field is used only by the node types noted; others are ignored.
     """
 
     model_config = ConfigDict(extra="forbid")
 
+    # llm / classifier
     prompt: str = Field(default="", description="llm node: prompt template, with {var} substitution.")
+    model: str = Field(default="", description="llm/classifier: optional per-node model override.")
+    # kb_search
     query: str = Field(default="", description="kb_search node: query template (default '{input}').")
     k: int = Field(default=6, ge=1, le=20, description="kb_search node: passages to retrieve.")
+    mode: str = Field(default="", description="kb_search: retrieval mode override (semantic|keyword|hybrid).")
+    # condition / if_else
+    var: str = Field(default="", description="condition/if_else: pool variable to test.")
+    op: CompareOp = Field(default="contains", description="if_else: comparison operator.")
+    value: str = Field(default="", description="if_else: right-hand value to compare against (templated).")
+    contains: str = Field(default="", description="condition: routes to 'true' if var contains this.")
+    # code
+    code: str = Field(default="", description="code node: a sandboxed expression over input variables.")
+    # tool
+    tool: str = Field(default="", description="tool node: tool name, e.g. 'math.eval'.")
+    # http
+    method: HttpMethod = Field(default="GET", description="http node: request method.")
+    url: str = Field(default="", description="http node: URL template.")
+    body: str = Field(default="", description="http node: request body template.")
+    headers: list[NodeInput] = Field(default_factory=list, description="http node: request headers.")
+    # template
+    template: str = Field(default="", description="template node: text template over {vars}.")
+    # classifier
+    classes: list[str] = Field(
+        default_factory=list, description="classifier: candidate classes; edge.when matches the chosen one."
+    )
+    # generic bindings (tool args, code/template vars, aggregator sources)
+    inputs: list[NodeInput] = Field(
+        default_factory=list, description="Named inputs: tool args, variable bindings, aggregator sources."
+    )
+    # output
     output_var: str = Field(default="output", description="Pool variable this node writes its result to.")
-    var: str = Field(default="", description="condition node: pool variable to test.")
-    contains: str = Field(default="", description="condition node: routes to the 'true' edge if var contains this.")
 
 
 class WorkflowNode(BaseModel):
@@ -91,12 +152,14 @@ class WorkflowEdge(BaseModel):
     source: str
     target: str
     when: str | None = Field(
-        default=None, description="condition branch: 'true' or 'false'; null = unconditional."
+        default=None,
+        description="Branch label: 'true'/'false' for condition/if_else, a class name for "
+        "classifier; null = unconditional.",
     )
 
 
 class WorkflowGraph(BaseModel):
-    """A deterministic flow: start → (kb_search/llm/condition)* → end."""
+    """A deterministic flow: start → (llm/kb_search/tool/code/if_else/…)* → end."""
 
     model_config = ConfigDict(extra="forbid")
 

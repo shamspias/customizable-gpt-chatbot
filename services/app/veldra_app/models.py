@@ -18,6 +18,7 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     Computed,
     DateTime,
     ForeignKey,
@@ -118,6 +119,16 @@ class KnowledgeBase(Base):
         UUID(as_uuid=False), ForeignKey("tenants.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    # Retrieval config (per-KB): how queries are answered.
+    retrieval_mode: Mapped[str] = mapped_column(  # hybrid | semantic | keyword
+        Text, nullable=False, server_default=text("'hybrid'")
+    )
+    embedding_model: Mapped[str | None] = mapped_column(Text)  # "provider:model" or null = global
+    rerank_model: Mapped[str | None] = mapped_column(Text)  # "provider:model" or null = none
+    page_index_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
     created_at: Mapped[datetime] = _created_at()
 
 

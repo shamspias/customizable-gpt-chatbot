@@ -23,6 +23,11 @@ INPUT_SCHEMA = {
             "type": "integer",
             "description": "Number of chunks to retrieve (default 6).",
         },
+        "mode": {
+            "type": "string",
+            "enum": ["semantic", "keyword", "hybrid"],
+            "description": "Optional retrieval mode override (defaults to the KB's setting).",
+        },
     },
     "required": ["query"],
 }
@@ -40,13 +45,14 @@ def build_tool(search_fn: SearchFn) -> Tool:
         if not query:
             return ToolResult(content="Error: 'query' is required.", is_error=True)
         k = int(args.get("k") or 6)
+        mode = args.get("mode") or None
         if not ctx.knowledge_bases:
             return ToolResult(
                 content="No knowledge base is attached to this agent.",
                 data={"citations": []},
             )
         text, citations = await search_fn(
-            query=query, kb_ids=ctx.knowledge_bases, tenant_id=ctx.tenant_id, k=k
+            query=query, kb_ids=ctx.knowledge_bases, tenant_id=ctx.tenant_id, k=k, mode=mode
         )
         return ToolResult(content=text, data={"citations": citations}, is_error=False)
 

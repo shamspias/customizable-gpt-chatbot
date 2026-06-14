@@ -21,7 +21,6 @@ from veldra_app.events import ev, status
 from veldra_app.orchestrator.catalog import build_catalog, lint_spec, normalize
 from veldra_app.orchestrator.compiler import _system_prompt, compile_with_repair, wants_workflow
 
-
 # Tools that cannot be granted without the v1 execution sandbox (none yet — a
 # `code`/`bash` exec tool would go here and be hard-blocked in the MVP).
 DANGEROUS_TOOLS: set[str] = set()
