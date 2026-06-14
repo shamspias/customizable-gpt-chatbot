@@ -14,7 +14,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from sse_starlette.sse import EventSourceResponse
 from veldra_spec import AgentSpec
 
-from veldra_app import events, hermis, learning, repo
+from veldra_app import events, faust, learning, repo
 from veldra_app.config import DEFAULT_TENANT_ID
 from veldra_app.db import get_sessionmaker
 from veldra_app.edge.schemas import (
@@ -449,10 +449,10 @@ async def agent_lessons(agent_id: str) -> list[dict]:
         return await repo.list_lessons(s, agent_id)
 
 
-# ───────────────────────── Hermis (floating admin bot) ─────────────────────────
-async def _hermis_stream(req: AskRequest) -> AsyncIterator[dict]:
+# ───────────────────────── Faust (floating admin bot) ─────────────────────────
+async def _faust_stream(req: AskRequest) -> AsyncIterator[dict]:
     sm = get_sessionmaker()
-    agent_id = await hermis.get_or_create_hermis(TENANT)
+    agent_id = await faust.get_or_create_faust(TENANT)
     async with sm() as s:
         run_id = await repo.create_run(
             s, TENANT, "ask", {"message": req.message}, agent_id=agent_id
@@ -461,7 +461,7 @@ async def _hermis_stream(req: AskRequest) -> AsyncIterator[dict]:
     yield events.ev("run", run_id=run_id)
     answer: str | None = None
     try:
-        async for event in hermis.run_hermis(req.message, TENANT, run_id, history=req.history):
+        async for event in faust.run_faust(req.message, TENANT, run_id, history=req.history):
             if event["event"] == "done":
                 answer = json.loads(event["data"]).get("answer")
             yield event
@@ -475,6 +475,6 @@ async def _hermis_stream(req: AskRequest) -> AsyncIterator[dict]:
             await s.commit()
 
 
-@router.post("/hermis/ask")
-async def hermis_ask(req: AskRequest):
-    return EventSourceResponse(_hermis_stream(req))
+@router.post("/faust/ask")
+async def faust_ask(req: AskRequest):
+    return EventSourceResponse(_faust_stream(req))

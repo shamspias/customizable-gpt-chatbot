@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { VueFlow } from "@vue-flow/core";
+import { useVueFlow, VueFlow } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useAgentStore } from "../stores/agent";
 import Icon from "./Icon.vue";
+
+const { fitView } = useVueFlow();
 
 const store = useAgentStore();
 const nodes = ref<any[]>([]);
@@ -82,7 +84,19 @@ function loadFromSpec() {
   }
 }
 
-onMounted(loadFromSpec);
+// The builder is mounted once (globally) and shown via store.showBuilder, so reload
+// the graph from the CURRENT spec every time it opens — otherwise it shows a stale
+// default start→end instead of the agent's real workflow.
+watch(
+  () => store.showBuilder,
+  (open) => {
+    if (!open) return;
+    selectedId.value = null;
+    loadFromSpec();
+    nextTick(() => setTimeout(() => fitView({ padding: 0.2 }), 60));
+  },
+  { immediate: true },
+);
 
 function addNode(type: string) {
   const id = `${type}_${++counter}`;

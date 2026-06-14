@@ -413,7 +413,7 @@ async def delete_all_runs(
     session: AsyncSession, tenant_id: str, kind: str | None = None
 ) -> int:
     """Delete ALL runs for a tenant in one statement (optionally a single kind) — no
-    row cap. Used by Hermis's 'clear logs' so it never silently leaves runs behind."""
+    row cap. Used by Faust's 'clear logs' so it never silently leaves runs behind."""
     stmt = delete(Run).where(Run.tenant_id == tenant_id)
     if kind:
         stmt = stmt.where(Run.kind == kind)

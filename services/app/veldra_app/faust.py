@@ -1,6 +1,6 @@
-"""Hermis — the floating, platform-aware admin bot.
+"""Faust — the floating, platform-aware admin bot.
 
-Hermis is a built-in meta-agent that manages the platform by talking: rename/update/
+Faust is a built-in meta-agent that manages the platform by talking: rename/update/
 tag/delete agents, inspect + clear the activity log, and delete knowledge-base
 documents. It runs through the normal decision/agent loop but with its OWN tool
 registry (builtins + admin tools), so its destructive powers can never leak to a
@@ -22,10 +22,10 @@ from veldra_app.config import DEFAULT_TENANT_ID
 from veldra_app.db import get_sessionmaker
 from veldra_app.runtime import execute
 
-HERMIS_NAME = "Hermis"
+FAUST_NAME = "Faust"
 
-HERMIS_PROMPT = """\
-You are Hermis — Veldra's resident operations assistant with a soul. You manage the \
+FAUST_PROMPT = """\
+You are Faust — Veldra's resident operations assistant with a soul. You manage the \
 platform on the user's behalf by USING YOUR TOOLS, never by guessing. You can list, \
 rename, re-policy, tag, and delete agents; inspect and clear the activity log; and \
 delete knowledge-base documents.
@@ -40,7 +40,7 @@ admin.list_agents first and ask which one.
 ("delete everything"), confirm the scope in one short question before acting.
 - Be concise. After acting, state the result in one line."""
 
-HERMIS_TOOLS = [
+FAUST_TOOLS = [
     "admin.list_agents", "admin.rename_agent", "admin.update_agent", "admin.tag_agent",
     "admin.delete_agent", "admin.list_runs", "admin.clear_runs", "admin.delete_document",
     "time.now",
@@ -49,7 +49,7 @@ HERMIS_TOOLS = [
 
 @functools.lru_cache
 def get_admin_registry() -> ToolRegistry:
-    """Hermis-only registry: generic builtins + the platform-admin tools."""
+    """Faust-only registry: generic builtins + the platform-admin tools."""
     from veldra_app.admin_tools import build_admin_tools
 
     registry = ToolRegistry()
@@ -60,47 +60,47 @@ def get_admin_registry() -> ToolRegistry:
     return registry
 
 
-def hermis_spec() -> AgentSpec:
+def faust_spec() -> AgentSpec:
     from veldra_llm import get_provider
     from veldra_spec import ToolBinding
 
-    # Hermis is a meta/admin agent — give it the orchestrator tier (point
+    # Faust is a meta/admin agent — give it the orchestrator tier (point
     # VELDRA_OLLAMA_ORCHESTRATOR_MODEL at a larger local model for reliable
     # multi-argument tool calls; Anthropic uses the Opus orchestrator).
     return AgentSpec(
-        name=HERMIS_NAME,
+        name=FAUST_NAME,
         description="Platform operations assistant.",
-        system_prompt=HERMIS_PROMPT,
+        system_prompt=FAUST_PROMPT,
         model=get_provider().orchestrator_model,
         effort="high",
         thinking_method="react",
-        tools=[ToolBinding(name=t, permission_mode="auto") for t in HERMIS_TOOLS],
-        auto_improve=True,  # the "soul": Hermis learns from feedback like any agent
+        tools=[ToolBinding(name=t, permission_mode="auto") for t in FAUST_TOOLS],
+        auto_improve=True,  # the "soul": Faust learns from feedback like any agent
     )
 
 
-async def get_or_create_hermis(tenant_id: str = DEFAULT_TENANT_ID) -> str:
-    """Ensure the Hermis agent row exists; return its id (so runs/lessons attach to it)."""
+async def get_or_create_faust(tenant_id: str = DEFAULT_TENANT_ID) -> str:
+    """Ensure the Faust agent row exists; return its id (so runs/lessons attach to it)."""
     sm = get_sessionmaker()
     async with sm() as session:
-        existing = await repo.get_agent_by_name(session, tenant_id, HERMIS_NAME)
+        existing = await repo.get_agent_by_name(session, tenant_id, FAUST_NAME)
         if existing:
             return str(existing["id"])
         agent_id, _ = await repo.upsert_agent_spec(
-            session, tenant_id, HERMIS_NAME, hermis_spec().model_dump(), note="hermis bootstrap"
+            session, tenant_id, FAUST_NAME, faust_spec().model_dump(), note="faust bootstrap"
         )
         await session.commit()
         return agent_id
 
 
-async def run_hermis(
+async def run_faust(
     message: str, tenant_id: str, run_id: str, history: list[dict] | None = None
 ) -> AsyncIterator[dict]:
-    """Run a Hermis turn with the admin registry + its learned lessons injected."""
+    """Run a Faust turn with the admin registry + its learned lessons injected."""
     from veldra_app import learning
 
-    agent_id = await get_or_create_hermis(tenant_id)
-    spec = hermis_spec()
+    agent_id = await get_or_create_faust(tenant_id)
+    spec = faust_spec()
     sm = get_sessionmaker()
     async with sm() as session:
         lessons = await repo.list_lessons(session, agent_id, limit=10)

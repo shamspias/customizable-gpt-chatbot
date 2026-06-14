@@ -1,10 +1,10 @@
-"""Platform-admin tools — the toolset of the built-in **Hermis** bot.
+"""Platform-admin tools — the toolset of the built-in **Faust** bot.
 
-These let Hermis manage the platform itself: list/rename/update/tag/delete agents,
+These let Faust manage the platform itself: list/rename/update/tag/delete agents,
 inspect + clear the activity log, and delete knowledge-base documents. They are
 DELIBERATELY kept out of the default tool registry (tools_registry.get_registry) so a
-normal user-built agent can never be granted them — Hermis runs with its own registry
-(see veldra_app.hermis). Each handler is tenant-scoped via ToolContext.tenant_id.
+normal user-built agent can never be granted them — Faust runs with its own registry
+(see veldra_app.faust). Each handler is tenant-scoped via ToolContext.tenant_id.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ async def _rename_agent(args: dict, ctx: ToolContext) -> ToolResult:
             return ToolResult(content=f"No agent named '{args.get('name')}'.", is_error=True)
         try:
             await repo.rename_agent(s, str(a["id"]), new_name)
-            await repo.insert_audit(s, ctx.tenant_id, "hermis", "rename_agent", "agent",
+            await repo.insert_audit(s, ctx.tenant_id, "faust", "rename_agent", "agent",
                                     str(a["id"]), {"from": a["name"], "to": new_name})
             await s.commit()
         except Exception as exc:
@@ -103,7 +103,7 @@ async def _delete_agent(args: dict, ctx: ToolContext) -> ToolResult:
         if not a:
             return ToolResult(content=f"No agent named '{args.get('name')}'.", is_error=True)
         n = await repo.delete_agents(s, ctx.tenant_id, [str(a["id"])])
-        await repo.insert_audit(s, ctx.tenant_id, "hermis", "delete_agent", "agent",
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "delete_agent", "agent",
                                 str(a["id"]), {"name": a["name"]})
         await s.commit()
     return ToolResult(content=f"Deleted agent '{a['name']}'." if n else "Nothing deleted.")
@@ -130,7 +130,7 @@ async def _clear_runs(args: dict, ctx: ToolContext) -> ToolResult:
     kind = (args.get("kind") or "").strip().lower() or None
     async with sm() as s:
         n = await repo.delete_all_runs(s, ctx.tenant_id, kind)
-        await repo.insert_audit(s, ctx.tenant_id, "hermis", "clear_runs", "runs", None,
+        await repo.insert_audit(s, ctx.tenant_id, "faust", "clear_runs", "runs", None,
                                 {"kind": kind or "all", "deleted": n})
         await s.commit()
     suffix = f" of kind '{kind}'." if kind else "."

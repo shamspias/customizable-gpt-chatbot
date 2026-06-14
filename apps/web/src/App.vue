@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import DiffModal from "./components/DiffModal.vue";
-import HermisBot from "./components/HermisBot.vue";
+import FaustBot from "./components/FaustBot.vue";
 import Icon from "./components/Icon.vue";
 import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { useAgentStore } from "./stores/agent";
@@ -79,7 +79,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 
     <DiffModal />
     <WorkflowBuilder />
-    <HermisBot />
+    <FaustBot />
     <CommandPalette ref="palette" />
   </div>
 </template>

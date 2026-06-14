@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
 import { useAgentStore } from "../stores/agent";
+import FaustFace from "./FaustFace.vue";
 import Icon from "./Icon.vue";
 
 const store = useAgentStore();
@@ -16,53 +17,55 @@ const SUGGESTIONS = [
 
 async function send() {
   const t = input.value.trim();
-  if (!t || store.hermisBusy) return;
+  if (!t || store.faustBusy) return;
   input.value = "";
-  await store.askHermis(t);
+  await store.askFaust(t);
 }
 
 watch(
-  () => [store.hermisMsgs.length, store.hermisBusy, store.hermisMsgs.at(-1)?.text],
+  () => [store.faustMsgs.length, store.faustBusy, store.faustMsgs.at(-1)?.text],
   () => nextTick(() => scroller.value && (scroller.value.scrollTop = scroller.value.scrollHeight)),
 );
 </script>
 
 <template>
   <!-- launcher -->
-  <button class="fab" :class="{ open: store.hermisOpen }" title="Hermis — platform assistant"
-          @click="store.hermisOpen = !store.hermisOpen">
-    <Icon :name="store.hermisOpen ? 'x' : 'bot'" :size="22" />
+  <button class="fab" :class="{ open: store.faustOpen }" title="Faust — platform assistant"
+          @click="store.faustOpen = !store.faustOpen">
+    <Icon v-if="store.faustOpen" name="x" :size="22" />
+    <FaustFace v-else :size="30" :talking="store.faustBusy" />
   </button>
 
   <transition name="pop">
-    <section v-if="store.hermisOpen" class="panel">
+    <section v-if="store.faustOpen" class="panel">
       <header class="phead">
-        <span class="mark"><Icon name="bot" :size="17" /></span>
-        <div class="who"><strong>Hermis</strong><span class="sub">platform assistant · learns from feedback</span></div>
+        <span class="mark"><FaustFace :size="26" :talking="store.faustBusy" /></span>
+        <div class="who"><strong>Faust</strong><span class="sub">platform assistant · learns from feedback</span></div>
         <div class="grow" />
-        <span v-if="store.hermisBusy" class="busy"><span class="dot" />{{ store.phase || "working" }}</span>
-        <button class="ghost sm icon" aria-label="Close" @click="store.hermisOpen = false"><Icon name="x" :size="15" /></button>
+        <span v-if="store.faustBusy" class="busy"><span class="dot" />{{ store.phase || "working" }}</span>
+        <button class="ghost sm icon" aria-label="Close" @click="store.faustOpen = false"><Icon name="x" :size="15" /></button>
       </header>
 
       <div ref="scroller" class="body">
-        <div v-if="!store.hermisMsgs.length" class="intro">
-          <div class="halo"><Icon name="bot" :size="22" /></div>
-          <p>I manage your platform. I can rename, tag, re-policy, or delete agents,
-            inspect &amp; clear activity logs, and delete documents — just ask.</p>
+        <div v-if="!store.faustMsgs.length" class="intro">
+          <div class="halo"><FaustFace :size="40" /></div>
+          <p>Hi, I'm <strong>Faust</strong>. I manage your platform — I can rename, tag,
+            re-policy, or delete agents, inspect &amp; clear activity logs, and delete
+            documents. Just ask.</p>
           <div class="sugs">
             <button v-for="s in SUGGESTIONS" :key="s" class="sug" @click="input = s">{{ s }}</button>
           </div>
         </div>
-        <div v-for="(m, i) in store.hermisMsgs" :key="i" class="msg" :class="m.role">
+        <div v-for="(m, i) in store.faustMsgs" :key="i" class="msg" :class="m.role">
           <div class="bubble">
             <details v-if="m.thinking" class="thinking"><summary>thinking</summary><pre>{{ m.thinking }}</pre></details>
             <div v-if="m.text" class="text">{{ m.text }}</div>
-            <div v-else-if="m.role === 'assistant' && store.hermisBusy" class="typing"><span /><span /><span /></div>
+            <div v-else-if="m.role === 'assistant' && store.faustBusy" class="typing"><span /><span /><span /></div>
           </div>
           <div v-if="m.role === 'assistant' && m.runId && m.text" class="rate">
             <template v-if="m.rated == null">
               <button class="rb" title="Good" @click="store.rate(m, 1)"><Icon name="thumbsUp" :size="13" /></button>
-              <button class="rb" title="Could be better — Hermis will learn" @click="store.rate(m, -1)"><Icon name="thumbsDown" :size="13" /></button>
+              <button class="rb" title="Could be better — Faust will learn" @click="store.rate(m, -1)"><Icon name="thumbsDown" :size="13" /></button>
             </template>
             <span v-else class="rated"><Icon name="check" :size="12" /> noted</span>
           </div>
@@ -70,9 +73,9 @@ watch(
       </div>
 
       <div class="composer">
-        <input v-model="input" placeholder="Ask Hermis to manage anything…"
-               :disabled="store.hermisBusy" @keyup.enter="send" />
-        <button class="sb" :disabled="store.hermisBusy || !input.trim()" @click="send" aria-label="Send">
+        <input v-model="input" placeholder="Ask Faust to manage anything…"
+               :disabled="store.faustBusy" @keyup.enter="send" />
+        <button class="sb" :disabled="store.faustBusy || !input.trim()" @click="send" aria-label="Send">
           <Icon name="send" :size="17" />
         </button>
       </div>
@@ -81,17 +84,17 @@ watch(
 </template>
 
 <style scoped>
-.fab { position: fixed; right: 22px; bottom: 22px; z-index: 60; width: 54px; height: 54px; border-radius: 50%; padding: 0; box-shadow: var(--shadow-lg); }
+.fab { position: fixed; right: 22px; bottom: 22px; z-index: 60; width: 56px; height: 56px; border-radius: 50%; padding: 0; box-shadow: var(--shadow-lg); }
 .fab.open { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); }
 @media (max-width: 760px) { .fab { bottom: 78px; } }
 
-.panel { position: fixed; right: 22px; bottom: 86px; z-index: 60; width: min(400px, calc(100vw - 32px));
+.panel { position: fixed; right: 22px; bottom: 88px; z-index: 60; width: min(400px, calc(100vw - 32px));
   height: min(560px, calc(100vh - 130px)); background: var(--bg); border: 1px solid var(--border);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
 @media (max-width: 760px) { .panel { right: 16px; left: 16px; width: auto; bottom: 140px; } }
 
-.phead { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg-glass); }
-.mark { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 9px; color: var(--accent); background: var(--accent-soft); }
+.phead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg-glass); }
+.mark { width: 32px; height: 32px; flex: none; display: grid; place-items: center; }
 .who { display: flex; flex-direction: column; line-height: 1.2; }
 .who strong { font-size: 14px; }
 .who .sub { font-size: 11px; color: var(--faint); }
@@ -102,7 +105,7 @@ watch(
 
 .body { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 11px; }
 .intro { margin: auto; text-align: center; color: var(--muted); }
-.intro .halo { width: 46px; height: 46px; margin: 0 auto 12px; display: grid; place-items: center; border-radius: 13px; color: var(--accent); background: var(--accent-soft); }
+.intro .halo { width: 60px; height: 60px; margin: 0 auto 12px; display: grid; place-items: center; border-radius: 16px; background: var(--accent-soft); }
 .intro p { font-size: 13px; line-height: 1.55; margin: 0 0 14px; }
 .sugs { display: flex; flex-direction: column; gap: 7px; }
 .sug { background: var(--surface); border: 1px solid var(--border); color: var(--ink); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 12.5px; text-align: left; box-shadow: none; }

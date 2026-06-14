@@ -44,10 +44,10 @@ export const useAgentStore = defineStore("agent", () => {
   const lessons = ref<any[]>([]);
   // agent tags / filtering
   const agentTags = ref<string[]>([]);
-  // floating Hermis admin bot
-  const hermisOpen = ref(false);
-  const hermisMsgs = ref<ChatMsg[]>([]);
-  const hermisBusy = ref(false);
+  // floating Faust admin bot
+  const faustOpen = ref(false);
+  const faustMsgs = ref<ChatMsg[]>([]);
+  const faustBusy = ref(false);
 
   async function upload(file: File) {
     busy.value = true;
@@ -212,18 +212,18 @@ export const useAgentStore = defineStore("agent", () => {
     await Promise.all([selectKb(kbId), listKbs()]);
   }
 
-  // ── floating Hermis admin bot ──
-  async function askHermis(message: string) {
-    hermisBusy.value = true;
+  // ── floating Faust admin bot ──
+  async function askFaust(message: string) {
+    faustBusy.value = true;
     // Build history BEFORE adding this turn, so the current message isn't duplicated.
-    const history = hermisMsgs.value
+    const history = faustMsgs.value
       .filter((m) => m.text && m.kind === undefined)
       .map((m) => ({ role: m.role, text: m.text }));
-    hermisMsgs.value.push({ role: "user", text: message });
+    faustMsgs.value.push({ role: "user", text: message });
     const a = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
-    hermisMsgs.value.push(a);
+    faustMsgs.value.push(a);
     try {
-      await streamPost("/api/hermis/ask", { message, history }, (ev, data) => {
+      await streamPost("/api/faust/ask", { message, history }, (ev, data) => {
         if (ev === "run") a.runId = data.run_id;
         else if (ev === "token") a.text += data.text;
         else if (ev === "thinking") a.thinking += data.text;
@@ -234,9 +234,9 @@ export const useAgentStore = defineStore("agent", () => {
     } catch (e: any) {
       a.text += `\n\n_[error: ${e}]_`;
     } finally {
-      hermisBusy.value = false;
+      faustBusy.value = false;
       phase.value = "";
-      // Hermis just acted on the platform — refresh whatever view is open.
+      // Faust just acted on the platform — refresh whatever view is open.
       listAgents().catch(() => {});
       if (view.value === "activity") listRuns().catch(() => {});
       if (view.value === "knowledge" && selectedKb.value) selectKb(selectedKb.value).catch(() => {});
@@ -389,11 +389,11 @@ export const useAgentStore = defineStore("agent", () => {
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
-    agentTags, hermisOpen, hermisMsgs, hermisBusy,
+    agentTags, faustOpen, faustMsgs, faustBusy,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
     rate, setAutoImprove, reflectRun, loadLessons,
-    loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askHermis,
+    loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askFaust,
   };
 });
