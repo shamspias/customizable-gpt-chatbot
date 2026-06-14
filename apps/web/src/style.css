@@ -113,33 +113,37 @@ body { background: radial-gradient(120% 80% at 50% -20%, var(--bg-soft), var(--b
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-button {
-  font: inherit; font-weight: 550; padding: 8px 14px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; background: var(--accent-strong); color: #fff; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  transition: filter 0.14s ease, transform 0.05s ease, border-color 0.14s, background 0.14s;
-}
-button:hover:not(:disabled) { filter: brightness(1.08); }
-button:active:not(:disabled) { transform: translateY(0.5px); }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
-button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
-button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
-button.sm { padding: 6px 11px; font-size: 13px; }
-button.danger { background: transparent; color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-button.danger:hover:not(:disabled) { background: var(--danger); color: #fff;
-  border-color: var(--danger); filter: none; }
-button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+/* Base element styles live in @layer base so Tailwind's `utilities` layer (declared
+   after `base`) can override them — otherwise unlayered rules beat all utilities. */
+@layer base {
+  button {
+    font: inherit; font-weight: 550; padding: 8px 14px; border-radius: var(--radius-sm);
+    border: 1px solid transparent; background: var(--accent-strong); color: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: filter 0.14s ease, transform 0.05s ease, border-color 0.14s, background 0.14s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:active:not(:disabled) { transform: translateY(0.5px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
+  button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
+  button.sm { padding: 6px 11px; font-size: 13px; }
+  button.danger { background: transparent; color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  button.danger:hover:not(:disabled) { background: var(--danger); color: #fff;
+    border-color: var(--danger); filter: none; }
+  button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
-input[type="text"], input[type="number"], input:not([type]), textarea, select {
-  font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
-  transition: border-color 0.14s ease, box-shadow 0.14s ease;
-}
-input::placeholder, textarea::placeholder { color: var(--faint); }
-input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+  input[type="text"], input[type="number"], input:not([type]), textarea, select {
+    font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
+    transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  }
+  input::placeholder, textarea::placeholder { color: var(--faint); }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 
-a { color: var(--accent); }
+  a { color: var(--accent); }
+}
 
 @keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 @keyframes veldra-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }

@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import ast
 import datetime
+import itertools
 import json as _json
 import operator
 import re as _re
 from pathlib import Path
 
 import httpx
+import regex as _rx  # engine-level match timeout (real ReDoS protection; via tiktoken dep)
 from veldra_mcp import Tool, ToolContext, ToolResult
 
 WORKSPACE_ROOT = Path("data/workspace")
@@ -139,15 +141,25 @@ async def _json_query(args: dict, ctx: ToolContext) -> ToolResult:
     return ToolResult(content=val if isinstance(val, str) else _json.dumps(val))
 
 
+REGEX_TIMEOUT = 1.5          # the `regex` engine self-aborts a match after this many seconds
+REGEX_TEXT_CAP = 100_000
+REGEX_MATCH_CAP = 1000
+
+
 async def _regex_extract(args: dict, ctx: ToolContext) -> ToolResult:
-    """Return all matches of a regex pattern in text (group 1 if present, else whole match)."""
-    pattern = args.get("pattern") or ""
-    text = args.get("text") or ""
+    """Return regex matches in text (group 1 if present). ReDoS-safe: the `regex` engine
+    enforces a real per-match timeout (a thread guard can't — CPython `re` holds the GIL),
+    plus input + match-count caps."""
+    pattern = (args.get("pattern") or "")[:1000]
+    text = (args.get("text") or "")[:REGEX_TEXT_CAP]
     try:
-        rx = _re.compile(pattern)
-    except _re.error as exc:
+        rx = _rx.compile(pattern)
+        out = [m.group(1) if m.groups() else m.group(0)
+               for m in itertools.islice(rx.finditer(text, timeout=REGEX_TIMEOUT), REGEX_MATCH_CAP)]
+    except TimeoutError:
+        return ToolResult(content="Error: pattern timed out (too complex).", is_error=True)
+    except _rx.error as exc:
         return ToolResult(content=f"Error: bad pattern ({exc}).", is_error=True)
-    out = [m.group(1) if m.groups() else m.group(0) for m in rx.finditer(text)]
     return ToolResult(content=_json.dumps(out))
 
 

@@ -33,6 +33,7 @@ dependencies = [
   "pypdf>=4.2",
   "pdfplumber>=0.11",
   "tiktoken>=0.7",
+  "regex>=2024.0",   # ReDoS-safe regex engine with a real per-match timeout (regex.extract tool)
   # self-mod
   "jsonpatch>=1.33",
   # http client (CLI, embeddings via OpenAI/Ollama REST)
