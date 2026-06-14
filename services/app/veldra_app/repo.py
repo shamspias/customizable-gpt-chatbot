@@ -473,9 +473,13 @@ async def get_document(session: AsyncSession, doc_id: str) -> dict | None:
 
 
 async def get_document_text(session: AsyncSession, doc_id: str) -> str:
-    """Reconstruct editable text from the document's chunks (in order)."""
+    """The faithful editable source: the stored source_text, else a chunk-join fallback
+    (older docs ingested before source_text existed)."""
     if not is_uuid(doc_id):
         return ""
+    src = await session.scalar(select(Document.source_text).where(Document.id == doc_id))
+    if src is not None:
+        return src
     res = await session.execute(
         select(Chunk.content).where(Chunk.document_id == doc_id).order_by(Chunk.ordinal)
     )
@@ -503,3 +507,22 @@ async def clear_document_index(session: AsyncSession, doc_id: str) -> None:
         return
     await session.execute(delete(Chunk).where(Chunk.document_id == doc_id))
     await session.execute(delete(PageIndex).where(PageIndex.document_id == doc_id))
+
+
+async def replace_document_index(
+    session: AsyncSession, doc_id: str, *, page_rows: list[dict], chunk_rows: list[dict],
+    source_text: str, num_pages: int,
+) -> None:
+    """Atomically swap a document's index: drop old chunks/page_index, insert the new
+    rows, and set source_text + ready status — all in the caller's single transaction,
+    so a crash before commit leaves the old content intact."""
+    await session.execute(delete(Chunk).where(Chunk.document_id == doc_id))
+    await session.execute(delete(PageIndex).where(PageIndex.document_id == doc_id))
+    if page_rows:
+        await session.execute(insert(PageIndex), page_rows)
+    if chunk_rows:
+        await session.execute(insert(Chunk), chunk_rows)
+    await session.execute(
+        update(Document).where(Document.id == doc_id)
+        .values(source_text=source_text, num_pages=num_pages, status="ready", error=None)
+    )

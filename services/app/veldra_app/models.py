@@ -145,6 +145,7 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(Text, nullable=False)
     content_type: Mapped[str | None] = mapped_column(Text)
     s3_key: Mapped[str] = mapped_column(Text, nullable=False)
+    source_text: Mapped[str | None] = mapped_column(Text)  # faithful editable source
     num_pages: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(  # pending|ingesting|ready|failed
         Text, nullable=False, server_default=text("'pending'")

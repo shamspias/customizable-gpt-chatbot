@@ -94,7 +94,9 @@ async def ingest_document(
 
     try:
         pages = _parse_pages(data, filename, content_type)
-        n = await _index_pages(doc_id, kb_id, tenant_id, pages, kb_embed_model, build_page_index)
+        n = await _embed_and_store(
+            doc_id, kb_id, tenant_id, pages, kb_embed_model, build_page_index
+        )
         return IngestResult(doc_id, kb_id, filename, len(pages), n)
     except Exception as exc:
         async with sm() as session:
@@ -103,14 +105,16 @@ async def ingest_document(
         raise
 
 
-async def _index_pages(
+async def _prepare(
     doc_id: str, kb_id: str, tenant_id: str,
-    pages: list[tuple[int, str]], kb_embed_model: str | None, build_page_index: bool,
-) -> int:
-    """Chunk → embed → store a document's pages (shared by ingest + re-ingest)."""
-    sm = get_sessionmaker()
+    pages: list[tuple[int, str]], kb_embed_model: str | None,
+) -> tuple[list[dict], list[dict], list[str], list[list[float]], str]:
+    """Pure (no DB writes): chunk → embed → build page/chunk rows + the faithful
+    source_text. Embedding happens BEFORE any persistence so a failure never destroys
+    existing content."""
     page_rows: list[dict] = []
     all_chunks: list = []
+    parts: list[str] = []
     base = 0
     for page_number, text in pages:
         page_rows.append({
@@ -119,14 +123,11 @@ async def _index_pages(
             "char_start": base, "char_end": base + len(text),
         })
         all_chunks.extend(chunk_page(text, page_number, base))
-        base += len(text) + 1  # +1 for the implicit page separator
-
+        base += len(text) + 1
+        parts.append(text)
+    source_text = "\n\n".join(parts)
     if not all_chunks:
-        async with sm() as session:
-            await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
-            await session.commit()
-        return 0
-
+        return page_rows, [], [], [], source_text
     embeddings = await embed_texts([c.content for c in all_chunks], embed_config(kb_embed_model))
     ids = [str(uuid.uuid4()) for _ in all_chunks]
     chunk_rows = [
@@ -138,35 +139,46 @@ async def _index_pages(
         }
         for i, (c, emb) in enumerate(zip(all_chunks, embeddings, strict=True))
     ]
-    async with sm() as session:
-        if build_page_index:
-            await repo.insert_page_index(session, page_rows)
-        await repo.insert_chunks(session, chunk_rows)
-        await repo.set_document_status(session, doc_id, "ready", num_pages=len(pages))
+    return page_rows, chunk_rows, ids, embeddings, source_text
+
+
+async def _embed_and_store(
+    doc_id: str, kb_id: str, tenant_id: str,
+    pages: list[tuple[int, str]], kb_embed_model: str | None, build_page_index: bool,
+) -> int:
+    """Embed then atomically persist a document's index (create or re-ingest)."""
+    page_rows, chunk_rows, ids, embeddings, source_text = await _prepare(
+        doc_id, kb_id, tenant_id, pages, kb_embed_model
+    )
+    sm = get_sessionmaker()
+    async with sm() as session:  # single transaction: swap index + source_text + status
+        await repo.replace_document_index(
+            session, doc_id,
+            page_rows=(page_rows if build_page_index else []),
+            chunk_rows=chunk_rows, source_text=source_text, num_pages=len(pages),
+        )
         await session.commit()
 
-    from veldra_app.rag.vectorstores import get_vector_store
+    if chunk_rows:
+        from veldra_app.rag.vectorstores import get_vector_store
 
-    await get_vector_store().upsert(
-        [{"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
-         for i in range(len(ids))]
-    )
+        await get_vector_store().upsert(
+            [{"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
+             for i in range(len(ids))]
+        )
     return len(chunk_rows)
 
 
 async def reingest_text(doc_id: str, text: str, tenant_id: str = DEFAULT_TENANT_ID) -> IngestResult:
-    """Replace a saved document's content with edited text and re-embed it."""
+    """Replace a saved document's content with edited text and re-embed it (atomic)."""
     sm = get_sessionmaker()
     async with sm() as session:
         doc = await repo.get_document(session, doc_id)
         if not doc:
             raise ValueError("document not found")
         kb = await repo.get_kb(session, doc["kb_id"]) or {}
-        await repo.clear_document_index(session, doc_id)
-        await repo.set_document_status(session, doc_id, "ingesting")
-        await session.commit()
     try:
-        n = await _index_pages(
+        n = await _embed_and_store(
             doc_id, doc["kb_id"], tenant_id, [(1, text)],
             kb.get("embedding_model"), kb.get("page_index_enabled", True),
         )
@@ -192,17 +204,81 @@ def _html_to_text(html: str) -> tuple[str, str]:
     return title, body
 
 
+def _guard_url(url: str) -> None:
+    """Block SSRF: only http(s), and refuse hosts that resolve to private/loopback/
+    link-local/reserved addresses (internal services, cloud metadata)."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    p = urlparse(url)
+    if p.scheme not in ("http", "https") or not p.hostname:
+        raise ValueError("only http(s) URLs are allowed")
+    try:
+        infos = socket.getaddrinfo(p.hostname, p.port or (443 if p.scheme == "https" else 80))
+    except socket.gaierror as e:
+        raise ValueError(f"cannot resolve host: {p.hostname}") from e
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+                or ip.is_multicast or ip.is_unspecified):
+            raise ValueError("refusing to fetch a private/internal address")
+
+
+URL_FETCH_CAP = 5_000_000  # 5 MB body cap — guards against memory-exhaustion / zip bombs
+
+
+def _check_peer(resp) -> None:
+    """Re-validate the IP actually connected to (closes the DNS-rebinding window)."""
+    import ipaddress
+
+    try:
+        stream = resp.extensions.get("network_stream")
+        addr = stream.get_extra_info("server_addr") if stream else None
+        ip = ipaddress.ip_address(addr[0]) if addr else None
+    except Exception:
+        ip = None
+    if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local
+                           or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        raise ValueError("refusing to fetch a private/internal address")
+
+
+async def _fetch(client, url: str) -> str:
+    """Stream a response with a hard byte cap; re-validate the connected peer IP."""
+    async with client.stream("GET", url) as r:
+        _check_peer(r)
+        if r.is_redirect:  # don't auto-follow; re-validate the next hop ourselves
+            loc = r.headers.get("location")
+            if not loc:
+                r.raise_for_status()
+            target = str(r.url.join(loc))
+            _guard_url(target)
+            await r.aclose()
+            return await _fetch(client, target)
+        r.raise_for_status()
+        ctype = r.headers.get("content-type", "")
+        if ctype and not (ctype.startswith("text/") or "html" in ctype or "xml" in ctype):
+            raise ValueError(f"unsupported content type: {ctype.split(';')[0]}")
+        chunks: list[bytes] = []
+        total = 0
+        async for blk in r.aiter_bytes():
+            total += len(blk)
+            if total > URL_FETCH_CAP:
+                raise ValueError("page is too large to index (>5 MB)")
+            chunks.append(blk)
+    return b"".join(chunks).decode("utf-8", errors="replace")
+
+
 async def ingest_url(
     url: str, tenant_id: str = DEFAULT_TENANT_ID, kb_id: str | None = None
 ) -> IngestResult:
     """Fetch a web page, extract its text, and ingest it (web page index)."""
     import httpx
 
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True,
+    _guard_url(url)
+    async with httpx.AsyncClient(timeout=30, follow_redirects=False, max_redirects=0,
                                  headers={"User-Agent": "Veldra/0.1 (+ingest)"}) as client:
-        r = await client.get(url)
-        r.raise_for_status()
-        html = r.text
+        html = await _fetch(client, url)
     title, text = _html_to_text(html)
     if not text.strip():
         raise ValueError("no readable text found at that URL")
