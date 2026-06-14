@@ -273,12 +273,25 @@ async def build_team(nl_request: str, tenant_id: str, run_id: str) -> AsyncItera
         return
     members = members[:MAX_TEAM_MEMBERS]
 
+    # Never overwrite an existing/unrelated agent: names are made unique against the
+    # tenant's current agents AND each other (dedupes duplicate plan names too).
+    taken = {a.lower() for a in (await build_catalog(tenant_id)).get("agents", [])}
+
+    def _unique(name: str) -> str:
+        base = name or "Agent"
+        candidate, i = base, 2
+        while candidate.lower() in taken:
+            candidate, i = f"{base}{i}", i + 1
+        taken.add(candidate.lower())
+        return candidate
+
     built: list[str] = []
     for m in members:
-        name = (m.get("name") or "").strip()
+        raw = (m.get("name") or "").strip()
         purpose = (m.get("purpose") or "").strip()
-        if not name:
+        if not raw:
             continue
+        name = _unique(raw)
         yield status(f"building {name}")
         catalog = await build_catalog(tenant_id)
         seed = (f"Design the '{name}' agent. Role: {purpose}. It is one specialist member of "
@@ -298,7 +311,9 @@ async def build_team(nl_request: str, tenant_id: str, run_id: str) -> AsyncItera
 
     yield status("wiring coordinator")
     coord = (plan.get("coordinator") or {})
-    coord_name = (coord.get("name") or "Coordinator").strip()
+    # Coordinator must be distinct from members (else it would overwrite one and end up
+    # delegating to itself) and from existing agents.
+    coord_name = _unique((coord.get("name") or "Coordinator").strip())
     roster = "; ".join(built)
     catalog = await build_catalog(tenant_id)  # now includes the new members
     seed = (f"Design the coordinator agent named '{coord_name}'. {coord.get('purpose', '')} "

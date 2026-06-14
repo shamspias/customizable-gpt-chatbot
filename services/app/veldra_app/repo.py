@@ -472,11 +472,14 @@ async def set_run_feedback(
 
 
 # ───────────────────────── episodic memory (lessons) ─────────────────────────
+LESSON_CAP = 50  # keep an agent's episodic memory bounded (most recent kept)
+
+
 async def add_lesson(
     session: AsyncSession, tenant_id: str, agent_id: str, content: str,
     source_run_id: str | None = None,
 ) -> str:
-    return str(
+    lesson_id = str(
         await session.scalar(
             insert(Lesson)
             .values(tenant_id=tenant_id, agent_id=agent_id, content=content,
@@ -484,6 +487,14 @@ async def add_lesson(
             .returning(Lesson.id)
         )
     )
+    # Prune to the most recent LESSON_CAP so memory + prompt injection stay bounded.
+    keep = select(Lesson.id).where(Lesson.agent_id == agent_id).order_by(
+        Lesson.created_at.desc()
+    ).limit(LESSON_CAP).scalar_subquery()
+    await session.execute(
+        delete(Lesson).where(Lesson.agent_id == agent_id, Lesson.id.not_in(keep))
+    )
+    return lesson_id
 
 
 async def list_lessons(session: AsyncSession, agent_id: str, limit: int = 20) -> list[dict]:
