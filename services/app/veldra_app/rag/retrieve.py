@@ -55,13 +55,15 @@ async def _kb_configs(kb_ids: list[str], tenant_id: str) -> list[dict]:
     return out
 
 
-def _group_by_model(cfgs: list[dict], kb_ids: list[str]) -> dict[str | None, list[str]]:
-    """Group KB ids by embedding model so each group is queried in its own vector space."""
+def _query_groups(cfgs: list[dict], kb_ids: list[str]) -> dict[tuple, list[str]]:
+    """Group KB ids by (vector_store, embedding_model) so each group is queried against
+    its OWN backend AND embedding space — never one store/model for a mixed KB set."""
     if not cfgs:
-        return {None: kb_ids}
-    groups: dict[str | None, list[str]] = {}
+        return {(None, None): kb_ids}
+    groups: dict[tuple, list[str]] = {}
     for kb in cfgs:
-        groups.setdefault(kb.get("embedding_model"), []).append(kb["id"])
+        key = (kb.get("vector_store"), kb.get("embedding_model"))
+        groups.setdefault(key, []).append(kb["id"])
     return groups
 
 
@@ -74,7 +76,6 @@ async def search(
     if mode not in VALID_MODES:
         mode = "hybrid"
     rerank_model = gov.get("rerank_model")
-    store = get_vector_store(gov.get("vector_store"))  # governing KB's vector backend
     # Over-fetch when a second stage (RRF or rerank) will re-order the candidates.
     fetch = k * 4 if (mode == "hybrid" or reranker.is_configured(rerank_model)) else k
 
@@ -82,11 +83,11 @@ async def search(
     vec_rows: list[dict] = []
     lex: list[dict] = []
     if mode in ("semantic", "hybrid"):
-        # Embed the query once PER embedding model and search only that model's KBs —
-        # never compare a query vector against chunks from a different embedding space.
-        for model, group_kbs in _group_by_model(cfgs, kb_ids).items():
+        # Query each (vector_store, embedding_model) group against its OWN backend and
+        # embedding space, then fuse — so a mixed KB set never silently drops a backend.
+        for (vstore, model), group_kbs in _query_groups(cfgs, kb_ids).items():
             emb = await embed_query(query, embed_config(model))
-            vec_hits = await store.query(emb, group_kbs, tenant_id, n=fetch)
+            vec_hits = await get_vector_store(vstore).query(emb, group_kbs, tenant_id, n=fetch)
             async with sm() as session:
                 rows = await repo.get_chunks_by_ids(session, [cid for cid, _ in vec_hits])
             by_id = {str(r["id"]): r for r in rows}
