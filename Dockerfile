@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 
 # Install the workspace (editable so veldra_app can locate apps/web/dist at runtime).
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md alembic.ini ./
 COPY packages/ ./packages/
 COPY services/ ./services/
 COPY cli/ ./cli/

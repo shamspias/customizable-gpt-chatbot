@@ -1,22 +1,31 @@
-"""Async data access (raw parameterized SQL over the SQLAlchemy async engine).
+"""Async data access over the SQLAlchemy ORM models (`veldra_app.models`).
 
-JSONB params are passed as json.dumps(...) + CAST(:p AS jsonb); uuids as str +
-CAST(:p AS uuid); embeddings as a pgvector literal '[..]' + CAST(:p AS vector).
-Callers manage the transaction (commit on the session).
+Queries use the 2.0 expression language against the mapped classes — no raw SQL.
+JSONB columns take/return plain dicts (the engine's json_serializer handles
+datetimes); the pgvector `embedding` column takes/returns a list[float] directly.
+Read helpers return plain dicts (same shape the edge/runtime layers expect);
+callers own the transaction (commit on the session).
 """
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-def vec_literal(embedding: list[float]) -> str:
-    return "[" + ",".join(repr(float(x)) for x in embedding) + "]"
+from veldra_app.models import (
+    Agent,
+    Audit,
+    Chunk,
+    Document,
+    KnowledgeBase,
+    PageIndex,
+    Run,
+    RunStep,
+    SpecVersion,
+)
 
 
 def is_uuid(value: str | None) -> bool:
@@ -32,83 +41,76 @@ def is_uuid(value: str | None) -> bool:
 
 # ───────────────────────── knowledge bases / documents ─────────────────────────
 async def get_or_create_kb(session: AsyncSession, tenant_id: str, name: str = "default") -> str:
-    row = (
-        await session.execute(
-            text(
-                "SELECT id FROM knowledge_bases "
-                "WHERE tenant_id = CAST(:t AS uuid) AND name = :n"
-            ),
-            {"t": tenant_id, "n": name},
+    kb_id = await session.scalar(
+        select(KnowledgeBase.id).where(
+            KnowledgeBase.tenant_id == tenant_id, KnowledgeBase.name == name
         )
-    ).first()
-    if row:
-        return str(row[0])
-    new_id = (
-        await session.execute(
-            text(
-                "INSERT INTO knowledge_bases (tenant_id, name) "
-                "VALUES (CAST(:t AS uuid), :n) RETURNING id"
-            ),
-            {"t": tenant_id, "n": name},
+    )
+    if kb_id:
+        return str(kb_id)
+    return str(
+        await session.scalar(
+            insert(KnowledgeBase).values(tenant_id=tenant_id, name=name).returning(KnowledgeBase.id)
         )
-    ).scalar_one()
-    return str(new_id)
+    )
 
 
 async def create_kb(session: AsyncSession, tenant_id: str, name: str) -> str:
     return str(
-        (
-            await session.execute(
-                text(
-                    "INSERT INTO knowledge_bases (tenant_id, name) "
-                    "VALUES (CAST(:t AS uuid), :n) RETURNING id"
-                ),
-                {"t": tenant_id, "n": name},
-            )
-        ).scalar_one()
+        await session.scalar(
+            insert(KnowledgeBase).values(tenant_id=tenant_id, name=name).returning(KnowledgeBase.id)
+        )
     )
 
 
 async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
-    res = await session.execute(
-        text(
-            "SELECT k.id, k.name, k.created_at, "
-            "  (SELECT count(*) FROM documents d WHERE d.kb_id = k.id) AS document_count "
-            "FROM knowledge_bases k WHERE k.tenant_id = CAST(:t AS uuid) ORDER BY k.created_at"
-        ),
-        {"t": tenant_id},
+    doc_count = (
+        select(func.count(Document.id))
+        .where(Document.kb_id == KnowledgeBase.id)
+        .correlate(KnowledgeBase)
+        .scalar_subquery()
     )
-    return [dict(r._mapping) for r in res]
+    res = await session.execute(
+        select(
+            KnowledgeBase.id, KnowledgeBase.name, KnowledgeBase.created_at,
+            doc_count.label("document_count"),
+        )
+        .where(KnowledgeBase.tenant_id == tenant_id)
+        .order_by(KnowledgeBase.created_at)
+    )
+    return [dict(r) for r in res.mappings()]
 
 
 async def list_documents(session: AsyncSession, kb_id: str) -> list[dict]:
     if not is_uuid(kb_id):
         return []
-    res = await session.execute(
-        text(
-            "SELECT d.id, d.filename, d.content_type, d.num_pages, d.status, d.created_at, "
-            "  (SELECT count(*) FROM chunks c WHERE c.document_id = d.id) AS chunk_count "
-            "FROM documents d WHERE d.kb_id = CAST(:kb AS uuid) ORDER BY d.created_at DESC"
-        ),
-        {"kb": kb_id},
+    chunk_count = (
+        select(func.count(Chunk.id))
+        .where(Chunk.document_id == Document.id)
+        .correlate(Document)
+        .scalar_subquery()
     )
-    return [dict(r._mapping) for r in res]
+    res = await session.execute(
+        select(
+            Document.id, Document.filename, Document.content_type, Document.num_pages,
+            Document.status, Document.created_at, chunk_count.label("chunk_count"),
+        )
+        .where(Document.kb_id == kb_id)
+        .order_by(Document.created_at.desc())
+    )
+    return [dict(r) for r in res.mappings()]
 
 
 async def delete_document(session: AsyncSession, doc_id: str) -> None:
     if not is_uuid(doc_id):
         return
-    await session.execute(
-        text("DELETE FROM documents WHERE id = CAST(:id AS uuid)"), {"id": doc_id}
-    )
+    await session.execute(delete(Document).where(Document.id == doc_id))
 
 
 async def delete_kb(session: AsyncSession, kb_id: str) -> None:
     if not is_uuid(kb_id):
         return
-    await session.execute(
-        text("DELETE FROM knowledge_bases WHERE id = CAST(:id AS uuid)"), {"id": kb_id}
-    )
+    await session.execute(delete(KnowledgeBase).where(KnowledgeBase.id == kb_id))
 
 
 async def create_document(
@@ -120,15 +122,14 @@ async def create_document(
     s3_key: str,
 ) -> str:
     return str(
-        (
-            await session.execute(
-                text(
-                    "INSERT INTO documents (kb_id, tenant_id, filename, content_type, s3_key) "
-                    "VALUES (CAST(:kb AS uuid), CAST(:t AS uuid), :f, :ct, :k) RETURNING id"
-                ),
-                {"kb": kb_id, "t": tenant_id, "f": filename, "ct": content_type, "k": s3_key},
+        await session.scalar(
+            insert(Document)
+            .values(
+                kb_id=kb_id, tenant_id=tenant_id, filename=filename,
+                content_type=content_type, s3_key=s3_key,
             )
-        ).scalar_one()
+            .returning(Document.id)
+        )
     )
 
 
@@ -139,77 +140,62 @@ async def set_document_status(
     num_pages: int | None = None,
     error: str | None = None,
 ) -> None:
-    await session.execute(
-        text(
-            "UPDATE documents SET status = :s, num_pages = COALESCE(:np, num_pages), "
-            "error = :e WHERE id = CAST(:id AS uuid)"
-        ),
-        {"s": status, "np": num_pages, "e": error, "id": doc_id},
-    )
+    values: dict[str, Any] = {"status": status, "error": error}
+    if num_pages is not None:
+        values["num_pages"] = num_pages
+    await session.execute(update(Document).where(Document.id == doc_id).values(**values))
 
 
 async def insert_page_index(session: AsyncSession, rows: list[dict[str, Any]]) -> None:
-    if not rows:
-        return
-    await session.execute(
-        text(
-            "INSERT INTO page_index "
-            "(document_id, kind, label, page_number, section_path, char_start, char_end) "
-            "VALUES (CAST(:document_id AS uuid), :kind, :label, :page_number, "
-            ":section_path, :char_start, :char_end)"
-        ),
-        rows,
-    )
+    if rows:
+        await session.execute(insert(PageIndex), rows)
 
 
 async def insert_chunks(session: AsyncSession, rows: list[dict[str, Any]]) -> None:
     """Each row: id, document_id, kb_id, tenant_id, ordinal, content, page_number,
-    section_path, char_start, char_end, token_count, embedding (pgvector literal str)."""
-    if not rows:
-        return
-    await session.execute(
-        text(
-            "INSERT INTO chunks (id, document_id, kb_id, tenant_id, ordinal, content, "
-            "page_number, section_path, char_start, char_end, token_count, embedding) "
-            "VALUES (CAST(:id AS uuid), CAST(:document_id AS uuid), CAST(:kb_id AS uuid), "
-            "CAST(:tenant_id AS uuid), :ordinal, :content, :page_number, :section_path, "
-            ":char_start, :char_end, :token_count, CAST(:embedding AS vector))"
-        ),
-        rows,
-    )
+    section_path, char_start, char_end, token_count, embedding (list[float])."""
+    if rows:
+        await session.execute(insert(Chunk), rows)
+
+
+def _chunk_citation_cols() -> list:
+    return [
+        Chunk.id, Chunk.content, Chunk.page_number, Chunk.section_path,
+        Chunk.char_start, Chunk.char_end, Document.filename,
+    ]
 
 
 async def vector_search(
     session: AsyncSession, tenant_id: str, kb_ids: list[str], emb: list[float], n: int
 ) -> list[dict]:
+    distance = Chunk.embedding.cosine_distance(emb).label("distance")
     res = await session.execute(
-        text(
-            "SELECT c.id, c.content, c.page_number, c.section_path, c.char_start, c.char_end, "
-            "d.filename, (c.embedding <=> CAST(:emb AS vector)) AS distance "
-            "FROM chunks c JOIN documents d ON d.id = c.document_id "
-            "WHERE c.tenant_id = CAST(:t AS uuid) AND c.kb_id = ANY(:kbs) "
-            "ORDER BY c.embedding <=> CAST(:emb AS vector) LIMIT :n"
-        ),
-        {"emb": vec_literal(emb), "t": tenant_id, "kbs": kb_ids, "n": n},
+        select(*_chunk_citation_cols(), distance)
+        .join(Document, Document.id == Chunk.document_id)
+        .where(Chunk.tenant_id == tenant_id, Chunk.kb_id.in_(kb_ids))
+        .order_by(distance)
+        .limit(n)
     )
-    return [dict(r._mapping) for r in res]
+    return [dict(r) for r in res.mappings()]
 
 
 async def lexical_search(
     session: AsyncSession, tenant_id: str, kb_ids: list[str], query: str, n: int
 ) -> list[dict]:
+    tsquery = func.plainto_tsquery("english", query)
+    rank = func.ts_rank_cd(Chunk.tsv, tsquery).label("rank")
     res = await session.execute(
-        text(
-            "SELECT c.id, c.content, c.page_number, c.section_path, c.char_start, c.char_end, "
-            "d.filename, ts_rank_cd(c.tsv, plainto_tsquery('english', :q)) AS rank "
-            "FROM chunks c JOIN documents d ON d.id = c.document_id "
-            "WHERE c.tenant_id = CAST(:t AS uuid) AND c.kb_id = ANY(:kbs) "
-            "AND c.tsv @@ plainto_tsquery('english', :q) "
-            "ORDER BY rank DESC LIMIT :n"
-        ),
-        {"q": query, "t": tenant_id, "kbs": kb_ids, "n": n},
+        select(*_chunk_citation_cols(), rank)
+        .join(Document, Document.id == Chunk.document_id)
+        .where(
+            Chunk.tenant_id == tenant_id,
+            Chunk.kb_id.in_(kb_ids),
+            Chunk.tsv.op("@@")(tsquery),
+        )
+        .order_by(rank.desc())
+        .limit(n)
     )
-    return [dict(r._mapping) for r in res]
+    return [dict(r) for r in res.mappings()]
 
 
 async def get_chunks_by_ids(session: AsyncSession, ids: list[str]) -> list[dict]:
@@ -217,68 +203,53 @@ async def get_chunks_by_ids(session: AsyncSession, ids: list[str]) -> list[dict]
     if not ids:
         return []
     res = await session.execute(
-        text(
-            "SELECT c.id, c.content, c.page_number, c.section_path, c.char_start, c.char_end, "
-            "d.filename FROM chunks c JOIN documents d ON d.id = c.document_id "
-            "WHERE c.id = ANY(:ids)"
-        ),
-        {"ids": ids},
+        select(*_chunk_citation_cols())
+        .join(Document, Document.id == Chunk.document_id)
+        .where(Chunk.id.in_(ids))
     )
-    return [dict(r._mapping) for r in res]
+    return [dict(r) for r in res.mappings()]
 
 
 # ───────────────────────── agents / specs (versioned) ─────────────────────────
 async def get_agent_by_name(session: AsyncSession, tenant_id: str, name: str) -> dict | None:
-    row = (
-        await session.execute(
-            text(
-                "SELECT id, name, current_version FROM agents "
-                "WHERE tenant_id = CAST(:t AS uuid) AND name = :n"
-            ),
-            {"t": tenant_id, "n": name},
+    res = await session.execute(
+        select(Agent.id, Agent.name, Agent.current_version).where(
+            Agent.tenant_id == tenant_id, Agent.name == name
         )
-    ).first()
-    return dict(row._mapping) if row else None
+    )
+    row = res.mappings().first()
+    return dict(row) if row else None
 
 
 async def get_agent(session: AsyncSession, agent_id: str) -> dict | None:
     if not is_uuid(agent_id):
         return None
-    row = (
-        await session.execute(
-            text("SELECT id, tenant_id, name, current_version FROM agents WHERE id = CAST(:id AS uuid)"),
-            {"id": agent_id},
+    res = await session.execute(
+        select(Agent.id, Agent.tenant_id, Agent.name, Agent.current_version).where(
+            Agent.id == agent_id
         )
-    ).first()
-    return dict(row._mapping) if row else None
+    )
+    row = res.mappings().first()
+    return dict(row) if row else None
 
 
 async def insert_spec_version(
     session: AsyncSession, agent_id: str, spec: dict, note: str | None = None
 ) -> int:
-    version = (
-        await session.execute(
-            text(
-                "SELECT COALESCE(MAX(version), 0) + 1 FROM agent_specs "
-                "WHERE agent_id = CAST(:a AS uuid)"
-            ),
-            {"a": agent_id},
+    version = await session.scalar(
+        select(func.coalesce(func.max(SpecVersion.version), 0) + 1).where(
+            SpecVersion.agent_id == agent_id
         )
-    ).scalar_one()
+    )
     await session.execute(
-        text(
-            "INSERT INTO agent_specs (agent_id, version, spec, note) "
-            "VALUES (CAST(:a AS uuid), :v, CAST(:s AS jsonb), :note)"
-        ),
-        {"a": agent_id, "v": version, "s": json.dumps(spec), "note": note},
+        insert(SpecVersion).values(agent_id=agent_id, version=version, spec=spec, note=note)
     )
     return int(version)
 
 
 async def set_current_version(session: AsyncSession, agent_id: str, version: int) -> None:
     await session.execute(
-        text("UPDATE agents SET current_version = :v WHERE id = CAST(:a AS uuid)"),
-        {"v": version, "a": agent_id},
+        update(Agent).where(Agent.id == agent_id).values(current_version=version)
     )
 
 
@@ -289,15 +260,11 @@ async def upsert_agent_spec(
     existing = await get_agent_by_name(session, tenant_id, name)
     if existing is None:
         agent_id = str(
-            (
-                await session.execute(
-                    text(
-                        "INSERT INTO agents (tenant_id, name, current_version) "
-                        "VALUES (CAST(:t AS uuid), :n, 1) RETURNING id"
-                    ),
-                    {"t": tenant_id, "n": name},
-                )
-            ).scalar_one()
+            await session.scalar(
+                insert(Agent)
+                .values(tenant_id=tenant_id, name=name, current_version=1)
+                .returning(Agent.id)
+            )
         )
         await insert_spec_version(session, agent_id, spec, note)
         return agent_id, 1
@@ -313,55 +280,42 @@ async def get_spec(
     if not is_uuid(agent_id):
         return None
     if version is None:
-        row = (
-            await session.execute(
-                text(
-                    "SELECT s.spec, s.version FROM agent_specs s "
-                    "JOIN agents a ON a.id = s.agent_id AND a.current_version = s.version "
-                    "WHERE s.agent_id = CAST(:a AS uuid)"
-                ),
-                {"a": agent_id},
+        stmt = (
+            select(SpecVersion.spec)
+            .join(
+                Agent,
+                (Agent.id == SpecVersion.agent_id) & (Agent.current_version == SpecVersion.version),
             )
-        ).first()
+            .where(SpecVersion.agent_id == agent_id)
+        )
     else:
-        row = (
-            await session.execute(
-                text(
-                    "SELECT spec, version FROM agent_specs "
-                    "WHERE agent_id = CAST(:a AS uuid) AND version = :v"
-                ),
-                {"a": agent_id, "v": version},
-            )
-        ).first()
-    if not row:
+        stmt = select(SpecVersion.spec).where(
+            SpecVersion.agent_id == agent_id, SpecVersion.version == version
+        )
+    spec = await session.scalar(stmt)
+    if spec is None:
         return None
-    spec = row._mapping["spec"]
-    return spec if isinstance(spec, dict) else json.loads(spec)
+    return spec if isinstance(spec, dict) else dict(spec)
 
 
 async def list_agents(session: AsyncSession, tenant_id: str) -> list[dict]:
     res = await session.execute(
-        text(
-            "SELECT a.id, a.name, a.current_version, a.created_at "
-            "FROM agents a WHERE a.tenant_id = CAST(:t AS uuid) ORDER BY a.created_at DESC"
-        ),
-        {"t": tenant_id},
+        select(Agent.id, Agent.name, Agent.current_version, Agent.created_at)
+        .where(Agent.tenant_id == tenant_id)
+        .order_by(Agent.created_at.desc())
     )
-    return [dict(r._mapping) for r in res]
+    return [dict(r) for r in res.mappings()]
 
 
 # ───────────────────────── runs / steps / audit ─────────────────────────
 async def get_run_by_idem(session: AsyncSession, tenant_id: str, key: str) -> dict | None:
-    row = (
-        await session.execute(
-            text(
-                "SELECT id, status, result, agent_id, agent_version FROM runs "
-                "WHERE tenant_id = CAST(:t AS uuid) AND idempotency_key = :k"
-            ),
-            {"t": tenant_id, "k": key},
+    res = await session.execute(
+        select(Run.id, Run.status, Run.result, Run.agent_id, Run.agent_version).where(
+            Run.tenant_id == tenant_id, Run.idempotency_key == key
         )
-    ).first()
-    return dict(row._mapping) if row else None
+    )
+    row = res.mappings().first()
+    return dict(row) if row else None
 
 
 async def create_run(
@@ -374,23 +328,14 @@ async def create_run(
     agent_version: int | None = None,
 ) -> str:
     return str(
-        (
-            await session.execute(
-                text(
-                    "INSERT INTO runs (tenant_id, kind, input, idempotency_key, agent_id, agent_version) "
-                    "VALUES (CAST(:t AS uuid), :kind, CAST(:in AS jsonb), :idem, "
-                    "CAST(:a AS uuid), :ver) RETURNING id"
-                ),
-                {
-                    "t": tenant_id,
-                    "kind": kind,
-                    "in": json.dumps(input),
-                    "idem": idempotency_key,
-                    "a": agent_id,
-                    "ver": agent_version,
-                },
+        await session.scalar(
+            insert(Run)
+            .values(
+                tenant_id=tenant_id, kind=kind, input=input,
+                idempotency_key=idempotency_key, agent_id=agent_id, agent_version=agent_version,
             )
-        ).scalar_one()
+            .returning(Run.id)
+        )
     )
 
 
@@ -402,11 +347,9 @@ async def finish_run(
     error: str | None = None,
 ) -> None:
     await session.execute(
-        text(
-            "UPDATE runs SET status = :s, result = CAST(:r AS jsonb), error = :e, "
-            "finished_at = now() WHERE id = CAST(:id AS uuid)"
-        ),
-        {"s": status, "r": json.dumps(result) if result is not None else None, "e": error, "id": run_id},
+        update(Run)
+        .where(Run.id == run_id)
+        .values(status=status, result=result, error=error, finished_at=func.now())
     )
 
 
@@ -414,11 +357,9 @@ async def insert_run_step(
     session: AsyncSession, run_id: str, ordinal: int, type: str, name: str | None, payload: dict
 ) -> None:
     await session.execute(
-        text(
-            "INSERT INTO run_steps (run_id, ordinal, type, name, payload) "
-            "VALUES (CAST(:r AS uuid), :o, :ty, :n, CAST(:p AS jsonb))"
-        ),
-        {"r": run_id, "o": ordinal, "ty": type, "n": name, "p": json.dumps(payload, default=str)},
+        insert(RunStep).values(
+            run_id=run_id, ordinal=ordinal, type=type, name=name, payload=payload
+        )
     )
 
 
@@ -432,16 +373,8 @@ async def insert_audit(
     detail: dict,
 ) -> None:
     await session.execute(
-        text(
-            "INSERT INTO audit (tenant_id, actor, action, target_type, target_id, detail) "
-            "VALUES (CAST(:t AS uuid), :ac, :action, :tt, :ti, CAST(:d AS jsonb))"
-        ),
-        {
-            "t": tenant_id,
-            "ac": actor,
-            "action": action,
-            "tt": target_type,
-            "ti": target_id,
-            "d": json.dumps(detail, default=str),
-        },
+        insert(Audit).values(
+            tenant_id=tenant_id, actor=actor, action=action,
+            target_type=target_type, target_id=target_id, detail=detail,
+        )
     )

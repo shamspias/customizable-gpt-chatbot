@@ -25,9 +25,19 @@ tasks:
       - "{{.COMPOSE}} down"
 
   migrate:
-    desc: Apply SQL migrations in deploy/migrations
+    desc: Apply Alembic migrations (= alembic upgrade head; idempotent)
     cmds:
       - uv run python -m veldra_app.db migrate
+
+  migrate:make:
+    desc: 'Autogenerate a revision from model changes: task migrate:make -- "message"'
+    cmds:
+      - uv run alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+
+  migrate:down:
+    desc: 'Roll back one migration (or: task migrate:down -- <target>)'
+    cmds:
+      - uv run alembic downgrade {{.CLI_ARGS | default "-1"}}
 
   dev:
     desc: Run API (:8000) and web (:5173) together

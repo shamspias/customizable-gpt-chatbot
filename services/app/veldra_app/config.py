@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Deterministic default tenant id (matches deploy/migrations/0001_init.sql).
+# Deterministic default tenant id (matches deploy/alembic/versions/0001_initial.py).
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
 

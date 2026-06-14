@@ -115,7 +115,7 @@ async def ingest_document(
                 "char_start": c.char_start,
                 "char_end": c.char_end,
                 "token_count": c.token_count,
-                "embedding": repo.vec_literal(emb),
+                "embedding": emb,  # list[float]; pgvector adapts it on insert
             }
             for i, (c, emb) in enumerate(zip(all_chunks, embeddings, strict=True))
         ]
