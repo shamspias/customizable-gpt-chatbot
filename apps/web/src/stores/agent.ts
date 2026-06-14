@@ -184,8 +184,17 @@ export const useAgentStore = defineStore("agent", () => {
   async function listKbs() {
     kbs.value = await getJson("/api/kb");
   }
-  async function createKb(name: string) {
-    await postJson("/api/kb", { name });
+  async function createKb(name: string, config: Record<string, any> = {}) {
+    await postJson("/api/kb", { name, ...config });
+    await listKbs();
+  }
+  async function updateKb(id: string, fields: Record<string, any>) {
+    const r = await fetch(`/api/kb/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!r.ok) throw new Error(await r.text());
     await listKbs();
   }
   async function deleteKb(id: string) {
@@ -226,6 +235,6 @@ export const useAgentStore = defineStore("agent", () => {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
-    listAgents, loadAgent, listKbs, createKb, deleteKb, selectKb, uploadToKb, deleteDoc,
+    listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
   };
 });
