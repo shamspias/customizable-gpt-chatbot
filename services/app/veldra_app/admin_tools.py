@@ -265,14 +265,20 @@ async def _create_agent(args: dict, ctx: ToolContext) -> ToolResult:
         run_id = await _repo.create_run(s, ctx.tenant_id, "build", {"request": request})
         await s.commit()
     name = None
-    async for ev in build_agent(request, ctx.tenant_id, run_id):
-        if ev["event"] == "spec":
-            name = json.loads(ev["data"]).get("spec", {}).get("name")
-    async with sm() as s:
-        await _repo.finish_run(s, run_id, "done")
-        await s.commit()
+    try:
+        async for ev in build_agent(request, ctx.tenant_id, run_id):
+            if ev["event"] == "spec":
+                name = json.loads(ev["data"]).get("spec", {}).get("name")
+        async with sm() as s:  # no spec yielded = a failed build → 'error', not 'done'
+            await _repo.finish_run(s, run_id, "done" if name else "error")
+            await s.commit()
+    except Exception as exc:  # never leak a stuck 'running' run
+        async with sm() as s:
+            await _repo.finish_run(s, run_id, "error", error=str(exc))
+            await s.commit()
+        return ToolResult(content=f"Build failed: {exc}", is_error=True)
     msg = f"Built agent '{name}'." if name else "Could not build a valid agent."
-    return ToolResult(content=msg)
+    return ToolResult(content=msg, is_error=not name)
 
 
 def build_admin_tools() -> list[Tool]:
