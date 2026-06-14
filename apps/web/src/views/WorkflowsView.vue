@@ -52,15 +52,29 @@ async function openBuilder(id: string) {
   await store.loadAgent(id);
   store.showBuilder = true;
 }
+function newAgent() {
+  store.agentId = null;
+  store.spec = null;
+  store.messages = [] as any;
+  store.view = "studio";
+}
 </script>
 
 <template>
   <div class="wf">
     <div class="head">
-      <h2>Agents &amp; Workflows</h2>
+      <div class="htext">
+        <h2>Agents
+          <span v-if="store.agents.length" class="count">{{ store.agents.length }}</span>
+        </h2>
+        <p>Every agent you've built — chat with one, reshape it in the builder, or export its spec.</p>
+      </div>
       <div class="grow" />
       <button class="ghost sm" @click="store.listAgents(filterTag); store.loadAgentTags()">
         <Icon name="refresh" :size="15" />Refresh
+      </button>
+      <button class="sm" @click="newAgent">
+        <Icon name="plus" :size="15" />New agent
       </button>
     </div>
 
@@ -90,7 +104,7 @@ async function openBuilder(id: string) {
           <template v-if="editingTags === a.id">
             <input v-model="tagDraft" class="taginput" placeholder="tag1, tag2"
                    @keyup.enter="saveTags(a.id)" @keyup.esc="editingTags = null" />
-            <button class="iconbtn" title="Save tags" @click="saveTags(a.id)"><Icon name="check" :size="14" /></button>
+            <button class="iconbtn" aria-label="Save tags" title="Save tags" @click="saveTags(a.id)"><Icon name="check" :size="14" /></button>
           </template>
           <template v-else>
             <span v-for="t in (a.tags || [])" :key="t" class="tag">{{ t }}</span>
@@ -102,7 +116,7 @@ async function openBuilder(id: string) {
         <div class="actions">
           <button class="ghost sm" @click="store.loadAgent(a.id)"><Icon name="sparkles" :size="14" />Chat</button>
           <button class="ghost sm" @click="openBuilder(a.id)"><Icon name="workflow" :size="14" />Builder</button>
-          <button class="ghost sm icononly" title="Export spec JSON" @click="store.exportAgent(a.id)"><Icon name="save" :size="14" /></button>
+          <button class="ghost sm icononly" aria-label="Export spec JSON" title="Export spec JSON" @click="store.exportAgent(a.id)"><Icon name="save" :size="14" /></button>
         </div>
       </div>
     </div>
@@ -118,8 +132,10 @@ async function openBuilder(id: string) {
 
 <style scoped>
 .wf { flex: 1; background: var(--bg); padding: 22px; overflow: auto; }
-.head { display: flex; align-items: center; margin-bottom: 14px; }
-.head h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+.head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.htext h2 { margin: 0; font-size: 20px; letter-spacing: -0.015em; display: flex; align-items: center; gap: 9px; }
+.htext .count { font-size: 12px; font-weight: 650; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 9px; }
+.htext p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
 .head .grow { flex: 1; }
 .filters { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
 .chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 5px 13px; font-size: 12.5px; box-shadow: none; }
@@ -130,15 +146,18 @@ async function openBuilder(id: string) {
 .bulkbar .grow { flex: 1; }
 .danger { background: var(--danger); color: #fff; border: none; box-shadow: none; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 13px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; display: flex; flex-direction: column; gap: 11px; transition: transform 0.12s, border-color 0.15s, box-shadow 0.15s; }
-.card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; display: flex; flex-direction: column; gap: 11px; transition: transform 0.12s, border-color 0.15s, box-shadow 0.15s; overflow: hidden; }
+.card::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); opacity: 0; transition: opacity 0.15s; }
+.card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-2px); }
+.card:hover::before { opacity: 1; }
 .card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-ring); }
+.card.sel::before { opacity: 1; }
 .top { display: flex; align-items: center; gap: 11px; }
 .cb { width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
 .avatar { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 11px; color: var(--accent); background: var(--accent-soft); }
 .meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .meta strong { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ver { font-size: 11.5px; color: var(--faint); }
+.ver { font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; align-self: flex-start; }
 .tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 22px; }
 .tag { font-size: 11px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 1px 9px; }
 .addtag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: none; border: 1px dashed var(--border-strong); color: var(--faint); box-shadow: none; display: inline-flex; align-items: center; gap: 3px; }
@@ -151,5 +170,11 @@ async function openBuilder(id: string) {
 .empty { margin: 70px auto; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .empty .halo { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 18px; color: var(--accent); background: var(--accent-soft); }
 .empty p { margin: 0; }
-@media (max-width: 640px) { .wf { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .wf { padding: 16px; }
+  .grid { grid-template-columns: 1fr; }
+  .head { flex-wrap: wrap; }
+  .htext { flex: 1 1 100%; }
+  .head .grow { display: none; }  /* let the action buttons sit right under the wrapped header */
+}
 </style>

@@ -90,16 +90,26 @@
 }
 
 /* ── accent presets (user-selectable). A preset sets only accent + accent-strong. ── */
+/* indigo is also the :root default (applyTheme drops data-accent for it); declared
+   explicitly too so an explicit data-accent="indigo" stays correct. */
+:root[data-accent="indigo"]  { --accent: #88a0ff; --accent-strong: #5566ef; }
 :root[data-accent="violet"]  { --accent: #b794ff; --accent-strong: #7c3aed; }
 :root[data-accent="emerald"] { --accent: #34d399; --accent-strong: #0d9f6e; }
 :root[data-accent="amber"]   { --accent: #fbbf24; --accent-strong: #b45309; }
 :root[data-accent="rose"]    { --accent: #fb7185; --accent-strong: #e11d48; }
 :root[data-accent="cyan"]    { --accent: #22d3ee; --accent-strong: #0e7490; }
 :root[data-accent="slate"]   { --accent: #94a3b8; --accent-strong: #475569; }
-/* On light backgrounds the bright accent is too low-contrast as text → use the fill. */
-:root[data-theme="light"] { --accent: var(--accent-strong); }
+/* On light backgrounds the bright accent is too low-contrast as text → use the fill, and
+   deepen the soft fill (16%→24%) so accent-on-soft chips/nav clear WCAG AA. */
+:root[data-theme="light"] {
+  --accent: var(--accent-strong);
+  --accent-soft: color-mix(in srgb, var(--accent-strong) 24%, transparent);
+}
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]):not([data-theme="light"]) { --accent: var(--accent-strong); }
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --accent: var(--accent-strong);
+    --accent-soft: color-mix(in srgb, var(--accent-strong) 24%, transparent);
+  }
 }
 
 * { box-sizing: border-box; }
