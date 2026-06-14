@@ -22,7 +22,7 @@ function newAgent() {
 const COMMANDS = computed<Cmd[]>(() => [
   { id: "studio", label: "Go to Studio", hint: "Chat & build", icon: "sparkles", run: () => go("studio") },
   { id: "knowledge", label: "Go to Knowledge", hint: "Documents & retrieval", icon: "book", run: () => go("knowledge") },
-  { id: "agents", label: "Go to Agents", hint: "Your agents & teams", icon: "workflow", run: () => go("agents") },
+  { id: "workflows", label: "Go to Agents", hint: "Your agents & teams", icon: "workflow", run: () => go("workflows") },
   { id: "activity", label: "Go to Activity", hint: "Run logs & traces", icon: "activity", run: () => go("activity") },
   { id: "new", label: "New agent", hint: "Start a fresh build", icon: "plus", run: newAgent },
   { id: "company", label: "Set up agents for a company", hint: "Auto-build a team", icon: "layers", run: () => { newAgent(); } },
@@ -35,13 +35,18 @@ const filtered = computed(() => {
   return COMMANDS.value.filter((c) => (c.label + " " + (c.hint || "")).toLowerCase().includes(q));
 });
 
+let lastFocused: HTMLElement | null = null;
 function show() {
+  lastFocused = document.activeElement as HTMLElement | null;
   open.value = true;
   query.value = "";
   active.value = 0;
   nextTick(() => inputEl.value?.focus());
 }
-function hide() { open.value = false; }
+function hide() {
+  open.value = false;
+  lastFocused?.focus?.();  // restore focus to the trigger
+}
 function pick(c?: Cmd) {
   const cmd = c || filtered.value[active.value];
   if (!cmd) return;
@@ -70,14 +75,17 @@ defineExpose({ show });
 <template>
   <transition name="cp">
     <div v-if="open" class="cp-wrap" @click.self="hide">
-      <div class="cp">
+      <div class="cp" role="dialog" aria-modal="true" aria-label="Command palette">
         <div class="cp-search">
           <Icon name="search" :size="17" />
-          <input ref="inputEl" v-model="query" placeholder="Type a command or search…" />
+          <input ref="inputEl" v-model="query" aria-label="Search commands"
+                 role="combobox" aria-expanded="true" aria-controls="cp-listbox"
+                 placeholder="Type a command or search…" />
           <kbd>esc</kbd>
         </div>
-        <div class="cp-list">
+        <div id="cp-listbox" class="cp-list" role="listbox" aria-label="Commands">
           <button v-for="(c, i) in filtered" :key="c.id" class="cp-item" :class="{ on: i === active }"
+                  role="option" :aria-selected="i === active"
                   @mousemove="active = i" @click="pick(c)">
             <span class="cp-ic"><Icon :name="c.icon" :size="16" /></span>
             <span class="cp-lbl">{{ c.label }}</span>

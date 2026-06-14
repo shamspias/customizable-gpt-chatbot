@@ -10,11 +10,12 @@
   --border-strong: #323a46;
   --ink: #e8ebf1;
   --muted: #9aa3b2;
-  --faint: #69727f;
-  --accent: #6e8bff;
-  --accent-2: #6e8bff;
-  --accent-grad: #6e8bff;            /* solid — no flashy multi-stop gradient */
-  --accent-soft: rgba(110, 139, 255, 0.13);
+  --faint: #828b99;                  /* AA-contrast on dark surfaces */
+  --accent: #88a0ff;                 /* bright enough for accent TEXT on dark */
+  --accent-2: #88a0ff;
+  --accent-strong: #5566ef;          /* darker — for FILLED surfaces under white text (AA) */
+  --accent-grad: var(--accent-strong);
+  --accent-soft: rgba(110, 139, 255, 0.14);
   --accent-ring: rgba(110, 139, 255, 0.32);
   --accent-glow: none;
   --ok: #46c08a;
@@ -56,10 +57,11 @@
     --border-strong: #d3d7e0;
     --ink: #14171d;
     --muted: #5b6472;
-    --faint: #8b93a1;
+    --faint: #6b7280;
     --accent: #4f5dd6;
     --accent-2: #4f5dd6;
-    --accent-grad: #4f5dd6;
+    --accent-strong: #4a57cf;
+    --accent-grad: var(--accent-strong);
     --accent-soft: rgba(79, 93, 214, 0.09);
     --accent-ring: rgba(79, 93, 214, 0.26);
     --ok: #1f9d63;
@@ -91,7 +93,7 @@ body {
 
 button {
   font: inherit; font-weight: 550; padding: 8px 14px; border-radius: var(--radius-sm);
-  border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
+  border: 1px solid transparent; background: var(--accent-strong); color: #fff; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   transition: filter 0.14s ease, transform 0.05s ease, border-color 0.14s, background 0.14s;
 }
