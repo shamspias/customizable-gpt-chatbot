@@ -60,6 +60,28 @@ def lint_spec(spec: AgentSpec, catalog: dict) -> list[str]:
                 errors.append(f"workflow edge target '{e.target}' is not a node id")
         if any(n.type == "kb_search" for n in g.nodes) and not spec.knowledge_bases:
             errors.append("workflow uses kb_search but no knowledge base is attached")
+        # Per-node integrity for the rich node set (guides the repair loop).
+        outgoing = {e.source for e in g.edges}
+        for n in g.nodes:
+            c = n.config
+            branches = {e.when for e in g.edges if e.source == n.id}
+            if n.type == "tool" and c.tool not in allowed:
+                errors.append(
+                    f"workflow node '{n.id}' uses tool '{c.tool}' — choose from {sorted(allowed)}"
+                )
+            if n.type == "classifier":
+                if not c.classes:
+                    errors.append(f"classifier node '{n.id}' must list `classes`")
+                else:
+                    missing = [cl for cl in c.classes if cl not in branches]
+                    if missing:
+                        errors.append(
+                            f"classifier '{n.id}' needs an edge with when=<class> for each of {missing}"
+                        )
+            if n.type in ("if_else", "condition") and not c.var:
+                errors.append(f"{n.type} node '{n.id}' must set `var` (the variable to test)")
+            if n.type != "end" and n.id not in outgoing:
+                errors.append(f"node '{n.id}' has no outgoing edge (dead end before 'end')")
     return errors
 
 

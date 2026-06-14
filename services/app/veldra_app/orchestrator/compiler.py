@@ -25,8 +25,13 @@ MAX_REPAIR_ATTEMPTS = 3
 COMPILE_MAX_TOKENS = 4096
 
 SYSTEM_TEMPLATE = """\
-You are Veldra's orchestrator — an expert agent architect. Given a user's request \
-in natural language, design ONE working agent by producing an AgentSpec.
+You are Veldra's orchestrator — an expert agent architect. The user describes, in \
+plain language, a real business need (e.g. "an agro farm needs a sales agent and an \
+info agent", "a B2B SaaS support assistant that triages tickets"). UNDERSTAND THE \
+DOMAIN and design what a competent operator in that domain would actually want: a \
+sharp policy, the right tools, a knowledge base when answers depend on the user's \
+documents, a TEAM when distinct roles are implied, and a deterministic WORKFLOW when \
+the task is a routing/decision process. Produce ONE AgentSpec.
 
 Tools you may grant the agent (use these EXACT logical names — do not invent others):
 {tool_lines}
@@ -37,46 +42,88 @@ Knowledge base available in this workspace:
 Existing agents you may delegate to (build a team via `sub_agents`):
 {agent_lines}
 
-Design rules:
-- Write a clear, production-quality `system_prompt` (the agent's policy/persona/\
-instructions): what it does, its tone, how it uses tools, and how it cites sources.
-- Grant a tool by adding {{"name": "<exact catalog name>", "permission_mode": "auto"}} to \
-`tools` — copy the name VERBATIM from the list above (e.g. "kb.search", "math.eval"). If \
-answering depends on the user's uploaded documents, grant "kb.search" and put "{kb_id}" \
-in `knowledge_bases`. If the task needs no tools/documents, leave `tools` empty.
-- Never invent a tool name that is not in the catalog above.
-- Set `model` to "{default_model}". Set `effort` to "high" unless the task is simple.
-- `thinking_method`: "react" for tool-using agents, "plan_execute" for multi-step \
-planning agents.
-- To build a coordinator that delegates to a TEAM, list existing agent names (only \
-from the list above) in `sub_agents`; the coordinator can then call each as a tool. \
-Leave `sub_agents` empty for a standalone agent.
-- For a deterministic multi-step PIPELINE/WORKFLOW (e.g. "search the docs, then \
-summarize, then ..."), set `workflow_graph`: `nodes` with types start / kb_search / \
-llm / condition / end, and `edges` connecting them start→…→end (each edge {{source, \
-target}}; condition edges add when:"true"/"false"). In templates use {{input}} for the \
-user's message and {{context}} for kb_search output. Otherwise leave `workflow_graph` \
-null and rely on tools.
-- Set sensible `guardrails` (max_steps between 1 and 64). Keep `name` short and descriptive.
-
+Agent design:
+- `system_prompt`: a production-quality policy/persona — what the agent does, its \
+tone, domain-specific rules, how it uses its tools, and how it cites sources.
+- Grant a tool with {{"name": "<exact catalog name>", "permission_mode": "auto"}} — copy \
+the name VERBATIM (e.g. "kb.search", "math.eval"). If answering depends on the user's \
+uploaded documents, grant "kb.search" and put "{kb_id}" in `knowledge_bases`. Never \
+invent a tool name. Leave `tools` empty if none are needed.
+- `model` = "{default_model}"; `effort` = "high" unless trivial; `thinking_method` = \
+"react" for tool-using agents, "plan_execute" for multi-step planners.
+- TEAM: to coordinate DISTINCT ROLES, list existing agent names (only from the list \
+above) in `sub_agents`; the coordinator calls each as a tool. Empty for a standalone agent.
+- `guardrails.max_steps` 1..64. Keep `name` short and descriptive.
+{workflow_guide}
 Return only the AgentSpec."""
 
+# Appended only when a workflow is wanted — keeps simple builds lean and avoids
+# small models over-filling a graph they don't need.
+WORKFLOW_GUIDE = """
+WORKFLOW — set `workflow_graph` when the task is a deterministic routing/decision \
+process. Each node has a unique `id`, a `type`, and `config`; `edges` connect \
+{source,target} and branch edges add `when`. Variables flow via {var} templates \
+({input} = the user's message; each node writes its `config.output_var`). Node types:
+- start / end — entry / exit (end returns config.output_var, default "output").
+- llm — config.prompt (template); writes config.output_var.
+- kb_search — config.query (default "{input}"), config.k; writes "context".
+- if_else — branch on config.var with config.op (eq/ne/gt/lt/gte/lte/contains/
+  not_contains/regex/empty) vs config.value; edges use when:"true"/"false".
+- classifier — config.classes (list) + config.prompt; routes to the edge whose
+  `when` equals the chosen class.
+- tool — config.tool (catalog name) + config.inputs [{name,value}]; writes output_var.
+- code — config.code: a SAFE expression over variables (e.g. "len(input)",
+  "price*qty", "input.lower()"); writes output_var.
+- template — config.template text over {vars}. aggregator — merges config.inputs.
+"""
 
-def _system_prompt(catalog: dict) -> str:
+WORKFLOW_EXAMPLE = """
+Example — "agro farm: route buyers to sales, questions to an info desk":
+{
+ "nodes": [
+  {"id":"start","type":"start"},
+  {"id":"route","type":"classifier","config":{"var":"input","prompt":"Is this a buying inquiry or a general question?","classes":["sales","info"]}},
+  {"id":"sales","type":"llm","config":{"prompt":"You are a sales rep for an agro farm. Respond to: {input}","output_var":"output"}},
+  {"id":"lookup","type":"kb_search","config":{"query":"{input}","output_var":"context"}},
+  {"id":"answer","type":"llm","config":{"prompt":"Answer using these notes:\\n{context}\\n\\nQuestion: {input}","output_var":"output"}},
+  {"id":"end","type":"end","config":{"output_var":"output"}}
+ ],
+ "edges": [
+  {"source":"start","target":"route"},
+  {"source":"route","target":"sales","when":"sales"},
+  {"source":"route","target":"lookup","when":"info"},
+  {"source":"sales","target":"end"},
+  {"source":"lookup","target":"answer"},
+  {"source":"answer","target":"end"}
+ ],
+ "entrypoint": "start"
+}
+"""
+
+
+def _system_prompt(catalog: dict, include_workflow: bool = False) -> str:
     tool_lines = "\n".join(f'- {t["name"]}: {t["description"]}' for t in catalog["tools"])
     agents = catalog.get("agents", [])
     agent_lines = "\n".join(f"- {a}" for a in agents) if agents else "- (none yet)"
+    guide = (WORKFLOW_GUIDE + WORKFLOW_EXAMPLE) if include_workflow else ""
     return SYSTEM_TEMPLATE.format(
         tool_lines=tool_lines,
         kb_id=catalog["kb_id"],
         kb_name=catalog["kb_name"],
         agent_lines=agent_lines,
         default_model=get_provider().default_model,
+        workflow_guide=guide,
     )
 
 
-WORKFLOW_KEYWORDS = ("workflow", "pipeline", "multi-step", "multistep", "step by step",
-                     "step-by-step", "first ", "then ", "stage")
+# Intent signals that a deterministic routing/decision workflow is wanted — not just
+# the literal word "workflow" but the shape of a business process.
+WORKFLOW_KEYWORDS = (
+    "workflow", "pipeline", "multi-step", "multistep", "step by step", "step-by-step",
+    "first ", "then ", "stage", "route", "routing", "triage", "classify", "categorize",
+    "if ", "when ", "based on", "depending on", "escalate", "branch", "decision",
+    "qualify", "otherwise", "flow",
+)
 
 
 def wants_workflow(text: str) -> bool:
@@ -153,12 +200,13 @@ async def build_agent(nl_request: str, tenant_id: str, run_id: str) -> AsyncIter
     with tracer.start_as_current_span("orchestrator.build"):
         yield status("planning")
         catalog = await build_catalog(tenant_id)
-        system = _system_prompt(catalog)
+        want_wf = wants_workflow(nl_request)
+        system = _system_prompt(catalog, include_workflow=want_wf)
 
         yield status("designing")
         spec, errors = await compile_with_repair(
             system, [{"role": "user", "content": nl_request}], catalog,
-            include_workflow=wants_workflow(nl_request),
+            include_workflow=want_wf,
             include_team=bool(catalog.get("agents")),
         )
         if spec is None:
