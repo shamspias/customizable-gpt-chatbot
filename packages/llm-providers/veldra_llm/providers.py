@@ -83,6 +83,29 @@ def prepare_json_schema(schema: dict) -> dict:
     return _strip(_deref(schema))
 
 
+_RETRY_STATUS = {429, 500, 502, 503, 504}
+
+
+async def _with_retries(call, attempts: int = 3, base: float = 0.5):
+    """Retry a coroutine factory on transient transport errors (timeouts, 5xx/429)."""
+    import asyncio
+
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            return await call()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code not in _RETRY_STATUS or i == attempts - 1:
+                raise
+            last = e
+        except (httpx.TimeoutException, httpx.TransportError) as e:
+            if i == attempts - 1:
+                raise
+            last = e
+        await asyncio.sleep(base * (2**i))
+    raise last  # pragma: no cover
+
+
 def salvage_json(text: str) -> dict | None:
     """Best-effort parse of model JSON: strip code fences, take the first balanced
     {...}, then json.loads. Small models often wrap JSON in prose/fences."""
@@ -337,10 +360,13 @@ class OllamaProvider(BaseProvider):
             "format": schema,  # Ollama constrains output to this JSON schema
             "options": {"num_predict": max_tokens, "temperature": 0},  # greedy: stable for tiny models
         }
-        async with httpx.AsyncClient(timeout=None) as client:
-            resp = await client.post(f"{self.base_url}/api/chat", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        async def _call():
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post(f"{self.base_url}/api/chat", json=payload)
+                r.raise_for_status()
+                return r.json()
+
+        data = await _with_retries(_call)
         return salvage_json((data.get("message") or {}).get("content", ""))
 
 
@@ -444,13 +470,16 @@ class OpenAICompatProvider(BaseProvider):
             "response_format": {"type": "json_schema",
                                 "json_schema": {"name": "Decision", "schema": schema, "strict": True}},
         }
-        async with httpx.AsyncClient(timeout=None) as client:
-            resp = await client.post(
-                f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
-            )
-            resp.raise_for_status()
-            content = (resp.json()["choices"][0]["message"].get("content")) or ""
-        return salvage_json(content)
+        async def _call():
+            async with httpx.AsyncClient(timeout=120) as client:
+                r = await client.post(
+                    f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
+                )
+                r.raise_for_status()
+                return r.json()
+
+        data = await _with_retries(_call)
+        return salvage_json((data["choices"][0]["message"].get("content")) or "")
 
 
 @functools.lru_cache

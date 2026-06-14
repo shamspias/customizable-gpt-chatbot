@@ -49,6 +49,11 @@ tasks:
     cmds:
       - uv run python -m evals.nl_to_spec.run
 
+  eval:loop:
+    desc: Decision-loop reliability suite (needs the API on :8000 + Ollama running)
+    cmds:
+      - uv run python -m evals.decision_loop.run
+
   cli:
     desc: 'Run the veldra CLI, e.g. `task cli -- build "answer from my docs"`'
     cmds:

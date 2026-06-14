@@ -116,8 +116,17 @@ fills exactly that tool's args via structured output (with goal-aware prompting,
 required-field fallback, a no-progress breaker, bounded repair, and graceful step-limit
 fallback). The final answer is a separate, streamed, *grounded* composition ("answer
 only from the observations; if absent, say so"). Claude/large models keep native
-tool-calling. Force either with `VELDRA_AGENT_MODE=decision|native`. Verified driving a
-correct, cited RAG answer on `qwen3.5:0.8b`.
+tool-calling. Force either with `VELDRA_AGENT_MODE=decision|native`.
+
+The two-phase loop is hardened from *probed* tiny-model behaviour (Ollama's `format`
+does **not** strictly enforce `required`/`additionalProperties`): the arg-fill phase is
+driven by a clean, example-driven instruction naming the exact fields, keys outside the
+schema are dropped, blank required fields fall back only for free-text fields (never
+poisoning a typed one like `expression`), and a RAG agent is forced to search its KB
+before answering. A repeatable suite measures this — `task eval:loop` (or
+`python -m evals.decision_loop.run`) seeds controlled tool-specs and asserts, on
+`qwen3.5:0.8b`: 100% answered, **0 hallucinated tools**, each tool called once with
+non-empty args, and RAG answers cited.
 
 > **Tiny-model caveat:** a sub-1B model (like `qwen3.5:0.8b`) emits schema-valid
 > output via constrained decoding and *can* call tools, but it designs weak specs
@@ -134,7 +143,7 @@ services/app/    one FastAPI process: edge (REST+SSE) · orchestrator · runtime
 packages/        spec-schema · llm-providers · mcp-client · mcp-servers · thinking-methods
 cli/             thin Typer client (veldra kb add | build | ask | agents | selfmod)
 deploy/          docker-compose (postgres+pgvector, redis, minio) + SQL migrations
-evals/           NL→spec golden accuracy suite
+evals/           nl_to_spec golden accuracy · decision_loop reliability suite
 docs/            ARCHITECTURE.md — full design + phased roadmap
 ```
 
