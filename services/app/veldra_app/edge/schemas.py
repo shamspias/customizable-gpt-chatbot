@@ -47,6 +47,7 @@ class KbCreateRequest(BaseModel):
     )
     embedding_model: str | None = Field(default=None, description="'provider:model' or null.")
     rerank_model: str | None = Field(default=None, description="'provider:model' or null=none.")
+    vector_store: str | None = Field(default=None, description="pgvector | qdrant.")
     page_index_enabled: bool | None = None
 
 
@@ -56,6 +57,7 @@ class KbUpdateRequest(BaseModel):
     retrieval_mode: str | None = None
     embedding_model: str | None = None
     rerank_model: str | None = None
+    vector_store: str | None = None
     page_index_enabled: bool | None = None
 
 

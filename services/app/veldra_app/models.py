@@ -128,6 +128,9 @@ class KnowledgeBase(Base):
     )
     embedding_model: Mapped[str | None] = mapped_column(Text)  # "provider:model" or null = global
     rerank_model: Mapped[str | None] = mapped_column(Text)  # "provider:model" or null = none
+    vector_store: Mapped[str] = mapped_column(  # pgvector | qdrant
+        Text, nullable=False, server_default=text("'pgvector'")
+    )
     page_index_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
     )

@@ -38,7 +38,7 @@ def _rrf(*ranked_lists: list[dict]) -> list[dict]:
 
 
 _DEFAULT_CFG = {"retrieval_mode": "hybrid", "embedding_model": None,
-                "rerank_model": None, "page_index_enabled": True}
+                "rerank_model": None, "page_index_enabled": True, "vector_store": None}
 
 
 async def _kb_configs(kb_ids: list[str], tenant_id: str) -> list[dict]:
@@ -74,6 +74,7 @@ async def search(
     if mode not in VALID_MODES:
         mode = "hybrid"
     rerank_model = gov.get("rerank_model")
+    store = get_vector_store(gov.get("vector_store"))  # governing KB's vector backend
     # Over-fetch when a second stage (RRF or rerank) will re-order the candidates.
     fetch = k * 4 if (mode == "hybrid" or reranker.is_configured(rerank_model)) else k
 
@@ -85,7 +86,7 @@ async def search(
         # never compare a query vector against chunks from a different embedding space.
         for model, group_kbs in _group_by_model(cfgs, kb_ids).items():
             emb = await embed_query(query, embed_config(model))
-            vec_hits = await get_vector_store().query(emb, group_kbs, tenant_id, n=fetch)
+            vec_hits = await store.query(emb, group_kbs, tenant_id, n=fetch)
             async with sm() as session:
                 rows = await repo.get_chunks_by_ids(session, [cid for cid, _ in vec_hits])
             by_id = {str(r["id"]): r for r in rows}

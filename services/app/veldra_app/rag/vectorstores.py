@@ -99,8 +99,10 @@ class QdrantStore:
 
 
 @functools.lru_cache
-def get_vector_store() -> VectorStore:
-    kind = os.getenv("VELDRA_VECTOR_STORE", "pgvector").lower()
+def get_vector_store(kind: str | None = None) -> VectorStore:
+    """Resolve a vector store. `kind` (per-KB) overrides the VELDRA_VECTOR_STORE default.
+    Cached per kind so each backend is built once."""
+    kind = (kind or os.getenv("VELDRA_VECTOR_STORE", "pgvector")).lower()
     if kind == "qdrant":
         s = get_settings()
         return QdrantStore(

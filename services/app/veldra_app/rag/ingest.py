@@ -88,14 +88,15 @@ async def ingest_document(
         kb = await repo.get_kb(session, kb_id) or {}
         doc_id = await repo.create_document(session, kb_id, tenant_id, filename, content_type, s3_key)
         await session.commit()
-    # Per-KB embedding model + page-index toggle govern this ingest.
+    # Per-KB embedding model + page-index toggle + vector store govern this ingest.
     kb_embed_model = kb.get("embedding_model")
     build_page_index = kb.get("page_index_enabled", True)
+    kb_vector_store = kb.get("vector_store")
 
     try:
         pages = _parse_pages(data, filename, content_type)
         n = await _embed_and_store(
-            doc_id, kb_id, tenant_id, pages, kb_embed_model, build_page_index
+            doc_id, kb_id, tenant_id, pages, kb_embed_model, build_page_index, kb_vector_store
         )
         return IngestResult(doc_id, kb_id, filename, len(pages), n)
     except Exception as exc:
@@ -145,6 +146,7 @@ async def _prepare(
 async def _embed_and_store(
     doc_id: str, kb_id: str, tenant_id: str,
     pages: list[tuple[int, str]], kb_embed_model: str | None, build_page_index: bool,
+    vector_store: str | None = None,
 ) -> int:
     """Embed then atomically persist a document's index (create or re-ingest)."""
     page_rows, chunk_rows, ids, embeddings, source_text = await _prepare(
@@ -162,7 +164,7 @@ async def _embed_and_store(
     if chunk_rows:
         from veldra_app.rag.vectorstores import get_vector_store
 
-        await get_vector_store().upsert(
+        await get_vector_store(vector_store).upsert(
             [{"id": ids[i], "embedding": embeddings[i], "kb_id": kb_id, "tenant_id": tenant_id}
              for i in range(len(ids))]
         )
@@ -180,7 +182,7 @@ async def reingest_text(doc_id: str, text: str, tenant_id: str = DEFAULT_TENANT_
     try:
         n = await _embed_and_store(
             doc_id, doc["kb_id"], tenant_id, [(1, text)],
-            kb.get("embedding_model"), kb.get("page_index_enabled", True),
+            kb.get("embedding_model"), kb.get("page_index_enabled", True), kb.get("vector_store"),
         )
         return IngestResult(doc_id, doc["kb_id"], doc["filename"], 1, n)
     except Exception as exc:

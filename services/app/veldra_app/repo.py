@@ -61,19 +61,17 @@ async def get_or_create_kb(session: AsyncSession, tenant_id: str, name: str = "d
 _KB_COLS = (
     KnowledgeBase.id, KnowledgeBase.name, KnowledgeBase.description,
     KnowledgeBase.retrieval_mode, KnowledgeBase.embedding_model,
-    KnowledgeBase.rerank_model, KnowledgeBase.page_index_enabled,
-    KnowledgeBase.created_at,
+    KnowledgeBase.rerank_model, KnowledgeBase.vector_store,
+    KnowledgeBase.page_index_enabled, KnowledgeBase.created_at,
 )
+_KB_CONFIG_FIELDS = {"description", "retrieval_mode", "embedding_model",
+                     "rerank_model", "vector_store", "page_index_enabled"}
 
 
 async def create_kb(
     session: AsyncSession, tenant_id: str, name: str, **config: Any
 ) -> str:
-    allowed = {
-        k: v for k, v in config.items()
-        if k in {"description", "retrieval_mode", "embedding_model",
-                 "rerank_model", "page_index_enabled"} and v is not None
-    }
+    allowed = {k: v for k, v in config.items() if k in _KB_CONFIG_FIELDS and v is not None}
     return str(
         await session.scalar(
             insert(KnowledgeBase)
@@ -96,8 +94,7 @@ async def update_kb(session: AsyncSession, kb_id: str, **fields: Any) -> None:
         return
     allowed = {
         k: v for k, v in fields.items()
-        if k in {"name", "description", "retrieval_mode", "embedding_model",
-                 "rerank_model", "page_index_enabled"} and v is not None
+        if k in (_KB_CONFIG_FIELDS | {"name"}) and v is not None
     }
     if allowed:
         await session.execute(

@@ -27,6 +27,7 @@ watch(selected, (k) => {
         retrieval_mode: k.retrieval_mode || "hybrid",
         embedding_model: k.embedding_model || "",
         rerank_model: k.rerank_model || "",
+        vector_store: k.vector_store || "pgvector",
         page_index_enabled: k.page_index_enabled ?? true,
       }
     : {};
@@ -157,6 +158,17 @@ async function saveConfig() {
               <input v-model="form.rerank_model" placeholder="cohere:rerank-3.5 / local:BAAI/bge-reranker-base (blank = off)" @input="touch" />
               <small class="muted">Optional second-stage precision. Off by default.</small>
             </label>
+          </div>
+
+          <div class="field">
+            <span>Vector storage</span>
+            <div class="seg">
+              <button :class="{ on: form.vector_store === 'pgvector' }"
+                      title="Postgres + pgvector (built-in)" @click="form.vector_store = 'pgvector'; touch()">pgvector</button>
+              <button :class="{ on: form.vector_store === 'qdrant' }"
+                      title="Qdrant (needs the qdrant service)" @click="form.vector_store = 'qdrant'; touch()">Qdrant</button>
+            </div>
+            <small class="muted">Where this KB's vectors live. Qdrant needs the qdrant service running.</small>
           </div>
 
           <label class="toggle" @click="form.page_index_enabled = !form.page_index_enabled; touch()">
