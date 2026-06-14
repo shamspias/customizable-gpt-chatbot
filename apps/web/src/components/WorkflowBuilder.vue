@@ -140,8 +140,8 @@ function toGraph() {
         <h3>Workflow builder</h3>
         <span class="muted">{{ store.spec?.name }}</span>
         <div class="grow" />
-        <button class="ghost sm" :disabled="!selectedId" @click="removeSelected"><Icon name="trash" :size="14" /><span class="hide-xs">Delete</span></button>
-        <button class="ghost sm" @click="store.showBuilder = false"><Icon name="x" :size="14" /><span class="hide-xs">Close</span></button>
+        <button class="ghost sm" aria-label="Delete node" title="Delete node" :disabled="!selectedId" @click="removeSelected"><Icon name="trash" :size="14" /><span class="hide-xs">Delete</span></button>
+        <button class="ghost sm" aria-label="Close" title="Close" @click="store.showBuilder = false"><Icon name="x" :size="14" /><span class="hide-xs">Close</span></button>
         <button class="primary sm" :disabled="store.busy" @click="store.saveWorkflow(toGraph())"><Icon name="check" :size="14" />Save</button>
       </header>
 

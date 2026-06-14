@@ -118,7 +118,7 @@ watch(
         <div class="drawer">
           <div class="drawer-h">
             <strong>Agent spec</strong><div class="grow" />
-            <button class="ghost sm" @click="showSpec = false"><Icon name="x" :size="16" /></button>
+            <button class="ghost sm" aria-label="Close" title="Close" @click="showSpec = false"><Icon name="x" :size="16" /></button>
           </div>
           <SpecPanel />
         </div>

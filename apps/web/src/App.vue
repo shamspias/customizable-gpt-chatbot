@@ -108,7 +108,8 @@ const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Vel
   .app { flex-direction: column; }
   .sidebar { display: none; }
   .topbar { display: flex; position: sticky; top: 0; z-index: 20; }
-  .main { padding-bottom: 64px; }
+  /* spacer must include the safe-area inset the fixed tabbar reserves, else it overlaps content */
+  .main { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
   .tabbar {
     display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
     background: var(--bg-glass); backdrop-filter: blur(14px); border-top: 1px solid var(--border);
