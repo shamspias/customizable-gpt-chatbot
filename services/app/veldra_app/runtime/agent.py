@@ -86,10 +86,11 @@ async def run_agent(
     run_id: str,
     depth: int = 0,
     history: list[dict] | None = None,
+    registry=None,
 ) -> AsyncIterator[dict]:
     """Drive one agent turn-to-completion, yielding SSE event dicts."""
     provider = get_provider()
-    registry = get_registry()
+    registry = registry or get_registry()
     tracer = get_tracer()
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}

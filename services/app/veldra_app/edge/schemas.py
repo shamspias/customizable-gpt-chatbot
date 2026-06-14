@@ -64,6 +64,14 @@ class FeedbackRequest(BaseModel):
     note: str | None = None
 
 
+class IdsRequest(BaseModel):
+    ids: list[str] = Field(default_factory=list, description="Ids to act on (bulk).")
+
+
+class TagsRequest(BaseModel):
+    tags: list[str] = Field(default_factory=list, description="Tags for the agent.")
+
+
 class ReflectRequest(BaseModel):
     run_id: str = Field(description="The run to reflect on and learn from.")
 
@@ -80,6 +88,7 @@ class AgentSummary(BaseModel):
     id: str
     name: str
     current_version: int
+    tags: list[str] = Field(default_factory=list)
 
 
 class AgentDetail(BaseModel):

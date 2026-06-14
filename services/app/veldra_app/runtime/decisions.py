@@ -158,9 +158,10 @@ async def run_decision_agent(
     run_id: str,
     depth: int = 0,
     history: list[dict] | None = None,
+    registry=None,
 ) -> AsyncIterator[dict]:
     provider = get_provider()
-    registry = get_registry()
+    registry = registry or get_registry()
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}
     delegate_tools = {_wire(n): sub for n, sub in delegates.items()}

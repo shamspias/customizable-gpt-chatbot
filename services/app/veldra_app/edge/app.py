@@ -14,7 +14,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from sse_starlette.sse import EventSourceResponse
 from veldra_spec import AgentSpec
 
-from veldra_app import events, learning, repo
+from veldra_app import events, hermis, learning, repo
 from veldra_app.config import DEFAULT_TENANT_ID
 from veldra_app.db import get_sessionmaker
 from veldra_app.edge.schemas import (
@@ -24,11 +24,13 @@ from veldra_app.edge.schemas import (
     BuildRequest,
     DocEditRequest,
     FeedbackRequest,
+    IdsRequest,
     KbCreateRequest,
     KbUpdateRequest,
     ReflectRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
+    TagsRequest,
     UploadResponse,
     UrlIngestRequest,
     WorkflowSaveRequest,
@@ -154,6 +156,15 @@ async def edit_document(kb_id: str, doc_id: str, req: DocEditRequest) -> UploadR
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
     return _ingest_response(result)
+
+
+@router.post("/kb/{kb_id}/documents/delete")
+async def delete_documents(kb_id: str, req: IdsRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        n = await repo.delete_documents(s, kb_id, req.ids)
+        await s.commit()
+    return {"deleted": n}
 
 
 @router.delete("/kb/{kb_id}/documents/{doc_id}")
@@ -313,14 +324,40 @@ async def save_workflow(agent_id: str, req: WorkflowSaveRequest) -> dict:
 
 # ───────────────────────── read endpoints ─────────────────────────
 @router.get("/agents", response_model=list[AgentSummary])
-async def list_agents() -> list[AgentSummary]:
+async def list_agents(tag: str | None = None) -> list[AgentSummary]:
     sm = get_sessionmaker()
     async with sm() as s:
-        rows = await repo.list_agents(s, TENANT)
+        rows = await repo.list_agents(s, TENANT, tag=tag)
     return [
-        AgentSummary(id=str(r["id"]), name=r["name"], current_version=r["current_version"])
+        AgentSummary(id=str(r["id"]), name=r["name"], current_version=r["current_version"],
+                     tags=r.get("tags") or [])
         for r in rows
     ]
+
+
+@router.get("/agent-tags")
+async def list_agent_tags() -> list[str]:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        return await repo.list_agent_tags(s, TENANT)
+
+
+@router.put("/agents/{agent_id}/tags")
+async def set_agent_tags(agent_id: str, req: TagsRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        await repo.set_agent_tags(s, agent_id, req.tags)
+        await s.commit()
+    return {"ok": True, "tags": sorted({t.strip() for t in req.tags if t.strip()})}
+
+
+@router.post("/agents/delete")
+async def delete_agents(req: IdsRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        n = await repo.delete_agents(s, TENANT, req.ids)
+        await s.commit()
+    return {"deleted": n}
 
 
 @router.get("/agents/{agent_id}", response_model=AgentDetail)
@@ -355,6 +392,24 @@ async def get_run_steps(run_id: str) -> dict:
             raise HTTPException(404, "run not found")
         steps = await repo.get_run_steps(s, run_id)
     return {"run": run, "steps": steps}
+
+
+@router.delete("/runs/{run_id}")
+async def delete_run(run_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        n = await repo.delete_runs(s, TENANT, [run_id])
+        await s.commit()
+    return {"deleted": n}
+
+
+@router.post("/runs/delete")
+async def delete_runs(req: IdsRequest) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        n = await repo.delete_runs(s, TENANT, req.ids)
+        await s.commit()
+    return {"deleted": n}
 
 
 # ───────────────────────── learning (feedback → reflect → lessons) ─────────────────────────
@@ -392,3 +447,34 @@ async def agent_lessons(agent_id: str) -> list[dict]:
     sm = get_sessionmaker()
     async with sm() as s:
         return await repo.list_lessons(s, agent_id)
+
+
+# ───────────────────────── Hermis (floating admin bot) ─────────────────────────
+async def _hermis_stream(req: AskRequest) -> AsyncIterator[dict]:
+    sm = get_sessionmaker()
+    agent_id = await hermis.get_or_create_hermis(TENANT)
+    async with sm() as s:
+        run_id = await repo.create_run(
+            s, TENANT, "ask", {"message": req.message}, agent_id=agent_id
+        )
+        await s.commit()
+    yield events.ev("run", run_id=run_id)
+    answer: str | None = None
+    try:
+        async for event in hermis.run_hermis(req.message, TENANT, run_id, history=req.history):
+            if event["event"] == "done":
+                answer = json.loads(event["data"]).get("answer")
+            yield event
+        async with sm() as s:
+            await repo.finish_run(s, run_id, "done", result={"answer": answer})
+            await s.commit()
+    except Exception as exc:
+        yield events.error(str(exc))
+        async with sm() as s:
+            await repo.finish_run(s, run_id, "error", error=str(exc))
+            await s.commit()
+
+
+@router.post("/hermis/ask")
+async def hermis_ask(req: AskRequest):
+    return EventSourceResponse(_hermis_stream(req))

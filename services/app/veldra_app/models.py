@@ -87,6 +87,7 @@ class Agent(Base):
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     current_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    tags: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     created_at: Mapped[datetime] = _created_at()
 
     __table_args__ = (Index("agents_tenant_name_idx", "tenant_id", "name", unique=True),)

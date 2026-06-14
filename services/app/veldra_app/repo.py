@@ -263,7 +263,7 @@ async def get_agent(session: AsyncSession, agent_id: str) -> dict | None:
     if not is_uuid(agent_id):
         return None
     res = await session.execute(
-        select(Agent.id, Agent.tenant_id, Agent.name, Agent.current_version).where(
+        select(Agent.id, Agent.tenant_id, Agent.name, Agent.current_version, Agent.tags).where(
             Agent.id == agent_id
         )
     )
@@ -289,6 +289,20 @@ async def set_current_version(session: AsyncSession, agent_id: str, version: int
     await session.execute(
         update(Agent).where(Agent.id == agent_id).values(current_version=version)
     )
+
+
+async def rename_agent(session: AsyncSession, agent_id: str, new_name: str) -> None:
+    """Rename an agent: update the display name AND the current spec's name (new version)."""
+    if not is_uuid(agent_id):
+        return
+    new_name = new_name.strip()
+    spec = await get_spec(session, agent_id)
+    if spec is not None and spec.get("name") != new_name:
+        version = await insert_spec_version(
+            session, agent_id, {**spec, "name": new_name}, note="rename"
+        )
+        await set_current_version(session, agent_id, version)
+    await session.execute(update(Agent).where(Agent.id == agent_id).values(name=new_name))
 
 
 async def upsert_agent_spec(
@@ -336,13 +350,74 @@ async def get_spec(
     return spec if isinstance(spec, dict) else dict(spec)
 
 
-async def list_agents(session: AsyncSession, tenant_id: str) -> list[dict]:
-    res = await session.execute(
-        select(Agent.id, Agent.name, Agent.current_version, Agent.created_at)
+async def list_agents(
+    session: AsyncSession, tenant_id: str, tag: str | None = None
+) -> list[dict]:
+    stmt = (
+        select(Agent.id, Agent.name, Agent.current_version, Agent.tags, Agent.created_at)
         .where(Agent.tenant_id == tenant_id)
         .order_by(Agent.created_at.desc())
     )
+    if tag:
+        stmt = stmt.where(Agent.tags.contains([tag]))
+    res = await session.execute(stmt)
     return [dict(r) for r in res.mappings()]
+
+
+async def list_agent_tags(session: AsyncSession, tenant_id: str) -> list[str]:
+    """All distinct tags in use (for the filter UI)."""
+    res = await session.execute(select(Agent.tags).where(Agent.tenant_id == tenant_id))
+    seen: dict[str, None] = {}
+    for (tags,) in res.all():
+        for t in tags or []:
+            seen[t] = None
+    return sorted(seen)
+
+
+async def set_agent_tags(session: AsyncSession, agent_id: str, tags: list[str]) -> None:
+    if not is_uuid(agent_id):
+        return
+    clean = sorted({str(t).strip() for t in tags if str(t).strip()})
+    await session.execute(update(Agent).where(Agent.id == agent_id).values(tags=clean))
+
+
+async def delete_agents(session: AsyncSession, tenant_id: str, ids: list[str]) -> int:
+    """Bulk-delete agents, tenant-scoped. agent_specs + lessons cascade via FK, but
+    runs.agent_id has no cascade, so we drop dependent runs (and their steps) first."""
+    valid = [i for i in ids if is_uuid(i)]
+    if not valid:
+        return 0
+    run_ids = (
+        select(Run.id).where(Run.tenant_id == tenant_id, Run.agent_id.in_(valid)).scalar_subquery()
+    )
+    await session.execute(delete(RunStep).where(RunStep.run_id.in_(run_ids)))
+    await session.execute(delete(Run).where(Run.tenant_id == tenant_id, Run.agent_id.in_(valid)))
+    res = await session.execute(
+        delete(Agent).where(Agent.tenant_id == tenant_id, Agent.id.in_(valid))
+    )
+    return res.rowcount or 0
+
+
+async def delete_runs(session: AsyncSession, tenant_id: str, ids: list[str]) -> int:
+    """Bulk-delete activity-log runs (run_steps cascade via FK); tenant-scoped."""
+    valid = [i for i in ids if is_uuid(i)]
+    if not valid:
+        return 0
+    res = await session.execute(
+        delete(Run).where(Run.tenant_id == tenant_id, Run.id.in_(valid))
+    )
+    return res.rowcount or 0
+
+
+async def delete_documents(session: AsyncSession, kb_id: str, ids: list[str]) -> int:
+    """Bulk-delete documents in a KB (chunks/page_index cascade via FK)."""
+    valid = [i for i in ids if is_uuid(i)]
+    if not valid or not is_uuid(kb_id):
+        return 0
+    res = await session.execute(
+        delete(Document).where(Document.kb_id == kb_id, Document.id.in_(valid))
+    )
+    return res.rowcount or 0
 
 
 # ───────────────────────── runs / steps / audit ─────────────────────────
