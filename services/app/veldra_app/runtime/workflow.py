@@ -26,12 +26,12 @@ import re
 from collections.abc import AsyncIterator
 from typing import Any
 
-import httpx
 from veldra_llm import get_provider
-from veldra_mcp import ToolContext
+from veldra_mcp import ToolContext, safe_request
 from veldra_spec import AgentSpec
 
 from veldra_app.events import ev
+from veldra_app.pricing import UsageMeter
 from veldra_app.rag import search as rag_search
 from veldra_app.runtime.agent import _log_step
 from veldra_app.runtime.sandbox import SandboxError, safe_eval
@@ -134,6 +134,7 @@ async def run_workflow(
         edges_from.setdefault(e.source, []).append(e)
 
     pool: dict[str, Any] = {"input": user_input}
+    meter = UsageMeter()
     current = graph.entrypoint if graph.entrypoint in node_by_id else None
     if current is None:
         starts = [n.id for n in graph.nodes if n.type == "start"]
@@ -179,6 +180,7 @@ async def run_workflow(
                     yield ev("token", text=e2["text"])
                 elif e2["type"] == "final":
                     text = e2["turn"].text or text
+                    meter.add(e2["turn"].usage)
             _put(cfg, text)
 
         elif node.type == "condition":
@@ -217,13 +219,14 @@ async def run_workflow(
         elif node.type == "http":
             try:
                 headers = _inputs_named(cfg.headers, pool)
-                async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-                    r = await client.request(
-                        cfg.method, _tmpl(cfg.url, pool),
-                        headers=headers or None,
-                        content=_tmpl(cfg.body, pool) or None,
-                    )
-                _put(cfg, r.text[:HTTP_CAP])
+                # SSRF-safe: validates host + every redirect hop + peer IP.
+                r = await safe_request(
+                    cfg.method, _tmpl(cfg.url, pool),
+                    headers=headers or None,
+                    content=_tmpl(cfg.body, pool) or None,
+                    timeout=20, cap=HTTP_CAP,
+                )
+                _put(cfg, r.text)
             except Exception as exc:  # network/parse errors shouldn't kill the run
                 _put(cfg, f"(http error: {exc})")
 
@@ -245,6 +248,8 @@ async def run_workflow(
             answer = _stringify(pool.get(cfg.output_var or "output", pool.get("output", "")))
             ordinal += 1
             await _log_step(run_id, ordinal, "node", node.type, {"id": node.id})
+            if meter.has_data():
+                yield ev("usage", **meter.payload(spec.model))
             yield ev("done", answer=answer)
             return
 
@@ -252,6 +257,8 @@ async def run_workflow(
         await _log_step(run_id, ordinal, "node", node.type, {"id": node.id, "branch": branch})
         current = _next(edges_from, current, branch)
 
+    if meter.has_data():
+        yield ev("usage", **meter.payload(spec.model))
     yield ev("done", answer=_stringify(pool.get("output", "")))
 
 

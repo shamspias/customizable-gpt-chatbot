@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import CitationChips from "../components/CitationChips.vue";
 import Icon from "../components/Icon.vue";
 import SpecPanel from "../components/SpecPanel.vue";
+import UsageFooter from "../components/UsageFooter.vue";
 import { useAgentStore } from "../stores/agent";
 
 const store = useAgentStore();
@@ -117,6 +118,7 @@ watch(
             <div v-if="m.text" class="text">{{ m.text }}</div>
             <div v-else-if="m.role === 'assistant' && store.busy" class="typing"><span /><span /><span /></div>
             <CitationChips v-if="m.citations" :citations="m.citations" />
+            <UsageFooter v-if="m.usage" :usage="m.usage" />
           </div>
           <div v-if="m.role === 'assistant' && m.runId && !m.kind && m.text" class="rate">
             <template v-if="m.rated == null">

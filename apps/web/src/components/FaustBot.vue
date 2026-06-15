@@ -3,6 +3,7 @@ import { nextTick, ref, watch } from "vue";
 import { useAgentStore } from "../stores/agent";
 import FaustFace from "./FaustFace.vue";
 import Icon from "./Icon.vue";
+import UsageFooter from "./UsageFooter.vue";
 
 const store = useAgentStore();
 const input = ref("");
@@ -61,6 +62,7 @@ watch(
             <details v-if="m.thinking" class="thinking"><summary>thinking</summary><pre>{{ m.thinking }}</pre></details>
             <div v-if="m.text" class="text">{{ m.text }}</div>
             <div v-else-if="m.role === 'assistant' && store.faustBusy" class="typing"><span /><span /><span /></div>
+            <UsageFooter v-if="m.usage" :usage="m.usage" />
           </div>
           <div v-if="m.role === 'assistant' && m.runId && m.text" class="rate">
             <template v-if="m.rated == null">

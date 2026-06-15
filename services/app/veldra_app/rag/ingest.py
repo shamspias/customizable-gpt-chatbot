@@ -206,43 +206,12 @@ def _html_to_text(html: str) -> tuple[str, str]:
     return title, body
 
 
-def _guard_url(url: str) -> None:
-    """Block SSRF: only http(s), and refuse hosts that resolve to private/loopback/
-    link-local/reserved addresses (internal services, cloud metadata)."""
-    import ipaddress
-    import socket
-    from urllib.parse import urlparse
-
-    p = urlparse(url)
-    if p.scheme not in ("http", "https") or not p.hostname:
-        raise ValueError("only http(s) URLs are allowed")
-    try:
-        infos = socket.getaddrinfo(p.hostname, p.port or (443 if p.scheme == "https" else 80))
-    except socket.gaierror as e:
-        raise ValueError(f"cannot resolve host: {p.hostname}") from e
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                or ip.is_multicast or ip.is_unspecified):
-            raise ValueError("refusing to fetch a private/internal address")
-
+# SSRF guard + peer revalidation now live in the shared veldra_mcp.net module so the
+# http.fetch tool and the workflow `http` node share exactly this protection.
+from veldra_mcp import check_peer as _check_peer  # noqa: E402
+from veldra_mcp import guard_url as _guard_url  # noqa: E402
 
 URL_FETCH_CAP = 5_000_000  # 5 MB body cap — guards against memory-exhaustion / zip bombs
-
-
-def _check_peer(resp) -> None:
-    """Re-validate the IP actually connected to (closes the DNS-rebinding window)."""
-    import ipaddress
-
-    try:
-        stream = resp.extensions.get("network_stream")
-        addr = stream.get_extra_info("server_addr") if stream else None
-        ip = ipaddress.ip_address(addr[0]) if addr else None
-    except Exception:
-        ip = None
-    if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local
-                           or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-        raise ValueError("refusing to fetch a private/internal address")
 
 
 async def _fetch(client, url: str) -> str:

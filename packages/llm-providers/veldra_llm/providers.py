@@ -49,6 +49,9 @@ class Turn:
     tool_calls: list[ToolCall] = field(default_factory=list)
     stop_reason: str = "end_turn"  # end_turn | tool_use | refusal | error
     raw: Any = None  # opaque native assistant content, re-sent verbatim
+    # Token usage for this turn (normalized across providers). Keys:
+    #   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+    usage: dict = field(default_factory=dict)
 
 
 def _deref(schema: dict) -> dict:
@@ -208,13 +211,19 @@ class AnthropicProvider(BaseProvider):
         kwargs: dict = {
             "model": self.resolve(model),
             "max_tokens": max_tokens,
-            "system": system,
+            # Cache the (stable) system prompt: it's identical across a turn's tool loop
+            # and across multi-turn history, so it caches after turn 1 — cache reads bill
+            # at ~10% of input. A no-op on the other providers.
+            "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             "messages": self._to_native(messages),
             "thinking": {"type": "adaptive", "display": "summarized"},
             "output_config": {"effort": effort},
         }
         if tools:
-            kwargs["tools"] = tools
+            # Mark the end of the (stable) tool block as a cache breakpoint too.
+            cached = [dict(t) for t in tools]
+            cached[-1] = {**cached[-1], "cache_control": {"type": "ephemeral"}}
+            kwargs["tools"] = cached
         text = ""
         async with self.client.messages.stream(**kwargs) as stream:
             async for event in stream:
@@ -234,7 +243,14 @@ class AnthropicProvider(BaseProvider):
         ]
         sr = final.stop_reason
         stop = "tool_use" if sr == "tool_use" else "refusal" if sr == "refusal" else "end_turn"
-        yield {"type": "final", "turn": Turn(text, calls, stop, raw=final.content)}
+        u = getattr(final, "usage", None)
+        usage = {
+            "input_tokens": getattr(u, "input_tokens", 0) or 0,
+            "output_tokens": getattr(u, "output_tokens", 0) or 0,
+            "cache_read_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+            "cache_write_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+        } if u else {}
+        yield {"type": "final", "turn": Turn(text, calls, stop, raw=final.content, usage=usage)}
 
     async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
         resp = await self.client.messages.create(
@@ -316,6 +332,7 @@ class OllamaProvider(BaseProvider):
 
         text = ""
         raw_calls: list[dict] = []
+        usage: dict = {}
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream("POST", f"{self.base_url}/api/chat", json=payload) as resp:
                 resp.raise_for_status()
@@ -332,6 +349,10 @@ class OllamaProvider(BaseProvider):
                     if msg.get("tool_calls"):
                         raw_calls.extend(msg["tool_calls"])
                     if chunk.get("done"):
+                        usage = {
+                            "input_tokens": chunk.get("prompt_eval_count", 0) or 0,
+                            "output_tokens": chunk.get("eval_count", 0) or 0,
+                        }
                         break
 
         calls: list[ToolCall] = []
@@ -349,7 +370,7 @@ class OllamaProvider(BaseProvider):
         raw = {"role": "assistant", "content": text}
         if raw_calls:
             raw["tool_calls"] = raw_calls
-        yield {"type": "final", "turn": Turn(text, calls, stop, raw=raw)}
+        yield {"type": "final", "turn": Turn(text, calls, stop, raw=raw, usage=usage)}
 
     async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
         payload = {
@@ -416,12 +437,14 @@ class OpenAICompatProvider(BaseProvider):
     ) -> AsyncIterator[dict]:
         payload: dict = {
             "model": self.resolve(model), "stream": True,
+            "stream_options": {"include_usage": True},  # final chunk carries token usage
             "messages": self._to_native(system, messages), "max_tokens": max_tokens,
         }
         if tools:
             payload["tools"] = _openai_tools(tools)
         text = ""
         slots: dict[int, dict] = {}
+        usage: dict = {}
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST", f"{self.base_url}/chat/completions", json=payload, headers=self._headers()
@@ -433,7 +456,14 @@ class OpenAICompatProvider(BaseProvider):
                     data = line[5:].strip()
                     if data == "[DONE]":
                         break
-                    delta = ((json.loads(data).get("choices") or [{}])[0]).get("delta") or {}
+                    obj = json.loads(data)
+                    if obj.get("usage"):  # usage chunk (choices is usually empty here)
+                        u = obj["usage"]
+                        usage = {
+                            "input_tokens": u.get("prompt_tokens", 0) or 0,
+                            "output_tokens": u.get("completion_tokens", 0) or 0,
+                        }
+                    delta = ((obj.get("choices") or [{}])[0]).get("delta") or {}
                     if delta.get("content"):
                         text += delta["content"]
                         yield {"type": "text", "text": delta["content"]}
@@ -461,7 +491,7 @@ class OpenAICompatProvider(BaseProvider):
         if raw_calls:
             raw["tool_calls"] = raw_calls
         yield {"type": "final",
-               "turn": Turn(text, calls, "tool_use" if calls else "end_turn", raw=raw)}
+               "turn": Turn(text, calls, "tool_use" if calls else "end_turn", raw=raw, usage=usage)}
 
     async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
         payload = {

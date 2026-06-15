@@ -10,12 +10,24 @@ export interface Citation {
   snippet: string;
 }
 
+export interface Usage {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+  cache_hit_rate: number;
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   text: string;
   kind?: "spec" | "error";
   thinking?: string;
   citations?: Citation[];
+  usage?: Usage;    // token + cost rollup for this turn
   runId?: string;   // the run this assistant turn belongs to (for feedback)
   rated?: number;   // -1 / 1 once the user has rated it
 }
@@ -118,6 +130,7 @@ export const useAgentStore = defineStore("agent", () => {
         else if (ev === "token") assistant.text += data.text;
         else if (ev === "thinking") assistant.thinking += data.text;
         else if (ev === "citations") assistant.citations = data.citations;
+        else if (ev === "usage") assistant.usage = data;
         else if (ev === "node") phase.value = `${data.type}`;
         else if (ev === "tool_use") phase.value = `tool · ${data.name}`;
         else if (ev === "tool_result") phase.value = "";
@@ -299,6 +312,7 @@ export const useAgentStore = defineStore("agent", () => {
         if (ev === "run") a.runId = data.run_id;
         else if (ev === "token") a.text += data.text;
         else if (ev === "thinking") a.thinking += data.text;
+        else if (ev === "usage") a.usage = data;
         else if (ev === "tool_use") phase.value = `· ${data.name}`;
         else if (ev === "tool_result") phase.value = "";
         else if (ev === "error") a.text += `\n\n_[${data.message}]_`;

@@ -24,6 +24,7 @@ from veldra_mcp import ToolContext, from_wire_name, to_wire_name
 from veldra_spec import AgentSpec
 
 from veldra_app.events import ev
+from veldra_app.pricing import UsageMeter
 from veldra_app.runtime.agent import MAX_TEAM_DEPTH, _log_step, _resolve_delegates, _wire
 from veldra_app.tools_registry import get_registry
 
@@ -279,6 +280,7 @@ async def run_decision_agent(
     compose = conv + [{"role": "user", "content": f"Now answer my question: {user_message}"}]
 
     answer = ""
+    meter = UsageMeter()
     async for e in provider.stream_turn(
         model=model, system=final_system, messages=compose,
         tools=[], effort=spec.effort, max_tokens=FINAL_MAX_TOKENS,
@@ -290,7 +292,10 @@ async def run_decision_agent(
             yield ev("thinking", text=e["text"])
         elif e["type"] == "final":
             answer = e["turn"].text or answer
+            meter.add(e["turn"].usage)
 
     ordinal += 1
-    await _log_step(run_id, ordinal, "final", model, {"chars": len(answer)})
+    await _log_step(run_id, ordinal, "final", model, {"chars": len(answer), "tokens": meter.payload(model)})
+    if meter.has_data():
+        yield ev("usage", **meter.payload(model))
     yield ev("done", answer=answer)

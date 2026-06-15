@@ -17,9 +17,8 @@ import operator
 import re as _re
 from pathlib import Path
 
-import httpx
 import regex as _rx  # engine-level match timeout (real ReDoS protection; via tiktoken dep)
-from veldra_mcp import Tool, ToolContext, ToolResult
+from veldra_mcp import Tool, ToolContext, ToolResult, safe_request
 
 WORKSPACE_ROOT = Path("data/workspace")
 HTTP_CAP = 8000
@@ -59,13 +58,12 @@ async def _math_eval(args: dict, ctx: ToolContext) -> ToolResult:
 
 # ───────────────────────── http ─────────────────────────
 async def _http_fetch(args: dict, ctx: ToolContext) -> ToolResult:
+    # SSRF-safe: rejects non-http(s) + private/internal hosts and re-validates every
+    # redirect hop and the peer IP (shared guard in veldra_mcp.net).
     url = str(args.get("url", ""))
-    if not url.startswith(("http://", "https://")):
-        return ToolResult(content="Error: url must start with http:// or https://", is_error=True)
     try:
-        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-            r = await client.get(url, headers={"User-Agent": "Veldra/0.1"})
-        return ToolResult(content=f"HTTP {r.status_code} {url}\n\n{r.text[:HTTP_CAP]}")
+        r = await safe_request("GET", url, timeout=20, cap=HTTP_CAP)
+        return ToolResult(content=f"HTTP {r.status_code} {url}\n\n{r.text}")
     except Exception as exc:
         return ToolResult(content=f"Error fetching {url}: {exc}", is_error=True)
 

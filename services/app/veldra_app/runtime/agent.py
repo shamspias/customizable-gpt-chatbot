@@ -21,6 +21,7 @@ from veldra_spec import AgentSpec
 from veldra_app import repo
 from veldra_app.db import get_sessionmaker
 from veldra_app.events import ev
+from veldra_app.pricing import UsageMeter
 from veldra_app.tools_registry import get_registry
 from veldra_app.tracing import get_tracer
 
@@ -125,6 +126,7 @@ async def run_agent(
     messages.append({"role": "user", "content": user_message})
     ordinal = 0
     answer = ""
+    meter = UsageMeter()
 
     with tracer.start_as_current_span("agent.run", attributes={"agent.depth": depth}):
         for _ in range(spec.guardrails.max_steps):
@@ -144,11 +146,12 @@ async def run_agent(
                 yield ev("error", message="The model returned no response.")
                 return
 
+            meter.add(turn.usage)
             messages.append({"role": "assistant", "content": turn.text,
                              "tool_calls": turn.tool_calls, "raw": turn.raw})
             ordinal += 1
             await _log_step(run_id, ordinal, "llm_turn", spec.model,
-                            {"stop_reason": turn.stop_reason, "depth": depth})
+                            {"stop_reason": turn.stop_reason, "depth": depth, "tokens": turn.usage})
 
             if turn.stop_reason == "end_turn":
                 answer = turn.text
@@ -173,6 +176,8 @@ async def run_agent(
                     ):
                         if sub_ev["event"] == "done":
                             sub_answer = json.loads(sub_ev["data"]).get("answer", "")
+                        elif sub_ev["event"] == "usage":  # fold delegate tokens into the total
+                            meter.add(json.loads(sub_ev["data"]))
                     messages.append({"role": "tool", "tool_call_id": call.id,
                                      "content": sub_answer or "(no answer)", "is_error": False})
                     yield ev("tool_result", name=f"team:{sub.name}", ok=True)
@@ -199,4 +204,8 @@ async def run_agent(
             yield ev("error", message="Agent reached its step limit without finishing.")
             return
 
+    # Emit at every depth: a delegate's usage event is folded into its parent's meter
+    # (the parent swallows sub-agent events); only the depth-0 event reaches the client.
+    if meter.has_data():
+        yield ev("usage", **meter.payload(spec.model))
     yield ev("done", answer=answer)

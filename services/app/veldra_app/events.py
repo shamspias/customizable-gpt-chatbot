@@ -11,6 +11,8 @@ Event types (the client/CLI switch on these):
   tool_use — agent invoked a tool   {name, input}
   tool_result — tool returned       {name, ok}
   citations — retrieved sources     {citations: [...]}
+  usage    — token + cost rollup     {model, input_tokens, output_tokens, cache_read_tokens,
+             cache_write_tokens, total_tokens, cost_usd, cache_hit_rate}
   spec     — orchestrator produced/updated an AgentSpec {agent_id, version, spec}
   diff     — self-mod JSON-Patch awaiting approval {patch, ...}
   error    — {message}

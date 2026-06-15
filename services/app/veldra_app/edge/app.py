@@ -329,15 +329,18 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
     # Tell the client which run this is, so it can attach 👍/👎 feedback.
     yield events.ev("run", run_id=run_id)
     answer: str | None = None
+    usage: dict | None = None
     try:
         async for event in execute(
             spec, req.message, tenant_id=TENANT, run_id=run_id, history=req.history
         ):
             if event["event"] == "done":
                 answer = json.loads(event["data"]).get("answer")
+            elif event["event"] == "usage":
+                usage = json.loads(event["data"])
             yield event
         async with sm() as s:
-            await repo.finish_run(s, run_id, "done", result={"answer": answer})
+            await repo.finish_run(s, run_id, "done", result={"answer": answer, "usage": usage})
             await s.commit()
     except Exception as exc:
         yield events.error(str(exc))

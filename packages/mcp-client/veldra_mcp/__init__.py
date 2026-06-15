@@ -1,5 +1,6 @@
 """veldra_mcp — MCP-shaped tool registry + dispatch (in-process MVP, MCP-backed at v1)."""
 
+from veldra_mcp.net import SafeResponse, check_peer, guard_url, safe_request
 from veldra_mcp.registry import (
     Handler,
     Tool,
@@ -18,4 +19,8 @@ __all__ = [
     "Handler",
     "to_wire_name",
     "from_wire_name",
+    "guard_url",
+    "check_peer",
+    "safe_request",
+    "SafeResponse",
 ]
