@@ -444,6 +444,16 @@ export const useAgentStore = defineStore("agent", () => {
   async function loadLessons() {
     lessons.value = agentId.value ? await getJson(`/api/agents/${agentId.value}/lessons`) : [];
   }
+  async function teachLesson(content: string) {
+    if (!agentId.value || !content.trim()) return;
+    await postJson(`/api/agents/${agentId.value}/lessons`, { content: content.trim() });
+    await loadLessons();
+  }
+  async function forgetLesson(lessonId: string) {
+    if (!agentId.value) return;
+    await fetch(`/api/agents/${agentId.value}/lessons/${lessonId}`, { method: "DELETE" });
+    await loadLessons();
+  }
   async function rate(msg: ChatMsg, reward: number) {
     if (!msg.runId || msg.rated) return;
     msg.rated = reward;
@@ -495,7 +505,7 @@ export const useAgentStore = defineStore("agent", () => {
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
-    rate, setAutoImprove, reflectRun, loadLessons,
+    rate, setAutoImprove, reflectRun, loadLessons, teachLesson, forgetLesson,
     loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askFaust,
     listSkills, createSkill, saveSkill, deleteSkill,
     analytics, loadAnalytics,

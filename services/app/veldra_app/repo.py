@@ -694,6 +694,15 @@ async def list_lessons(session: AsyncSession, agent_id: str, limit: int = 20) ->
     return [dict(r) for r in res.mappings()]
 
 
+async def delete_lesson(session: AsyncSession, agent_id: str, lesson_id: str) -> None:
+    """Forget a single lesson (agent-scoped so one agent can't drop another's memory)."""
+    if not is_uuid(agent_id) or not is_uuid(lesson_id):
+        return
+    await session.execute(
+        delete(Lesson).where(Lesson.id == lesson_id, Lesson.agent_id == agent_id)
+    )
+
+
 # ───────────────────────── document content (view / edit / re-embed) ─────────────
 async def get_document(session: AsyncSession, doc_id: str) -> dict | None:
     if not is_uuid(doc_id):

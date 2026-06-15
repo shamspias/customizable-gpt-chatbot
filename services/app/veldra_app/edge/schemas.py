@@ -78,6 +78,10 @@ class ReflectRequest(BaseModel):
     run_id: str = Field(description="The run to reflect on and learn from.")
 
 
+class LessonRequest(BaseModel):
+    content: str = Field(min_length=1, description="A lesson to teach the agent (episodic memory).")
+
+
 class SkillRequest(BaseModel):
     name: str = Field(min_length=1, description="Skill name (referenced by agents).")
     description: str = ""

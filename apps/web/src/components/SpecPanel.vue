@@ -6,6 +6,26 @@ import { useAgentStore } from "../stores/agent";
 const store = useAgentStore();
 const showJson = ref(false);
 const refineText = ref("");
+const tab = ref<"agent" | "grow">("agent");
+const teachText = ref("");
+const teaching = ref(false);
+
+// The agent's current version (a visible sign of growth over time).
+const version = computed(
+  () => store.agents.find((a: any) => a.id === store.agentId)?.current_version ?? null,
+);
+
+async function teach() {
+  const t = teachText.value.trim();
+  if (!t || teaching.value) return;
+  teaching.value = true;
+  try {
+    await store.teachLesson(t);
+    teachText.value = "";
+  } finally {
+    teaching.value = false;
+  }
+}
 
 const tools = computed(() =>
   (store.spec?.tools ?? []).map((t: any) => `${t.name} (${t.permission_mode})`),
@@ -70,13 +90,22 @@ function openTestPage() {
           <button v-if="store.agentId" class="link" title="Open this agent on its own shareable test page"
                   @click="openTestPage">↗ test page</button>
           <button class="link" @click="store.showBuilder = true">⚒ builder</button>
-          <button class="link" @click="showJson = !showJson">{{ showJson ? "view card" : "view JSON" }}</button>
         </div>
       </header>
 
-      <pre v-if="showJson" class="json">{{ JSON.stringify(store.spec, null, 2) }}</pre>
+      <div class="tabs" role="tablist">
+        <button role="tab" :class="{ on: tab === 'agent' }" @click="tab = 'agent'">Agent</button>
+        <button role="tab" :class="{ on: tab === 'grow' }" @click="tab = 'grow'">
+          ✦ Grow<span v-if="store.lessons.length" class="tabcount">{{ store.lessons.length }}</span>
+        </button>
+        <div class="grow-sp" />
+        <button v-if="tab === 'agent'" class="link" @click="showJson = !showJson">{{ showJson ? "card" : "JSON" }}</button>
+      </div>
 
-      <div v-else class="cards">
+      <!-- ── Agent tab ── -->
+      <pre v-if="tab === 'agent' && showJson" class="json">{{ JSON.stringify(store.spec, null, 2) }}</pre>
+
+      <div v-show="tab === 'agent' && !showJson" class="cards">
         <section class="card">
           <h3>Policy</h3>
           <p class="policy">{{ store.spec.system_prompt }}</p>
@@ -126,22 +155,9 @@ function openTestPage() {
           </div>
         </section>
 
-        <section class="card">
-          <h3>Self-improvement</h3>
-          <label class="toggle" @click="store.setAutoImprove(!store.spec.auto_improve)">
-            <span class="switch" :class="{ on: store.spec.auto_improve }"><span class="knob" /></span>
-            <span>Auto-improve <small class="muted">— learn from 👎 feedback automatically</small></span>
-          </label>
-          <div v-if="store.lessons.length" class="lessons">
-            <div v-for="l in store.lessons" :key="l.id" class="lesson">
-              <Icon name="graduation" :size="13" /><span>{{ l.content }}</span>
-            </div>
-          </div>
-          <p v-else class="muted small">No lessons yet — rate answers 👍/👎 to teach it.</p>
-        </section>
       </div>
 
-      <div class="refine">
+      <div v-if="tab === 'agent'" class="refine">
         <input
           v-model="refineText"
           placeholder="Refine: e.g. ‘make answers more concise’"
@@ -149,6 +165,59 @@ function openTestPage() {
           @keyup.enter="refine"
         />
         <button :disabled="store.busy || !refineText.trim()" @click="refine">Refine</button>
+      </div>
+
+      <!-- ── Grow tab — the agent that grows with you ── -->
+      <div v-show="tab === 'grow'" class="grow">
+        <div class="grow-hero">
+          <div class="sprout">🌱</div>
+          <p>This agent <strong>grows with you</strong>. Rate its answers, teach it directly, or
+            let it learn on its own — what it learns sticks across every future chat.</p>
+        </div>
+
+        <div class="gstats">
+          <div class="gstat"><span class="gv">v{{ version ?? 1 }}</span><span class="gl">version</span></div>
+          <div class="gstat"><span class="gv">{{ store.lessons.length }}</span><span class="gl">lessons</span></div>
+          <div class="gstat"><span class="gv" :class="{ ok: store.spec.auto_improve }">{{ store.spec.auto_improve ? "On" : "Off" }}</span><span class="gl">auto-learn</span></div>
+        </div>
+
+        <button class="autocard" :class="{ on: store.spec.auto_improve }"
+                @click="store.setAutoImprove(!store.spec.auto_improve)">
+          <span class="switch" :class="{ on: store.spec.auto_improve }"><span class="knob" /></span>
+          <span class="actext">
+            <strong>Auto-improve</strong>
+            <small>When you rate an answer 👎, the agent reflects and learns a lesson automatically.</small>
+          </span>
+        </button>
+
+        <div class="teach">
+          <div class="seclabel">Teach it something</div>
+          <div class="teachrow">
+            <input v-model="teachText" placeholder="e.g. Always greet the customer by name"
+                   :disabled="teaching" @keyup.enter="teach" />
+            <button :disabled="teaching || !teachText.trim()" @click="teach">
+              <Icon name="plus" :size="15" />Teach
+            </button>
+          </div>
+          <p class="hint">It’s remembered as episodic memory and added to the agent’s instructions on every run.</p>
+        </div>
+
+        <div class="lessonsblk">
+          <div class="seclabel">Lessons learned <span v-if="store.lessons.length" class="lc">{{ store.lessons.length }}</span></div>
+          <div v-if="store.lessons.length" class="lessons">
+            <div v-for="l in store.lessons" :key="l.id" class="lesson">
+              <Icon name="graduation" :size="14" />
+              <span class="ltext">{{ l.content }}</span>
+              <button class="forget" aria-label="Forget this lesson" title="Forget" @click="store.forgetLesson(l.id)">
+                <Icon name="x" :size="13" />
+              </button>
+            </div>
+          </div>
+          <div v-else class="grow-empty">
+            <p>Nothing learned yet.</p>
+            <p class="muted">Chat, then 👍/👎 the answers — or teach it above. It only gets better.</p>
+          </div>
+        </div>
       </div>
     </template>
   </aside>
@@ -174,9 +243,47 @@ function openTestPage() {
 .switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
 .switch.on .knob { left: 18px; }
 .lessons { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.lesson { display: flex; gap: 7px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; }
+.lesson { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
 .lesson :deep(.icon) { color: var(--accent); margin-top: 2px; flex: none; }
+.lesson .ltext { flex: 1; min-width: 0; }
+.lesson .forget { background: none; border: none; color: var(--faint); padding: 2px; border-radius: 6px; box-shadow: none; flex: none; }
+.lesson .forget:hover { color: var(--danger); background: var(--danger-soft); filter: none; }
 .small { font-size: 12px; }
+
+/* ── tabs ── */
+.tabs { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 2px; }
+.tabs [role="tab"] { background: none; border: none; box-shadow: none; color: var(--muted); font-weight: 600; font-size: 13px; padding: 7px 11px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; display: inline-flex; align-items: center; gap: 6px; position: relative; }
+.tabs [role="tab"]:hover { color: var(--ink); background: var(--surface-2); filter: none; }
+.tabs [role="tab"].on { color: var(--accent); }
+.tabs [role="tab"].on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -3px; height: 2px; border-radius: 2px; background: var(--accent); }
+.tabcount, .lc { font-size: 10.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 6px; }
+.tabs .grow-sp { flex: 1; }
+
+/* ── grow tab ── */
+.grow { display: flex; flex-direction: column; gap: 14px; }
+.grow-hero { display: flex; gap: 11px; align-items: flex-start; background: var(--accent-soft); border: 1px solid var(--accent-ring); border-radius: var(--radius); padding: 13px 14px; }
+.grow-hero .sprout { font-size: 24px; line-height: 1; }
+.grow-hero p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.gstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.gstat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px; display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.gstat .gv { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.gstat .gv.ok { color: var(--ok); }
+.gstat .gl { font-size: 11px; color: var(--muted); }
+
+.autocard { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; box-shadow: none; }
+.autocard:hover { border-color: var(--accent); filter: none; }
+.autocard.on { border-color: var(--accent); background: var(--accent-soft); }
+.autocard .actext { display: flex; flex-direction: column; gap: 2px; }
+.autocard .actext strong { font-size: 14px; }
+.autocard .actext small { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+.seclabel { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.teachrow { display: flex; gap: 8px; }
+.teachrow input { flex: 1; }
+.hint { margin: 8px 0 0; font-size: 11px; color: var(--faint); line-height: 1.5; }
+.grow-empty { text-align: center; padding: 18px 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius); }
+.grow-empty p { margin: 0; font-size: 13px; }
+.grow-empty .muted { margin-top: 4px; font-size: 12px; }
 .mono, .json { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .json { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; overflow: auto; max-height: 60vh; }
 .badge { font-size: 10px; text-transform: none; letter-spacing: 0; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }

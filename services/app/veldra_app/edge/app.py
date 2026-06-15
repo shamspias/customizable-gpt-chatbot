@@ -28,6 +28,7 @@ from veldra_app.edge.schemas import (
     IdsRequest,
     KbCreateRequest,
     KbUpdateRequest,
+    LessonRequest,
     ReflectRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
@@ -530,6 +531,31 @@ async def agent_lessons(agent_id: str) -> list[dict]:
     sm = get_sessionmaker()
     async with sm() as s:
         return await repo.list_lessons(s, agent_id)
+
+
+@router.post("/agents/{agent_id}/lessons")
+async def teach_lesson(agent_id: str, req: LessonRequest) -> dict:
+    """Teach an agent something directly — it remembers it (episodic memory),
+    injected into its instructions on every future run. The hands-on 'grow' lever."""
+    content = (req.content or "").strip()
+    if not content:
+        raise HTTPException(400, "lesson content is required")
+    sm = get_sessionmaker()
+    async with sm() as s:
+        if not await repo.get_agent(s, agent_id):
+            raise HTTPException(404, "Agent not found.")
+        lid = await repo.add_lesson(s, TENANT, agent_id, content[:1000], source_run_id=None)
+        await s.commit()
+    return {"id": lid}
+
+
+@router.delete("/agents/{agent_id}/lessons/{lesson_id}")
+async def forget_lesson(agent_id: str, lesson_id: str) -> dict:
+    sm = get_sessionmaker()
+    async with sm() as s:
+        await repo.delete_lesson(s, agent_id, lesson_id)
+        await s.commit()
+    return {"ok": True}
 
 
 # ───────────────────────── Faust (floating admin bot) ─────────────────────────
