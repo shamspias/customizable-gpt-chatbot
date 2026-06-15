@@ -1,0 +1,172 @@
+/* Veldra design system — Tailwind CSS v4 utilities/theme layers (no preflight, so it
+   coexists with the existing component styles) + a runtime theme system. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Map semantic CSS variables → Tailwind tokens (inline = utilities reference the live
+   var, so changing a var at runtime re-themes every `bg-surface` / `text-accent` / … ). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --radius-veldra: var(--radius);
+  --radius-veldra-sm: var(--radius-sm);
+  --radius-veldra-lg: var(--radius-lg);
+}
+
+/* ── Design language (inspired by aura-proto / Mevrik): airy cream + cool-slate ink +
+   indigo, soft cool-tinted shadows, light-first. LIGHT is the default; dark is a deep
+   indigo-slate variant. Every component reads these tokens, so this skins the whole app.
+   soft/ring derive from the active accent, so a preset only sets accent + strong. ── */
+:root,
+:root[data-theme="light"] {
+  --bg: #f6f8fc;            /* cream */
+  --bg-soft: #f1f4fa;       /* ink-50 — sidebars/roster */
+  --bg-glass: rgba(246, 248, 252, 0.82);
+  --surface: #ffffff;       /* paper */
+  --surface-2: #f1f4fa;
+  --border: #e6eaf2;        /* ink-100 */
+  --border-strong: #d3d9e6; /* ink-200 */
+  --ink: #1b2237;           /* ink-900 */
+  --muted: #6b7589;         /* ink-500 */
+  --faint: #a7afc2;         /* ink-300 */
+  --accent: #5246e6;        /* indigo, readable as text on white */
+  --accent-2: var(--accent);
+  --accent-strong: #3a30b5; /* deep indigo — button fills */
+  --accent-grad: var(--accent-strong);  /* user bubble fill — always deep, so #fff text stays legible */
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-ring: color-mix(in srgb, var(--accent) 32%, transparent);
+  --accent-glow: none;
+  --ok: #0f9f6e;            /* teal */
+  --ok-soft: color-mix(in srgb, var(--ok) 13%, transparent);
+  --warn: #c2740f;          /* peach */
+  --danger: #e54b4b;        /* coral */
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, transparent);
+  --shadow-sm: 0 1px 2px rgba(27, 34, 55, 0.05);
+  --shadow: 0 1px 2px rgba(27, 34, 55, 0.05), 0 10px 28px -10px rgba(27, 34, 55, 0.12);
+  --shadow-lg: 0 16px 48px -16px rgba(27, 34, 55, 0.3);
+  --radius: 13px;
+  --radius-sm: 9px;
+  --radius-lg: 18px;
+
+  --card: var(--surface);
+  --chip-bg: var(--surface-2);
+  --ok-bg: var(--ok-soft);
+  --ok-border: color-mix(in srgb, var(--ok) 34%, transparent);
+
+  color-scheme: light;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ── dark variant: a deep indigo-slate take on the same system ── */
+:root[data-theme="dark"] {
+  --bg: #0e1320; --bg-soft: #131927; --bg-glass: rgba(14, 19, 32, 0.8);
+  --surface: #171d2c; --surface-2: #1e2536; --border: #2a3346; --border-strong: #3a4458;
+  --ink: #e9ecf6; --muted: #9ba4ba; --faint: #6e778c;
+  --accent: #8b83ff; --accent-strong: #5b4fe9;
+  --ok: #34d399; --warn: #e0a03a; --danger: #f06a6a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0e1320; --bg-soft: #131927; --bg-glass: rgba(14, 19, 32, 0.8);
+    --surface: #171d2c; --surface-2: #1e2536; --border: #2a3346; --border-strong: #3a4458;
+    --ink: #e9ecf6; --muted: #9ba4ba; --faint: #6e778c;
+    --accent: #8b83ff; --accent-strong: #5b4fe9;
+    --ok: #34d399; --warn: #e0a03a; --danger: #f06a6a;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.34);
+    --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+
+/* ── accent presets (user-selectable). Indigo is the default (applyTheme drops
+   data-accent for it). Values chosen to read on both the cream and dark surfaces. ── */
+:root[data-accent="indigo"]  { --accent: #5246e6; --accent-strong: #3a30b5; }
+:root[data-accent="violet"]  { --accent: #7c3aed; --accent-strong: #5b21b6; }
+:root[data-accent="emerald"] { --accent: #0f9f6e; --accent-strong: #0b6e54; }
+:root[data-accent="amber"]   { --accent: #b45309; --accent-strong: #8a4b0e; }
+:root[data-accent="rose"]    { --accent: #e11d48; --accent-strong: #9b2020; }
+:root[data-accent="cyan"]    { --accent: #0e7490; --accent-strong: #155e75; }
+:root[data-accent="slate"]   { --accent: #475569; --accent-strong: #334155; }
+/* On dark surfaces, lift the preset accent so it stays vivid + legible. */
+:root[data-theme="dark"][data-accent="indigo"]  { --accent: #8b83ff; }
+:root[data-theme="dark"][data-accent="violet"]  { --accent: #b794ff; }
+:root[data-theme="dark"][data-accent="emerald"] { --accent: #34d399; }
+:root[data-theme="dark"][data-accent="amber"]   { --accent: #fbbf24; }
+:root[data-theme="dark"][data-accent="rose"]    { --accent: #fb7185; }
+:root[data-theme="dark"][data-accent="cyan"]    { --accent: #22d3ee; }
+:root[data-theme="dark"][data-accent="slate"]   { --accent: #94a3b8; }
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body { background: var(--bg); }
+
+::selection { background: var(--accent-soft); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Base element styles live in @layer base so Tailwind's `utilities` layer (declared
+   after `base`) can override them — otherwise unlayered rules beat all utilities. */
+@layer base {
+  button {
+    font: inherit; font-weight: 550; padding: 8px 14px; border-radius: var(--radius-sm);
+    border: 1px solid transparent; background: var(--accent-strong); color: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: filter 0.14s ease, transform 0.05s ease, border-color 0.14s, background 0.14s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:active:not(:disabled) { transform: translateY(0.5px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.ghost { background: var(--surface-2); color: var(--ink); border-color: var(--border); }
+  button.ghost:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface); filter: none; }
+  button.sm { padding: 6px 11px; font-size: 13px; }
+  button.danger { background: transparent; color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  button.danger:hover:not(:disabled) { background: var(--danger); color: #fff;
+    border-color: var(--danger); filter: none; }
+  button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+
+  input[type="text"], input[type="number"], input:not([type]), textarea, select {
+    font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
+    transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  }
+  input::placeholder, textarea::placeholder { color: var(--faint); }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+
+  a { color: var(--accent); }
+}
+
+@keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes veldra-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes veldra-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes veldra-pop { from { opacity: 0; transform: scale(0.98) translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

@@ -1,0 +1,81 @@
+# https://taskfile.dev — `task <name>`
+version: '3'
+
+dotenv: ['.env']
+
+vars:
+  COMPOSE: docker compose -f deploy/docker-compose.yml
+
+tasks:
+  install:
+    desc: Install Python (uv) and web (npm) dependencies
+    cmds:
+      - uv sync
+      - cd apps/web && npm install
+
+  up:
+    desc: Start local infra (postgres+pgvector, redis, minio)
+    cmds:
+      - "{{.COMPOSE}} up -d postgres redis minio"
+      - echo "Waiting for postgres..." && sleep 3
+
+  down:
+    desc: Stop local infra
+    cmds:
+      - "{{.COMPOSE}} down"
+
+  migrate:
+    desc: Apply Alembic migrations (= alembic upgrade head; idempotent)
+    cmds:
+      - uv run python -m veldra_app.db migrate
+
+  migrate:make:
+    desc: 'Autogenerate a revision from model changes: task migrate:make -- "message"'
+    cmds:
+      - uv run alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+
+  migrate:down:
+    desc: 'Roll back one migration (or: task migrate:down -- <target>)'
+    cmds:
+      - uv run alembic downgrade {{.CLI_ARGS | default "-1"}}
+
+  dev:
+    desc: Run API (:8000) and web (:5173) together
+    deps: [dev:api, dev:web]
+
+  dev:api:
+    desc: Run the FastAPI app with autoreload
+    cmds:
+      - uv run uvicorn veldra_app.main:app --reload --host ${VELDRA_API_HOST:-0.0.0.0} --port ${VELDRA_API_PORT:-8000}
+
+  dev:web:
+    desc: Run the Vue dev server
+    dir: apps/web
+    cmds:
+      - npm run dev
+
+  eval:
+    desc: Run the NL->spec golden eval suite
+    cmds:
+      - uv run python -m evals.nl_to_spec.run
+
+  eval:loop:
+    desc: Decision-loop reliability suite (needs the API on :8000 + Ollama running)
+    cmds:
+      - uv run python -m evals.decision_loop.run
+
+  cli:
+    desc: 'Run the veldra CLI, e.g. `task cli -- build "answer from my docs"`'
+    cmds:
+      - uv run veldra {{.CLI_ARGS}}
+
+  fmt:
+    desc: Format + autofix
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --fix .
+
+  test:
+    desc: Run Python tests
+    cmds:
+      - uv run pytest -q
