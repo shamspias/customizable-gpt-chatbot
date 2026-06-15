@@ -66,7 +66,9 @@ class UsageMeter:
         return round(cost, 6)
 
     def cache_hit_rate(self) -> float:
-        prompt = self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
+        # Fraction of input tokens served from cache vs freshly billed (cache_write is a
+        # one-time creation cost, not a "miss", so it's excluded from the denominator).
+        prompt = self.input_tokens + self.cache_read_tokens
         return round(self.cache_read_tokens / prompt, 4) if prompt else 0.0
 
     def has_data(self) -> bool:

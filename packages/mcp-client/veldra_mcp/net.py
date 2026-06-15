@@ -46,14 +46,17 @@ def guard_url(url: str) -> None:
 
 
 def check_peer(resp: httpx.Response) -> None:
-    """Re-validate the IP actually connected to (defeats DNS rebinding)."""
+    """Re-validate the IP actually connected to (defeats DNS rebinding). Fails CLOSED:
+    if the peer IP can't be determined we refuse, rather than allow an unverified hop."""
     try:
         stream = resp.extensions.get("network_stream")
         addr = stream.get_extra_info("server_addr") if stream else None
         ip = ipaddress.ip_address(addr[0]) if addr else None
-    except Exception:
-        ip = None
-    if ip is not None and _is_blocked(ip):
+    except Exception as e:
+        raise ValueError(f"cannot verify peer IP (possible DNS rebinding): {e}") from e
+    if ip is None:
+        raise ValueError("cannot verify peer IP (possible DNS rebinding)")
+    if _is_blocked(ip):
         raise ValueError("refusing to fetch a private/internal address")
 
 

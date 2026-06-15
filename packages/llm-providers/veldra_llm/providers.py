@@ -252,14 +252,24 @@ class AnthropicProvider(BaseProvider):
         } if u else {}
         yield {"type": "final", "turn": Turn(text, calls, stop, raw=final.content, usage=usage)}
 
-    async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
+    async def parse_json(self, *, model, system, messages, schema, max_tokens, meter=None) -> dict | None:
         resp = await self.client.messages.create(
             model=self.resolve(model),
             max_tokens=max_tokens,
-            system=system,
+            # Cache the (stable) system prompt here too, matching stream_turn.
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=self._to_native(messages),
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
+        if meter is not None:
+            u = getattr(resp, "usage", None)
+            if u:
+                meter.add({
+                    "input_tokens": getattr(u, "input_tokens", 0) or 0,
+                    "output_tokens": getattr(u, "output_tokens", 0) or 0,
+                    "cache_read_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+                    "cache_write_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+                })
         if getattr(resp, "stop_reason", None) == "refusal":
             return None
         text = next((b.text for b in resp.content if b.type == "text"), "")
@@ -372,7 +382,7 @@ class OllamaProvider(BaseProvider):
             raw["tool_calls"] = raw_calls
         yield {"type": "final", "turn": Turn(text, calls, stop, raw=raw, usage=usage)}
 
-    async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
+    async def parse_json(self, *, model, system, messages, schema, max_tokens, meter=None) -> dict | None:
         payload = {
             "model": self.resolve(model),
             "stream": False,
@@ -388,6 +398,9 @@ class OllamaProvider(BaseProvider):
                 return r.json()
 
         data = await _with_retries(_call)
+        if meter is not None:
+            meter.add({"input_tokens": data.get("prompt_eval_count", 0) or 0,
+                       "output_tokens": data.get("eval_count", 0) or 0})
         return salvage_json((data.get("message") or {}).get("content", ""))
 
 
@@ -493,7 +506,7 @@ class OpenAICompatProvider(BaseProvider):
         yield {"type": "final",
                "turn": Turn(text, calls, "tool_use" if calls else "end_turn", raw=raw, usage=usage)}
 
-    async def parse_json(self, *, model, system, messages, schema, max_tokens) -> dict | None:
+    async def parse_json(self, *, model, system, messages, schema, max_tokens, meter=None) -> dict | None:
         payload = {
             "model": self.resolve(model), "stream": False, "temperature": 0,
             "messages": self._to_native(system, messages), "max_tokens": max_tokens,
@@ -509,6 +522,10 @@ class OpenAICompatProvider(BaseProvider):
                 return r.json()
 
         data = await _with_retries(_call)
+        if meter is not None and data.get("usage"):
+            u = data["usage"]
+            meter.add({"input_tokens": u.get("prompt_tokens", 0) or 0,
+                       "output_tokens": u.get("completion_tokens", 0) or 0})
         return salvage_json((data["choices"][0]["message"].get("content")) or "")
 
 

@@ -76,12 +76,13 @@ def _system_prompt(spec: AgentSpec, tool_descs: dict[str, str]) -> str:
     return "\n".join(parts)
 
 
-async def _decode(provider, model: str, system: str, conv: list[dict], schema: dict) -> dict | None:
+async def _decode(provider, model: str, system: str, conv: list[dict], schema: dict, meter=None) -> dict | None:
     """parse_json with a small repair budget (re-ask for valid JSON)."""
     msgs = list(conv)
     for _ in range(REPAIR_ATTEMPTS):
         data = await provider.parse_json(
-            model=model, system=system, messages=msgs, schema=schema, max_tokens=DECISION_MAX_TOKENS
+            model=model, system=system, messages=msgs, schema=schema,
+            max_tokens=DECISION_MAX_TOKENS, meter=meter,
         )
         if data is not None:
             return data
@@ -105,6 +106,7 @@ def _example_value(prop: dict) -> str:
 async def _fill_args(
     provider, model: str, system: str,
     action: str, desc: str, schema: dict, user_message: str, last_obs: str | None = None,
+    meter=None,
 ) -> dict:
     """Phase 2: fill the chosen tool's args — tiny-model hardened.
 
@@ -136,7 +138,7 @@ async def _fill_args(
 
     args: dict = {}
     for _ in range(REPAIR_ATTEMPTS):
-        raw = await _decode(provider, model, system, base, schema) or {}
+        raw = await _decode(provider, model, system, base, schema, meter=meter) or {}
         args = {k: v for k, v in raw.items() if k in props}  # drop leaked keys (thought/result/…)
         missing = [f for f in required if not str(args.get(f, "")).strip()]
         if not missing:
@@ -202,11 +204,13 @@ async def run_decision_agent(
     # Grounding guard: a RAG agent must consult its KB before answering.
     kb_wire = to_wire_name("kb.search")
     grounded = bool(spec.knowledge_bases) and kb_wire in arg_schemas
+    # One meter for the whole run: routing + arg-filling (parse_json) + delegates + final.
+    meter = UsageMeter()
 
     if len(actions) > 1:  # has tools → run the decision loop
         for step in range(max_steps):
             schema = _FINAL_ONLY if step == max_steps - 1 else _route_schema(actions)
-            decision = await _decode(provider, model, system, conv, schema)
+            decision = await _decode(provider, model, system, conv, schema, meter=meter)
             if decision is None:
                 break
             thought = str(decision.get("thought", ""))
@@ -227,6 +231,7 @@ async def run_decision_agent(
                 provider, model, system, action, tool_descs[action],
                 arg_schemas[action], user_message,
                 last_obs=observations[-1]["content"] if observations else None,
+                meter=meter,
             )
 
             key = (action, hashlib.sha1(json.dumps(args, sort_keys=True).encode()).hexdigest())
@@ -251,6 +256,8 @@ async def run_decision_agent(
                 ):
                     if sev["event"] == "done":
                         sub_answer = json.loads(sev["data"]).get("answer", "")
+                    elif sev["event"] == "usage":  # fold delegate tokens into the total
+                        meter.add(json.loads(sev["data"]))
                 content, is_error = sub_answer or "(no answer)", False
                 yield ev("tool_result", name=logical, ok=True)
             elif perm.get(logical) == "deny":
@@ -280,8 +287,7 @@ async def run_decision_agent(
     compose = conv + [{"role": "user", "content": f"Now answer my question: {user_message}"}]
 
     answer = ""
-    meter = UsageMeter()
-    async for e in provider.stream_turn(
+    async for e in provider.stream_turn(  # reuse the run-wide meter (routing + delegates + final)
         model=model, system=final_system, messages=compose,
         tools=[], effort=spec.effort, max_tokens=FINAL_MAX_TOKENS,
     ):
