@@ -8,14 +8,17 @@ from pydantic import BaseModel, Field
 
 
 class BuildRequest(BaseModel):
-    request: str = Field(description="Natural-language description of the agent to build.")
+    request: str = Field(
+        min_length=1, max_length=8000, description="Natural-language description of the agent to build."
+    )
     idempotency_key: str | None = None
 
 
 class AskRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=32000, description="The user's message.")
     history: list[dict[str, Any]] = Field(
-        default_factory=list, description="Prior turns [{role, text}] for multi-turn chat."
+        default_factory=list, max_length=200,
+        description="Prior turns [{role, text}] for multi-turn chat.",
     )
 
 
@@ -62,8 +65,8 @@ class KbUpdateRequest(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    reward: float = Field(description="-1 (bad) .. 1 (good).")
-    note: str | None = None
+    reward: float = Field(ge=-1, le=1, description="-1 (bad) .. 1 (good).")
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class IdsRequest(BaseModel):

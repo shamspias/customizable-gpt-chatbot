@@ -44,7 +44,7 @@
   --accent: #5246e6;        /* indigo, readable as text on white */
   --accent-2: var(--accent);
   --accent-strong: #3a30b5; /* deep indigo — button fills */
-  --accent-grad: var(--accent);
+  --accent-grad: var(--accent-strong);  /* user bubble fill — always deep, so #fff text stays legible */
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-ring: color-mix(in srgb, var(--accent) 32%, transparent);
   --accent-glow: none;

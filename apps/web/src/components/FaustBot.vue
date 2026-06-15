@@ -57,7 +57,7 @@ watch(
             <button v-for="s in SUGGESTIONS" :key="s" class="sug" @click="input = s">{{ s }}</button>
           </div>
         </div>
-        <div v-for="(m, i) in store.faustMsgs" :key="i" class="msg" :class="m.role">
+        <div v-for="m in store.faustMsgs" :key="m.id" class="msg" :class="m.role">
           <div class="bubble">
             <details v-if="m.thinking" class="thinking"><summary>thinking</summary><pre>{{ m.thinking }}</pre></details>
             <div v-if="m.text" class="text">{{ m.text }}</div>

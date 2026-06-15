@@ -88,7 +88,7 @@ watch(
           </button>
         </div>
 
-        <div v-for="(m, i) in store.messages" :key="i" class="msg" :class="m.role">
+        <div v-for="m in store.messages" :key="m.id" class="msg" :class="m.role">
           <div class="bubble" :class="{ spec: m.kind === 'spec', error: m.kind === 'error' }">
             <details v-if="m.thinking" class="thinking">
               <summary><Icon name="brain" :size="13" /> thinking</summary>

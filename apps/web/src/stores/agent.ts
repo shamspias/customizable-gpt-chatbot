@@ -21,7 +21,11 @@ export interface Usage {
   cache_hit_rate: number;
 }
 
+let _mid = 0;
+const nextMsgId = (): string => `m${++_mid}`;
+
 export interface ChatMsg {
+  id: string;        // stable key for v-for (streaming mutates messages in place)
   role: "user" | "assistant";
   text: string;
   kind?: "spec" | "error";
@@ -95,7 +99,7 @@ export const useAgentStore = defineStore("agent", () => {
     busy.value = true;
     error.value = null;
     phase.value = "starting";
-    messages.value.push({ role: "user", text: request });
+    messages.value.push({ id: nextMsgId(), role: "user", text: request });
     try {
       await streamPost("/api/agents/build", { request }, (ev, data) => {
         if (ev === "status") phase.value = data.phase;
@@ -103,13 +107,14 @@ export const useAgentStore = defineStore("agent", () => {
           spec.value = data.spec;
           agentId.value = data.agent_id;
           messages.value.push({
+            id: nextMsgId(),
             role: "assistant",
             kind: "spec",
             text: `Built “${data.spec.name}”. Ask it anything below — or refine it on the right.`,
           });
         } else if (ev === "error") {
           error.value = data.message;
-          messages.value.push({ role: "assistant", kind: "error", text: data.message });
+          messages.value.push({ id: nextMsgId(), role: "assistant", kind: "error", text: data.message });
         }
       });
     } catch (e: any) {
@@ -128,8 +133,8 @@ export const useAgentStore = defineStore("agent", () => {
     const history = messages.value
       .filter((m) => m.text && (m.kind === undefined))
       .map((m) => ({ role: m.role, text: m.text }));
-    messages.value.push({ role: "user", text: message });
-    const assistant = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
+    messages.value.push({ id: nextMsgId(), role: "user", text: message });
+    const assistant = reactive<ChatMsg>({ id: nextMsgId(), role: "assistant", text: "", thinking: "", citations: [] });
     messages.value.push(assistant);
     try {
       await streamPost(`/api/agents/${agentId.value}/ask`, { message, history }, (ev, data) => {
@@ -180,6 +185,7 @@ export const useAgentStore = defineStore("agent", () => {
       await postJson(`/api/agents/${agentId.value}/selfmod/apply`, { spec: diff.value.new_spec });
       spec.value = diff.value.new_spec;
       messages.value.push({
+        id: nextMsgId(),
         role: "assistant",
         kind: "spec",
         text: `Applied: ${diff.value.summary}`,
@@ -208,7 +214,7 @@ export const useAgentStore = defineStore("agent", () => {
       const detail = await getJson(`/api/agents/${agentId.value}`);
       spec.value = detail.spec;
       showBuilder.value = false;
-      messages.value.push({ role: "assistant", kind: "spec", text: "Workflow saved." });
+      messages.value.push({ id: nextMsgId(), role: "assistant", kind: "spec", text: "Workflow saved." });
     } catch (e: any) {
       error.value = String(e);
     } finally {
@@ -334,8 +340,8 @@ export const useAgentStore = defineStore("agent", () => {
     const history = faustMsgs.value
       .filter((m) => m.text && m.kind === undefined)
       .map((m) => ({ role: m.role, text: m.text }));
-    faustMsgs.value.push({ role: "user", text: message });
-    const a = reactive<ChatMsg>({ role: "assistant", text: "", thinking: "", citations: [] });
+    faustMsgs.value.push({ id: nextMsgId(), role: "user", text: message });
+    const a = reactive<ChatMsg>({ id: nextMsgId(), role: "assistant", text: "", thinking: "", citations: [] });
     faustMsgs.value.push(a);
     try {
       await streamPost("/api/faust/ask", { message, history }, (ev, data) => {
@@ -481,7 +487,7 @@ export const useAgentStore = defineStore("agent", () => {
     try {
       const r = await postJson(`/api/runs/${msg.runId}/feedback`, { reward, note: null });
       if (r?.learned?.lesson) {
-        messages.value.push({ role: "assistant", kind: "spec", text: `✦ Learned: ${r.learned.lesson}` });
+        messages.value.push({ id: nextMsgId(), role: "assistant", kind: "spec", text: `✦ Learned: ${r.learned.lesson}` });
         await loadLessons();
       }
     } catch (e: any) {

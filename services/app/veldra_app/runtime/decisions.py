@@ -341,18 +341,29 @@ async def run_decision_agent(
     compose = conv + [{"role": "user", "content": f"Now answer my question: {user_message}"}]
 
     answer = ""
-    async for e in provider.stream_turn(  # reuse the run-wide meter (routing + delegates + final)
-        model=model, system=final_system, messages=compose,
-        tools=[], effort=spec.effort, max_tokens=FINAL_MAX_TOKENS,
-    ):
-        if e["type"] == "text":
-            answer += e["text"]
-            yield ev("token", text=e["text"])
-        elif e["type"] == "thinking":
-            yield ev("thinking", text=e["text"])
-        elif e["type"] == "final":
-            answer = e["turn"].text or answer
-            meter.add(e["turn"].usage)
+    try:  # a provider/network error here must not dead-end the run with no answer
+        async for e in provider.stream_turn(  # reuse the run-wide meter (routing + delegates + final)
+            model=model, system=final_system, messages=compose,
+            tools=[], effort=spec.effort, max_tokens=FINAL_MAX_TOKENS,
+        ):
+            if e["type"] == "text":
+                answer += e["text"]
+                yield ev("token", text=e["text"])
+            elif e["type"] == "thinking":
+                yield ev("thinking", text=e["text"])
+            elif e["type"] == "final":
+                answer = e["turn"].text or answer
+                meter.add(e["turn"].usage)
+    except Exception as exc:
+        yield ev("error", message=f"Answer generation failed: {exc}")
+
+    if not answer.strip():  # graceful fallback: never finish with an empty answer
+        answer = (
+            "Based on what I found:\n\n" + observations[-1]["content"][:1500]
+            if observations
+            else "Sorry — I couldn't produce an answer just now. Please try again."
+        )
+        yield ev("token", text=answer)
 
     ordinal += 1
     await _log_step(run_id, ordinal, "final", model, {"chars": len(answer), "tokens": meter.payload(model)})

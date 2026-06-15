@@ -38,6 +38,18 @@ async function delSkill() {
   });
   if (ok) await store.deleteSkill(store.openSkill.id);
 }
+async function selectSkill(s: any) {
+  if (store.openSkill?.id === s.id) return;
+  if (dirty.value) {
+    const ok = await store.confirmAction({
+      title: "Discard unsaved changes?",
+      message: "Your edits to this skill haven't been saved and will be lost.",
+      confirmLabel: "Discard", danger: true,
+    });
+    if (!ok) return;
+  }
+  store.openSkill = s;
+}
 </script>
 
 <template>
@@ -48,7 +60,7 @@ async function delSkill() {
         <button class="sm" @click="create"><Icon name="plus" :size="15" /></button>
       </div>
       <button v-for="s in store.skills" :key="s.id" class="item"
-              :class="{ active: store.openSkill?.id === s.id }" @click="store.openSkill = s">
+              :class="{ active: store.openSkill?.id === s.id }" @click="selectSkill(s)">
         <span class="ic"><Icon name="scroll" :size="15" /></span>
         <span class="meta">
           <strong>{{ s.name }}</strong>

@@ -269,6 +269,18 @@ async def delete_skill(skill_id: str) -> dict:
     return {"deleted": skill_id}
 
 
+async def _ensure_finished(run_id: str) -> None:
+    """Finalize a run still marked 'running' — e.g. the client disconnected mid-stream
+    (raises GeneratorExit, which the `except Exception` blocks don't catch). Idempotent:
+    a no-op once the normal/error path has already finished the run."""
+    sm = get_sessionmaker()
+    async with sm() as s:
+        run = await repo.get_run(s, run_id)
+        if run and run.get("status") == "running":
+            await repo.finish_run(s, run_id, "error", error="interrupted (client disconnected)")
+            await s.commit()
+
+
 # ───────────────────────── build (NL -> agent) ─────────────────────────
 async def _build_stream(req: BuildRequest) -> AsyncIterator[dict]:
     sm = get_sessionmaker()
@@ -304,6 +316,8 @@ async def _build_stream(req: BuildRequest) -> AsyncIterator[dict]:
         async with sm() as s:
             await repo.finish_run(s, run_id, "error", error=str(exc))
             await s.commit()
+    finally:
+        await _ensure_finished(run_id)
 
 
 @router.post("/agents/build")
@@ -361,6 +375,8 @@ async def _ask_stream(agent_id: str, req: AskRequest) -> AsyncIterator[dict]:
         async with sm() as s:
             await repo.finish_run(s, run_id, "error", error=str(exc))
             await s.commit()
+    finally:
+        await _ensure_finished(run_id)
 
 
 @router.post("/agents/{agent_id}/ask")
@@ -387,6 +403,8 @@ async def _selfmod_stream(agent_id: str, req: SelfModProposeRequest) -> AsyncIte
         async with sm() as s:
             await repo.finish_run(s, run_id, "error", error=str(exc))
             await s.commit()
+    finally:
+        await _ensure_finished(run_id)
 
 
 @router.post("/agents/{agent_id}/selfmod/propose")
@@ -609,6 +627,8 @@ async def _faust_stream(req: AskRequest) -> AsyncIterator[dict]:
         async with sm() as s:
             await repo.finish_run(s, run_id, "error", error=str(exc))
             await s.commit()
+    finally:
+        await _ensure_finished(run_id)
 
 
 @router.post("/faust/ask")

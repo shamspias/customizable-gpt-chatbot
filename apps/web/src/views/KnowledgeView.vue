@@ -98,6 +98,18 @@ function openEditor(docId: string) {
 async function saveDocText() {
   if (store.selectedKb && store.openDoc) await store.saveDoc(store.selectedKb, store.openDoc.document.id, editText.value);
 }
+const docDirty = computed(() => !!store.openDoc && editText.value !== (store.openDoc.text || ""));
+async function closeDocSafe() {
+  if (docDirty.value) {
+    const ok = await store.confirmAction({
+      title: "Discard unsaved changes?",
+      message: "Your edits to this document haven't been saved and will be lost.",
+      confirmLabel: "Discard", danger: true,
+    });
+    if (!ok) return;
+  }
+  store.closeDoc();
+}
 
 async function saveConfig() {
   if (!store.selectedKb) return;
@@ -233,13 +245,13 @@ async function saveConfig() {
 
     <!-- ── document editor + page-index tree (drawer) ── -->
     <transition name="drawer">
-      <div v-if="store.openDoc" class="drawer-wrap" @click.self="store.closeDoc()">
+      <div v-if="store.openDoc" class="drawer-wrap" @click.self="closeDocSafe()">
         <div class="drawer">
           <div class="drawer-h">
             <Icon name="file" :size="16" /><strong class="dt">{{ store.openDoc.document.filename }}</strong>
             <div class="grow" />
             <button class="primary sm" :disabled="store.busy" @click="saveDocText"><Icon name="save" :size="14" />Save &amp; re-embed</button>
-            <button class="ghost sm" aria-label="Close" title="Close" @click="store.closeDoc()"><Icon name="x" :size="16" /></button>
+            <button class="ghost sm" aria-label="Close" title="Close" @click="closeDocSafe()"><Icon name="x" :size="16" /></button>
           </div>
           <div class="drawer-body">
             <label class="field">
