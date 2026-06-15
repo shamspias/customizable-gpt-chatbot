@@ -24,6 +24,7 @@ const COMMANDS = computed<Cmd[]>(() => [
   { id: "knowledge", label: "Go to Knowledge", hint: "Documents & retrieval", icon: "book", run: () => go("knowledge") },
   { id: "skills", label: "Go to Skills", hint: "Markdown playbooks", icon: "scroll", run: () => go("skills") },
   { id: "workflows", label: "Go to Agents", hint: "Your agents & teams", icon: "workflow", run: () => go("workflows") },
+  { id: "insights", label: "Go to Insights", hint: "Usage, cost & reliability", icon: "chart", run: () => go("insights") },
   { id: "activity", label: "Go to Activity", hint: "Run logs & traces", icon: "activity", run: () => go("activity") },
   { id: "new", label: "New agent", hint: "Start a fresh build", icon: "plus", run: newAgent },
   { id: "company", label: "Set up agents for a company", hint: "Auto-build a team", icon: "layers", run: () => { newAgent(); } },

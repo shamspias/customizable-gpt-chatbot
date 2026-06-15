@@ -78,6 +78,18 @@ async def list_tools() -> list[dict]:
     return get_registry().catalog()
 
 
+@router.get("/analytics")
+async def get_analytics() -> dict:
+    """Rollups over the durable runs log: success rate, cost/tokens, latency,
+    per-agent stats, reward distribution, error feed, and tuning suggestions."""
+    from veldra_app import analytics
+
+    sm = get_sessionmaker()
+    async with sm() as s:
+        rows = await repo.analytics_rows(s, TENANT)
+    return analytics.compute(rows)
+
+
 # ───────────────────────── knowledge bases ─────────────────────────
 def _ingest_response(result) -> UploadResponse:
     return UploadResponse(

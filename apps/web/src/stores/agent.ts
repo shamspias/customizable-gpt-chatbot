@@ -39,7 +39,9 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
-  const view = ref<"studio" | "knowledge" | "workflows" | "activity" | "skills">("studio");
+  const view = ref<"studio" | "knowledge" | "workflows" | "activity" | "skills" | "insights">(
+    "studio",
+  );
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
   const kbDocs = ref<any[]>([]);
@@ -50,6 +52,8 @@ export const useAgentStore = defineStore("agent", () => {
   // activity log
   const runs = ref<any[]>([]);
   const runSteps = ref<any | null>(null);
+  // analytics dashboard
+  const analytics = ref<any | null>(null);
   // document editor
   const openDoc = ref<any | null>(null); // { document, text, page_index }
   // learning
@@ -461,6 +465,11 @@ export const useAgentStore = defineStore("agent", () => {
     return r;
   }
 
+  // ── analytics ──
+  async function loadAnalytics() {
+    analytics.value = await getJson("/api/analytics");
+  }
+
   // ── activity log ──
   async function listRuns() {
     runs.value = await getJson("/api/runs");
@@ -484,5 +493,6 @@ export const useAgentStore = defineStore("agent", () => {
     rate, setAutoImprove, reflectRun, loadLessons,
     loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askFaust,
     listSkills, createSkill, saveSkill, deleteSkill,
+    analytics, loadAnalytics,
   };
 });

@@ -10,6 +10,7 @@ import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { applyTheme } from "./theme";
 import { useAgentStore } from "./stores/agent";
 import AgentChatView from "./views/AgentChatView.vue";
+import InsightsView from "./views/InsightsView.vue";
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
 import SkillsView from "./views/SkillsView.vue";
@@ -34,18 +35,19 @@ const NAV = [
   { id: "knowledge", label: "Knowledge", icon: "book" },
   { id: "skills", label: "Skills", icon: "scroll" },
   { id: "workflows", label: "Agents", icon: "workflow" },
+  { id: "insights", label: "Insights", icon: "chart" },
   { id: "activity", label: "Activity", icon: "activity" },
 ] as const;
 const NAV_GROUPS = [
   { label: "Build", ids: ["studio", "knowledge", "skills"] },
-  { label: "Manage", ids: ["workflows", "activity"] },
+  { label: "Manage", ids: ["workflows", "insights", "activity"] },
 ] as const;
 const navItem = (id: string) => NAV.find((n) => n.id === id)!;
 
 const current = computed(
   () =>
     (({ studio: StudioView, knowledge: KnowledgeView, skills: SkillsView,
-        workflows: WorkflowsView, activity: LogsView }) as any)[store.view],
+        workflows: WorkflowsView, insights: InsightsView, activity: LogsView }) as any)[store.view],
 );
 const title = computed(() => NAV.find((n) => n.id === store.view)?.label ?? "Veldra");
 const palette = ref<InstanceType<typeof CommandPalette> | null>(null);

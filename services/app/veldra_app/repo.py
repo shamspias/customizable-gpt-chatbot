@@ -519,6 +519,22 @@ async def list_runs(session: AsyncSession, tenant_id: str, limit: int = 60) -> l
     return [dict(r) for r in res.mappings()]
 
 
+async def analytics_rows(session: AsyncSession, tenant_id: str, limit: int = 1000) -> list[dict]:
+    """Recent runs with result (usage), reward, and timing — fuel for the analytics rollup."""
+    res = await session.execute(
+        select(
+            Run.id, Run.kind, Run.status, Run.agent_id, Run.error,
+            Run.reward, Run.result, Run.created_at, Run.finished_at,
+            Agent.name.label("agent_name"),
+        )
+        .join(Agent, Agent.id == Run.agent_id, isouter=True)
+        .where(Run.tenant_id == tenant_id)
+        .order_by(Run.created_at.desc())
+        .limit(limit)
+    )
+    return [dict(r) for r in res.mappings()]
+
+
 async def get_run(session: AsyncSession, run_id: str) -> dict | None:
     if not is_uuid(run_id):
         return None
