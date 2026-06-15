@@ -47,7 +47,7 @@ async function pick(id: string) {
     <div class="scroll">
       <!-- Teams (agents that coordinate sub-agents) -->
       <section v-if="fTeams.length">
-        <div class="seclabel">Teams <span class="muted">· coordinate sub-agents</span><span class="count">{{ fTeams.length }}</span></div>
+        <div class="seclabel">Teams<span class="count">{{ fTeams.length }}</span></div>
         <button v-for="a in fTeams" :key="a.id" class="card" :class="{ on: store.agentId === a.id }" @click="pick(a.id)">
           <span class="ava team" :style="{ background: `color-mix(in srgb, var(${hue(a.name)}) 16%, transparent)`, color: `var(${hue(a.name)})` }">
             <Icon name="workflow" :size="16" />
@@ -64,7 +64,7 @@ async function pick(id: string) {
 
       <!-- Standalone agents -->
       <section>
-        <div class="seclabel">Agents <span class="muted">· pick one to chat</span><span class="count">{{ fSolo.length }}</span></div>
+        <div class="seclabel">Agents<span class="count">{{ fSolo.length }}</span></div>
         <div v-if="!store.agents.length" class="empty">No agents yet — click <strong>New agent</strong> below to create one.</div>
         <div v-else-if="!fSolo.length && !fTeams.length" class="empty">No matches.</div>
         <button v-for="a in fSolo" :key="a.id" class="card" :class="{ on: store.agentId === a.id }" @click="pick(a.id)">

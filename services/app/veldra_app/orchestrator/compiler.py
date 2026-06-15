@@ -367,13 +367,18 @@ async def build_agent(
         yield status("planning")
         catalog = await build_catalog(tenant_id)
         want_wf = wants_workflow(nl_request)
-        system = _system_prompt(catalog, include_workflow=want_wf)
+        # The tiny model designs the policy/tools/KBs; it does NOT hand-author the graph
+        # (unreliable). We synthesize a proper graph from a small understanding step below.
+        system = _system_prompt(catalog, include_workflow=False)
 
         yield status("designing")
         spec, errors = await compile_with_repair(
             system, [{"role": "user", "content": nl_request}], catalog,
-            include_workflow=want_wf,
-            include_team=bool(catalog.get("agents")),
+            include_workflow=False,
+            # Teams are built via build_team (wants_team routed earlier); don't offer
+            # sub_agents in the single-agent path — a tiny model abuses it (self-reference
+            # / invented members), which fails lint and the whole build.
+            include_team=False,
         )
         if spec is None:
             yield ev(
@@ -383,6 +388,17 @@ async def build_agent(
                 + ". Could you clarify what the agent should do?",
             )
             return
+
+        # Understand the task shape → assemble a proper, valid workflow graph (deterministic).
+        if want_wf:
+            yield status("designing workflow")
+            try:
+                from veldra_app.orchestrator.workflow_synth import build_workflow
+                graph = await build_workflow(nl_request, spec, catalog)
+                if graph is not None:
+                    spec = spec.model_copy(update={"workflow_graph": graph})
+            except Exception:  # a workflow is optional — never block the build on it
+                pass
 
         sm = get_sessionmaker()
         async with sm() as session:
