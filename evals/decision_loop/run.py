@@ -96,6 +96,19 @@ CASES = [
     {"name": "eval-notool", "tools": [],
      "prompt": "A friendly assistant. Reply in one short line.",
      "ask": "Say hello."},
+    # Harder: a vague question that is NOT a clean search query — the harness must still
+    # ground (proactive kb.search) and fill a non-empty query (U1/U2/U3).
+    {"name": "eval-rag-vague", "tools": ["kb.search"], "needs_kb": True, "expect_tool": "kb.search",
+     "contains": "money-back",
+     "prompt": "Answer only from the documents and cite the page. If absent, say you don't know.",
+     "ask": "I'm thinking about paying for the better plan — anything I should know first?"},
+    # Harder: a multi-step chain — read the Pro price from the KB, then compute the yearly
+    # total. Gate only requires grounding (kb.search) with non-empty args; the 240 synthesis
+    # is the stretch goal shown in the table (tests U3/U4 tool-chaining).
+    {"name": "eval-chain", "tools": ["kb.search", "math.eval"], "needs_kb": True,
+     "expect_tool": "kb.search", "contains": "240",
+     "prompt": "Use the documents for facts and the math tool for any calculation. Cite the page.",
+     "ask": "The Pro plan price is monthly. What would a full year cost?"},
 ]
 
 

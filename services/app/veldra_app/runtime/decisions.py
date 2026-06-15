@@ -103,6 +103,26 @@ def _example_value(prop: dict) -> str:
     }.get(prop.get("type"), '"..."')
 
 
+def _required_blank(schema: dict, args: dict) -> list[str]:
+    """Required fields the model left empty — the empty-arg failure a tiny model makes
+    (Ollama's `format` doesn't enforce `required`). We refuse to fire such a call."""
+    return [f for f in schema.get("required", []) if not str(args.get(f, "")).strip()]
+
+
+OBS_WINDOW_N = 3        # how many recent observations the arg-fill / final steps see
+OBS_EACH_CAP = 500
+OBS_TOTAL_CAP = 2500
+
+
+def _obs_window(observations: list[dict]) -> str | None:
+    """The last few observations (capped), so multi-tool chains can reference earlier
+    results when filling the next tool's args — not just the single latest one."""
+    if not observations:
+        return None
+    parts = [f"[{o['tool']}] {str(o['content'])[:OBS_EACH_CAP]}" for o in observations[-OBS_WINDOW_N:]]
+    return "\n".join(parts)[:OBS_TOTAL_CAP]
+
+
 async def _fill_args(
     provider, model: str, system: str,
     action: str, desc: str, schema: dict, user_message: str, last_obs: str | None = None,
@@ -143,9 +163,13 @@ async def _fill_args(
         missing = [f for f in required if not str(args.get(f, "")).strip()]
         if not missing:
             return args
+        # Field-focused re-ask: name each missing field, its meaning, and an isolated
+        # example shape — tiny models recover far better than from a generic "try again".
+        notes = "; ".join(f"{f} = {props[f].get('description', 'a concrete value')}" for f in missing)
+        ex = "{" + ", ".join(f'"{f}": {_example_value(props[f])}' for f in missing) + "}"
         base = base + [{"role": "user", "content":
-            f"These required fields were missing or empty: {missing}. "
-            "Give a concrete, non-empty value for each, as JSON."}]
+            f"Required fields are still missing or empty: {missing}. Each is essential. "
+            f"Meanings — {notes}. Reply with ONLY JSON like {ex}, using concrete non-empty values."}]
     for f in required:  # last-resort: only free-text fields default to the user's request
         blank = not str(args.get(f, "")).strip()
         if blank and f in _FREETEXT and props.get(f, {}).get("type") == "string":
@@ -204,8 +228,26 @@ async def run_decision_agent(
     # Grounding guard: a RAG agent must consult its KB before answering.
     kb_wire = to_wire_name("kb.search")
     grounded = bool(spec.knowledge_bases) and kb_wire in arg_schemas
+    arg_fail = 0  # bounded counter for empty-arg loop-backs (U1)
     # One meter for the whole run: routing + arg-filling (parse_json) + delegates + final.
     meter = UsageMeter()
+
+    # U3 — proactive grounding: a RAG agent searches its KB up front (the user's question
+    # as the query) so reasoning starts from real context, instead of the model trying to
+    # answer first and the guard firing a late, blind search. Runs once; harmless if empty.
+    if grounded:
+        yield ev("tool_use", name="kb.search", input={"query": user_message})
+        res = await registry.call("kb.search", {"query": user_message}, ctx)
+        if res.data.get("citations"):
+            yield ev("citations", citations=res.data["citations"])
+        yield ev("tool_result", name="kb.search", ok=not res.is_error)
+        observations.append({"tool": "kb.search", "content": res.content})
+        conv.append({"role": "user", "content": f"Observation from kb.search:\n{res.content}"})
+        ordinal += 1
+        await _log_step(run_id, ordinal, "tool_call", "kb.search",
+                        {"is_error": res.is_error, "proactive": True})
+        seen[(kb_wire, hashlib.sha1(
+            json.dumps({"query": user_message}, sort_keys=True).encode()).hexdigest())] = 1
 
     if len(actions) > 1:  # has tools → run the decision loop
         for step in range(max_steps):
@@ -230,9 +272,21 @@ async def run_decision_agent(
             args = await _fill_args(
                 provider, model, system, action, tool_descs[action],
                 arg_schemas[action], user_message,
-                last_obs=observations[-1]["content"] if observations else None,
+                last_obs=_obs_window(observations),  # U4: recent observations, not just the last
                 meter=meter,
             )
+
+            # U1: refuse to fire a tool call with an empty required arg (the empty-query bug
+            # on tiny models). Loop back with a focused nudge, bounded so it can't spin.
+            missing = _required_blank(arg_schemas[action], args)
+            if missing:
+                arg_fail += 1
+                conv.append({"role": "user", "content":
+                    f"The {action} call is missing required values: {missing}. "
+                    "Provide concrete, non-empty values — or choose 'final' to answer now."})
+                if arg_fail >= 2:
+                    break  # graceful: compose the best answer from what we have
+                continue
 
             key = (action, hashlib.sha1(json.dumps(args, sort_keys=True).encode()).hexdigest())
             if seen.get(key, 0) >= 1:  # already did this exact call
