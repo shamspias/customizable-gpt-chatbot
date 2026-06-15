@@ -57,10 +57,7 @@ function openChat(id: string) {
   window.location.hash = `#/agent/${id}`;
 }
 function newAgent() {
-  store.agentId = null;
-  store.spec = null;
-  store.messages = [] as any;
-  store.view = "studio";
+  store.openCreate();
 }
 </script>
 
@@ -128,8 +125,8 @@ function newAgent() {
     <div v-else class="empty">
       <div class="halo"><Icon name="bot" :size="26" /></div>
       <p v-if="filterTag">No agents tagged “{{ filterTag }}”.</p>
-      <p v-else>No agents yet — build one in <strong>Studio</strong>.</p>
-      <button class="sm" @click="store.view = 'studio'"><Icon name="sparkles" :size="15" />Go to Studio</button>
+      <p v-else>No agents yet — create your first one.</p>
+      <button class="sm" @click="store.openCreate()"><Icon name="plus" :size="15" />Create agent</button>
     </div>
   </div>
 </template>

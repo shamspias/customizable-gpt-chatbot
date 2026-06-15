@@ -12,12 +12,6 @@ const inputEl = ref<HTMLInputElement | null>(null);
 interface Cmd { id: string; label: string; hint?: string; icon: string; run: () => void; }
 
 function go(view: string) { store.view = view as any; }
-function newAgent() {
-  store.agentId = null;
-  store.spec = null;
-  store.messages = [] as any;
-  store.view = "studio";
-}
 
 const COMMANDS = computed<Cmd[]>(() => [
   { id: "studio", label: "Go to Studio", hint: "Chat & build", icon: "sparkles", run: () => go("studio") },
@@ -26,8 +20,8 @@ const COMMANDS = computed<Cmd[]>(() => [
   { id: "workflows", label: "Go to Agents", hint: "Your agents & teams", icon: "workflow", run: () => go("workflows") },
   { id: "insights", label: "Go to Insights", hint: "Usage, cost & reliability", icon: "chart", run: () => go("insights") },
   { id: "activity", label: "Go to Activity", hint: "Run logs & traces", icon: "activity", run: () => go("activity") },
-  { id: "new", label: "New agent", hint: "Start a fresh build", icon: "plus", run: newAgent },
-  { id: "company", label: "Set up agents for a company", hint: "Auto-build a team", icon: "layers", run: () => { newAgent(); } },
+  { id: "new", label: "Create an agent", hint: "Describe · Team · Manual", icon: "plus", run: () => store.openCreate() },
+  { id: "company", label: "Set up a team for a company", hint: "Auto-build a team", icon: "layers", run: () => store.openCreate() },
   { id: "faust", label: "Open Faust", hint: "Platform assistant", icon: "bot", run: () => { store.faustOpen = true; } },
   { id: "settings", label: "Open Settings", hint: "Theme, accent, config", icon: "settings", run: () => store.openSettings() },
 ]);

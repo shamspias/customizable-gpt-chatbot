@@ -12,40 +12,15 @@ const input = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
 const scroller = ref<HTMLElement | null>(null);
 const showSpec = ref(false); // mobile spec drawer
-const buildMode = ref<"single" | "company">("single"); // empty-state build target
-const mode = computed(() => (store.agentId ? "ask" : "build"));
-
-const EXAMPLES = [
-  "Answer questions from these docs and always cite the page.",
-  "Triage support emails and draft replies grounded in our docs.",
-  "A research assistant that searches my docs, then summarizes with citations.",
-];
-const COMPANY_EXAMPLES = [
-  "A digital marketing agency: strategy, content, and client-support agents.",
-  "An online store: a sales agent, an order-support agent, and a returns agent.",
-  "A clinic: reception/booking, billing, and a patient-FAQ agent from our docs.",
-];
-const examples = computed(() => (buildMode.value === "company" ? COMPANY_EXAMPLES : EXAMPLES));
 // Brand-new user (no agents yet) → show a friendly, guided welcome sequence.
 const firstRun = computed(() => !store.agents.length && !store.agentId);
 
+// The composer chats with the selected agent. Creating agents is the dedicated modal.
 async function submit() {
   const t = input.value.trim();
-  if (!t || store.busy) return;
+  if (!t || store.busy || !store.agentId) return;
   input.value = "";
-  if (store.agentId) {
-    await store.ask(t);
-  } else if (buildMode.value === "company") {
-    // Frame as a team build so the orchestrator creates a coordinator + role agents.
-    await store.build(`Set up a team of agents for this company: ${t}`);
-  } else {
-    await store.build(t);
-  }
-}
-function newAgent() {
-  store.agentId = null;
-  store.spec = null;
-  store.messages = [] as any;
+  await store.ask(t);
 }
 function onFile(e: Event) {
   const f = (e.target as HTMLInputElement).files?.[0];
@@ -77,7 +52,7 @@ watch(
           <Icon name="upload" :size="15" /><span class="hide-xs">Document</span>
         </button>
         <input ref="fileInput" type="file" hidden accept=".pdf,.txt,.md" @change="onFile" />
-        <button v-if="store.agentId" class="ghost sm" @click="newAgent" title="New agent">
+        <button class="ghost sm" @click="store.openCreate()" title="Create an agent">
           <Icon name="plus" :size="15" /><span class="hide-xs">New</span>
         </button>
         <button v-if="store.spec" class="ghost sm show-mobile" @click="showSpec = true" title="View spec">
@@ -93,23 +68,12 @@ watch(
 
       <div ref="scroller" class="messages">
         <div v-if="!store.messages.length" class="hero">
-          <div class="seg">
-            <button :class="{ on: buildMode === 'single' }" @click="buildMode = 'single'">
-              <Icon name="bot" :size="15" />Single agent
-            </button>
-            <button :class="{ on: buildMode === 'company' }" @click="buildMode = 'company'">
-              <Icon name="layers" :size="15" />Company team
-            </button>
-          </div>
-          <div class="halo"><Icon :name="buildMode === 'company' ? 'layers' : 'sparkles'" :size="26" /></div>
+          <div class="halo"><Icon name="sparkles" :size="26" /></div>
           <h1 v-if="firstRun">Welcome to Veldra 👋</h1>
-          <h1 v-else>{{ buildMode === 'company' ? 'Set up agents for your company' : 'Build an agent by describing it' }}</h1>
-          <p v-if="buildMode === 'company'">Describe your company and what it does. Veldra designs a
-            <strong>team</strong> — a coordinator plus specialist agents for each role — and wires them together.</p>
-          <p v-else-if="firstRun">Build an AI agent just by <strong>describing it</strong> — then chat with it
-            and teach it to grow. No setup, no code. Try one of these to start:</p>
-          <p v-else>Tell Veldra what you want. It designs the policy, tools, knowledge, and even a
-            workflow — then you chat with it. Add documents in <strong>Knowledge</strong> first if it should cite them.</p>
+          <h1 v-else>Pick an agent, or create one</h1>
+          <p v-if="firstRun">Build an AI agent just by <strong>describing it</strong> — then chat with it
+            and teach it to grow. No setup, no code.</p>
+          <p v-else>Choose an agent on the left to chat, or create a new one.</p>
 
           <div v-if="firstRun" class="steps">
             <div class="step"><span class="n">1</span><div class="st"><strong>Describe</strong><small>Say what you want</small></div></div>
@@ -119,11 +83,9 @@ watch(
             <div class="step"><span class="n">3</span><div class="st"><strong>Grow it 🌱</strong><small>Rate or teach it</small></div></div>
           </div>
 
-          <div class="examples">
-            <button v-for="ex in examples" :key="ex" class="example" @click="input = ex">
-              <Icon name="spark" :size="15" />{{ ex }}
-            </button>
-          </div>
+          <button class="cta" @click="store.openCreate()">
+            <Icon name="sparkles" :size="17" />Create an agent
+          </button>
         </div>
 
         <div v-for="(m, i) in store.messages" :key="i" class="msg" :class="m.role">
@@ -147,13 +109,11 @@ watch(
         </div>
       </div>
 
-      <div class="composer">
-        <textarea v-model="input" rows="1"
-          :placeholder="mode === 'ask' ? 'Message your agent…' : buildMode === 'company' ? 'Describe your company…' : 'Describe the agent you want…'"
+      <div v-if="store.agentId" class="composer">
+        <textarea v-model="input" rows="1" placeholder="Message your agent…"
           :disabled="store.busy" @input="grow" @keydown.enter.exact.prevent="submit" />
-        <button class="sendbtn" :disabled="store.busy || !input.trim()" @click="submit"
-                :title="mode === 'build' ? 'Build' : 'Send'">
-          <Icon :name="mode === 'build' ? 'sparkles' : 'send'" :size="18" />
+        <button class="sendbtn" :disabled="store.busy || !input.trim()" @click="submit" title="Send">
+          <Icon name="send" :size="18" />
         </button>
       </div>
       <div v-if="store.error" class="err">{{ store.error }}</div>
@@ -202,6 +162,7 @@ watch(
 .seg button.on { background: var(--accent-soft); color: var(--accent); }
 .halo { width: 60px; height: 60px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 18px; color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 7%, transparent); }
 .hero h1 { color: var(--ink); font-size: 23px; letter-spacing: -0.02em; margin: 0 0 10px; }
+.cta { margin-top: 8px; padding: 11px 20px; font-size: 14.5px; font-weight: 650; border-radius: var(--radius); }
 .hero p { line-height: 1.65; margin: 0 0 20px; }
 .examples { display: flex; flex-direction: column; gap: 9px; }
 .example { display: flex; align-items: center; gap: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; text-align: left; font-size: 13.5px; font-weight: 500; transition: transform 0.1s, border-color 0.15s, background 0.15s; }

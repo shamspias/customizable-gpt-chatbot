@@ -72,6 +72,8 @@ export const useAgentStore = defineStore("agent", () => {
     title: string; message: string; confirmLabel: string; danger: boolean;
     resolve: (ok: boolean) => void;
   } | null>(null);
+  // create-agent modal (Describe / Team / Manual)
+  const createOpen = ref(false);
   // floating Faust admin bot
   const faustOpen = ref(false);
   const faustMsgs = ref<ChatMsg[]>([]);
@@ -253,6 +255,25 @@ export const useAgentStore = defineStore("agent", () => {
   async function ensureConfig() {
     if (config.value) return;
     try { config.value = await getJson("/api/config"); } catch { /* offline — chrome still works */ }
+  }
+  async function ensureCatalog() {
+    try { if (!toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools"); } catch { /**/ }
+  }
+
+  // ── create agent ──
+  function resetChat() {
+    agentId.value = null;
+    spec.value = null;
+    messages.value = [] as any;
+  }
+  function openCreate() {
+    createOpen.value = true;
+  }
+  async function createAgentManual(specObj: Record<string, any>) {
+    const r = await postJson("/api/agents", { spec: specObj });
+    await loadAgent(r.agent_id);
+    await listAgents();
+    return r;
   }
   async function exportAgent(id: string) {
     const d = await getJson(`/api/agents/${id}`);
@@ -500,7 +521,8 @@ export const useAgentStore = defineStore("agent", () => {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
     agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill, confirmState,
-    settingsOpen, config, toolCatalog, openSettings, ensureConfig, exportAgent,
+    settingsOpen, config, toolCatalog, openSettings, ensureConfig, ensureCatalog, exportAgent,
+    createOpen, openCreate, createAgentManual, resetChat,
     confirmAction, resolveConfirm,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,

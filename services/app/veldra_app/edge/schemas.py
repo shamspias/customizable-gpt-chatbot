@@ -82,6 +82,10 @@ class LessonRequest(BaseModel):
     content: str = Field(min_length=1, description="A lesson to teach the agent (episodic memory).")
 
 
+class ManualAgentRequest(BaseModel):
+    spec: dict = Field(description="A full AgentSpec to persist directly (manual create).")
+
+
 class SkillRequest(BaseModel):
     name: str = Field(min_length=1, description="Skill name (referenced by agents).")
     description: str = ""

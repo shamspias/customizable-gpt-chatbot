@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
+import CreateAgentModal from "./components/CreateAgentModal.vue";
 import DiffModal from "./components/DiffModal.vue";
 import FaustBot from "./components/FaustBot.vue";
 import Icon from "./components/Icon.vue";
@@ -140,6 +141,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
   <CommandPalette ref="palette" />
   <ConfirmDialog />
   <SettingsPanel />
+  <CreateAgentModal />
 </template>
 
 <style scoped>

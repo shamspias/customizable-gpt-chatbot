@@ -35,11 +35,6 @@ async function pick(id: string) {
   if (store.agentId === id) return;
   await store.loadAgent(id);
 }
-function newAgent() {
-  store.agentId = null;
-  store.spec = null;
-  store.messages = [] as any;
-}
 </script>
 
 <template>
@@ -91,7 +86,7 @@ function newAgent() {
     </div>
 
     <div class="foot">
-      <button class="newbtn" @click="newAgent">
+      <button class="newbtn" @click="store.openCreate()">
         <Icon name="plus" :size="15" />New agent
       </button>
       <p class="hint">Describe it in plain words — Veldra designs the policy, tools & workflow.</p>

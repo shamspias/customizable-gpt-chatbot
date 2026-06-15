@@ -29,6 +29,7 @@ from veldra_app.edge.schemas import (
     KbCreateRequest,
     KbUpdateRequest,
     LessonRequest,
+    ManualAgentRequest,
     ReflectRequest,
     SelfModApplyRequest,
     SelfModProposeRequest,
@@ -417,6 +418,29 @@ async def list_agents(tag: str | None = None) -> list[AgentSummary]:
     async with sm() as s:
         rows = await repo.list_agents(s, TENANT, tag=tag)
     return [AgentSummary(**{**r, "id": str(r["id"]), "tags": r.get("tags") or []}) for r in rows]
+
+
+@router.post("/agents")
+async def create_agent_manual(req: ManualAgentRequest) -> dict:
+    """Create an agent from a full spec the user authored by hand (the 'Manual' tab of
+    the create flow). Validates the schema + that every tool exists, then persists v1."""
+    from veldra_app.tools_registry import get_registry
+
+    try:
+        spec = AgentSpec.model_validate(req.spec)
+    except Exception as exc:
+        raise HTTPException(400, f"Invalid agent spec: {exc}") from exc
+    allowed = {t["name"] for t in get_registry().catalog()}
+    bad = [t for t in spec.tool_keys() if t not in allowed]
+    if bad:
+        raise HTTPException(400, f"Unknown tool(s): {', '.join(sorted(bad))}")
+    sm = get_sessionmaker()
+    async with sm() as s:
+        agent_id, version = await repo.upsert_agent_spec(
+            s, TENANT, spec.name, spec.model_dump(mode="json"), note="manual create"
+        )
+        await s.commit()
+    return {"agent_id": agent_id, "version": version, "spec": spec.model_dump(mode="json")}
 
 
 @router.get("/agent-tags")
