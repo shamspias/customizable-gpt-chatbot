@@ -115,6 +115,7 @@ export const useAgentStore = defineStore("agent", () => {
     } finally {
       busy.value = false;
       phase.value = "";
+      if (agentId.value) listAgents().catch(() => {});  // surface the new agent in the roster
     }
   }
 

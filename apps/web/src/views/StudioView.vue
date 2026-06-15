@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import AgentRoster from "../components/AgentRoster.vue";
 import CitationChips from "../components/CitationChips.vue";
 import Icon from "../components/Icon.vue";
 import SpecPanel from "../components/SpecPanel.vue";
@@ -63,6 +64,8 @@ watch(
 
 <template>
   <div class="studio">
+    <AgentRoster class="roster-col" />
+
     <section class="left">
       <div class="subbar">
         <strong class="name">{{ store.spec ? store.spec.name : "New agent" }}</strong>
@@ -160,7 +163,8 @@ watch(
 </template>
 
 <style scoped>
-.studio { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 1px; background: var(--border); overflow: hidden; }
+.studio { flex: 1; display: grid; grid-template-columns: 252px minmax(0, 1fr) 416px; gap: 1px; background: var(--border); overflow: hidden; }
+.roster-col { min-width: 0; overflow: hidden; }
 .left { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
 .right { background: var(--bg); padding: 18px; overflow: auto; }
 .subbar { display: flex; align-items: center; gap: 9px; padding: 11px 18px; border-bottom: 1px solid var(--border); background: var(--bg-glass); backdrop-filter: blur(8px); }
@@ -216,6 +220,11 @@ watch(
 .drawer-enter-from, .drawer-leave-to { opacity: 0; }
 .drawer-enter-from .drawer, .drawer-leave-to .drawer { transform: translateX(100%); }
 
+/* ≤1180: drop the roster column (reach agents via the Agents view / ⌘K) */
+@media (max-width: 1180px) {
+  .studio { grid-template-columns: minmax(0, 1fr) 416px; }
+  .roster-col { display: none; }
+}
 @media (max-width: 900px) {
   .studio { grid-template-columns: 1fr; }
   .right { display: none; }

@@ -415,11 +415,7 @@ async def list_agents(tag: str | None = None) -> list[AgentSummary]:
     sm = get_sessionmaker()
     async with sm() as s:
         rows = await repo.list_agents(s, TENANT, tag=tag)
-    return [
-        AgentSummary(id=str(r["id"]), name=r["name"], current_version=r["current_version"],
-                     tags=r.get("tags") or [])
-        for r in rows
-    ]
+    return [AgentSummary(**{**r, "id": str(r["id"]), "tags": r.get("tags") or []}) for r in rows]
 
 
 @router.get("/agent-tags")

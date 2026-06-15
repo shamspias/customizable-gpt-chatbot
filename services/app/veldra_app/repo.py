@@ -351,15 +351,40 @@ async def get_spec(
 async def list_agents(
     session: AsyncSession, tenant_id: str, tag: str | None = None
 ) -> list[dict]:
+    """Agents + a compact, spec-derived stat summary for the roster (model, counts,
+    auto-improve, team membership) — so the picker is informative without N+1 fetches."""
     stmt = (
-        select(Agent.id, Agent.name, Agent.current_version, Agent.tags, Agent.created_at)
+        select(
+            Agent.id, Agent.name, Agent.current_version, Agent.tags, Agent.created_at,
+            SpecVersion.spec,
+        )
+        .join(
+            SpecVersion,
+            (SpecVersion.agent_id == Agent.id)
+            & (SpecVersion.version == Agent.current_version),
+            isouter=True,
+        )
         .where(Agent.tenant_id == tenant_id)
         .order_by(Agent.created_at.desc())
     )
     if tag:
         stmt = stmt.where(Agent.tags.contains([tag]))
     res = await session.execute(stmt)
-    return [dict(r) for r in res.mappings()]
+    out: list[dict] = []
+    for r in res.mappings():
+        spec = r["spec"] or {}
+        out.append({
+            "id": r["id"], "name": r["name"], "current_version": r["current_version"],
+            "tags": r["tags"],
+            "model": spec.get("model") or "",
+            "description": spec.get("description") or "",
+            "n_tools": len(spec.get("tools") or []),
+            "n_skills": len(spec.get("skills") or []),
+            "n_kbs": len(spec.get("knowledge_bases") or []),
+            "n_sub_agents": len(spec.get("sub_agents") or []),
+            "auto_improve": bool(spec.get("auto_improve")),
+        })
+    return out
 
 
 async def list_agent_tags(session: AsyncSession, tenant_id: str) -> list[str]:

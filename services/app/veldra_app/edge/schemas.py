@@ -103,6 +103,14 @@ class AgentSummary(BaseModel):
     name: str
     current_version: int
     tags: list[str] = Field(default_factory=list)
+    # spec-derived stats for the roster (informative picker, no extra fetches)
+    model: str = ""
+    description: str = ""
+    n_tools: int = 0
+    n_skills: int = 0
+    n_kbs: int = 0
+    n_sub_agents: int = 0
+    auto_improve: bool = False
 
 
 class AgentDetail(BaseModel):
