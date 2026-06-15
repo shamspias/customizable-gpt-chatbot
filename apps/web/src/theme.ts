@@ -9,7 +9,8 @@ const MODE_KEY = "veldra.theme";
 const ACCENT_KEY = "veldra.accent";
 
 export function getMode(): Mode {
-  return (localStorage.getItem(MODE_KEY) as Mode) || "system";
+  // Default to the airy light design (aura-style). Users can switch to dark/system.
+  return (localStorage.getItem(MODE_KEY) as Mode) || "light";
 }
 export function getAccent(): Accent {
   return (localStorage.getItem(ACCENT_KEY) as Accent) || "indigo";
@@ -36,6 +37,6 @@ export function setAccent(accent: Accent) {
 
 // Swatch colors for the picker (the filled accent of each preset).
 export const ACCENT_SWATCH: Record<Accent, string> = {
-  indigo: "#5566ef", violet: "#7c3aed", emerald: "#0d9f6e",
+  indigo: "#5246e6", violet: "#7c3aed", emerald: "#0f9f6e",
   amber: "#b45309", rose: "#e11d48", cyan: "#0e7490", slate: "#475569",
 };

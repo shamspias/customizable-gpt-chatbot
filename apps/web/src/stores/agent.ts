@@ -250,6 +250,10 @@ export const useAgentStore = defineStore("agent", () => {
       if (!toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools");
     } catch { /* settings still opens with the theme controls */ }
   }
+  async function ensureConfig() {
+    if (config.value) return;
+    try { config.value = await getJson("/api/config"); } catch { /* offline — chrome still works */ }
+  }
   async function exportAgent(id: string) {
     const d = await getJson(`/api/agents/${id}`);
     const blob = new Blob([JSON.stringify(d.spec, null, 2)], { type: "application/json" });
@@ -486,7 +490,7 @@ export const useAgentStore = defineStore("agent", () => {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
     agentTags, faustOpen, faustMsgs, faustBusy, skills, openSkill, confirmState,
-    settingsOpen, config, toolCatalog, openSettings, exportAgent,
+    settingsOpen, config, toolCatalog, openSettings, ensureConfig, exportAgent,
     confirmAction, resolveConfirm,
     upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,

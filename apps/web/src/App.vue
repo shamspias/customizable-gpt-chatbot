@@ -28,7 +28,7 @@ function parseHash(): { name: "agent"; id: string } | { name: "app" } {
 const route = ref(parseHash());
 function onHash() { route.value = parseHash(); }
 function exitAgentChat() { window.location.hash = ""; }
-onMounted(() => { applyTheme(); window.addEventListener("hashchange", onHash); });
+onMounted(() => { applyTheme(); store.ensureConfig(); window.addEventListener("hashchange", onHash); });
 onUnmounted(() => window.removeEventListener("hashchange", onHash));
 const NAV = [
   { id: "studio", label: "Studio", icon: "sparkles" },
@@ -98,7 +98,12 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
       <button class="cmdk" @click="store.openSettings()">
         <Icon name="settings" :size="14" /><span>Settings</span>
       </button>
-      <div class="foot"><span class="dotlive" />local-first · the agent that grows with you</div>
+      <div class="foot">
+        <span class="dotlive" />
+        <span class="prov">{{ store.config?.llm_provider || "local-first" }}</span>
+        <span class="sep">·</span>
+        <span>the agent that grows with you</span>
+      </div>
     </aside>
 
     <main class="main">
@@ -184,7 +189,9 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 .fspark { margin-left: auto; color: var(--faint); }
 .faustbtn:hover .fspark { color: var(--accent); }
 
-.foot { color: var(--faint); font-size: 11px; line-height: 1.5; padding: 6px 8px; display: flex; align-items: center; gap: 7px; }
+.foot { color: var(--faint); font-size: 11px; line-height: 1.5; padding: 6px 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.foot .prov { color: var(--ok); font-weight: 650; text-transform: capitalize; }
+.foot .sep { opacity: 0.6; }
 .dotlive { width: 7px; height: 7px; border-radius: 99px; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); flex: none; }
 
 .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
