@@ -26,6 +26,8 @@ const COMPANY_EXAMPLES = [
   "A clinic: reception/booking, billing, and a patient-FAQ agent from our docs.",
 ];
 const examples = computed(() => (buildMode.value === "company" ? COMPANY_EXAMPLES : EXAMPLES));
+// Brand-new user (no agents yet) → show a friendly, guided welcome sequence.
+const firstRun = computed(() => !store.agents.length && !store.agentId);
 
 async function submit() {
   const t = input.value.trim();
@@ -100,11 +102,23 @@ watch(
             </button>
           </div>
           <div class="halo"><Icon :name="buildMode === 'company' ? 'layers' : 'sparkles'" :size="26" /></div>
-          <h1>{{ buildMode === 'company' ? 'Set up agents for your company' : 'Build an agent by describing it' }}</h1>
+          <h1 v-if="firstRun">Welcome to Veldra 👋</h1>
+          <h1 v-else>{{ buildMode === 'company' ? 'Set up agents for your company' : 'Build an agent by describing it' }}</h1>
           <p v-if="buildMode === 'company'">Describe your company and what it does. Veldra designs a
             <strong>team</strong> — a coordinator plus specialist agents for each role — and wires them together.</p>
-          <p v-else>Upload a document, then tell Veldra what you want. It designs the policy,
-            tools, knowledge, and even a workflow — then you chat with it.</p>
+          <p v-else-if="firstRun">Build an AI agent just by <strong>describing it</strong> — then chat with it
+            and teach it to grow. No setup, no code. Try one of these to start:</p>
+          <p v-else>Tell Veldra what you want. It designs the policy, tools, knowledge, and even a
+            workflow — then you chat with it. Add documents in <strong>Knowledge</strong> first if it should cite them.</p>
+
+          <div v-if="firstRun" class="steps">
+            <div class="step"><span class="n">1</span><div class="st"><strong>Describe</strong><small>Say what you want</small></div></div>
+            <div class="arr">→</div>
+            <div class="step"><span class="n">2</span><div class="st"><strong>Chat &amp; test</strong><small>Talk to it instantly</small></div></div>
+            <div class="arr">→</div>
+            <div class="step"><span class="n">3</span><div class="st"><strong>Grow it 🌱</strong><small>Rate or teach it</small></div></div>
+          </div>
+
           <div class="examples">
             <button v-for="ex in examples" :key="ex" class="example" @click="input = ex">
               <Icon name="spark" :size="15" />{{ ex }}
@@ -175,7 +189,14 @@ watch(
 .docs { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); }
 .doc { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px; }
 .messages { flex: 1; overflow: auto; padding: 24px 18px; display: flex; flex-direction: column; gap: 14px; }
-.hero { margin: auto; text-align: center; max-width: 500px; color: var(--muted); animation: veldra-rise 0.3s ease both; }
+.hero { margin: auto; text-align: center; max-width: 540px; color: var(--muted); animation: veldra-rise 0.3s ease both; }
+.steps { display: flex; align-items: stretch; justify-content: center; gap: 8px; margin: 4px 0 22px; }
+.steps .step { display: flex; align-items: center; gap: 9px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; text-align: left; }
+.steps .n { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; }
+.steps .st { display: flex; flex-direction: column; line-height: 1.25; }
+.steps .st strong { font-size: 13px; color: var(--ink); }
+.steps .st small { font-size: 11px; color: var(--faint); }
+.steps .arr { display: flex; align-items: center; color: var(--faint); }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; margin-bottom: 22px; background: var(--surface); }
 .seg button { background: none; border: none; box-shadow: none; color: var(--muted); border-radius: 999px; padding: 7px 15px; font-size: 13px; font-weight: 550; }
 .seg button.on { background: var(--accent-soft); color: var(--accent); }
@@ -230,5 +251,7 @@ watch(
   .right { display: none; }
   .show-mobile { display: inline-flex; }
   .hide-xs { display: none; }
+  .steps { flex-wrap: wrap; }
+  .steps .arr { display: none; }
 }
 </style>
