@@ -43,9 +43,9 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
-  const view = ref<"studio" | "knowledge" | "workflows" | "activity" | "skills" | "insights">(
-    "studio",
-  );
+  const view = ref<
+    "home" | "chat" | "knowledge" | "workflows" | "activity" | "skills" | "insights"
+  >("home");
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
   const kbDocs = ref<any[]>([]);
@@ -369,7 +369,7 @@ export const useAgentStore = defineStore("agent", () => {
     agentId.value = id;
     spec.value = d.spec;
     messages.value = [];
-    view.value = "studio";
+    view.value = "chat";  // opening an agent → its focused chat screen
     await loadLessons();
   }
 

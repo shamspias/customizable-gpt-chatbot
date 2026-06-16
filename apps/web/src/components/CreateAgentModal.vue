@@ -53,9 +53,9 @@ function close() { store.createOpen = false; }
 
 async function runBuild(prompt: string) {
   store.resetChat();
-  store.view = "studio";
+  store.view = "chat";
   await store.build(prompt);
-  if (store.agentId && !store.error) close();  // success → land in Studio with the new agent
+  if (store.agentId && !store.error) close();  // success → land in the new agent's chat
 }
 function submitDescribe() {
   const t = desc.value.trim();
@@ -85,8 +85,7 @@ async function submitManual() {
     auto_improve: false,
   };
   try {
-    await store.createAgentManual(spec);
-    store.view = "studio";
+    await store.createAgentManual(spec);  // loadAgent() lands us in the chat view
     close();
   } catch (e: any) {
     manualErr.value = String(e?.message || e).replace(/^Error:\s*/, "");

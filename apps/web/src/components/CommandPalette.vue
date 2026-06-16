@@ -14,10 +14,10 @@ interface Cmd { id: string; label: string; hint?: string; icon: string; run: () 
 function go(view: string) { store.view = view as any; }
 
 const COMMANDS = computed<Cmd[]>(() => [
-  { id: "studio", label: "Go to Studio", hint: "Chat & build", icon: "sparkles", run: () => go("studio") },
+  { id: "home", label: "Go to Home", hint: "Agents & overview", icon: "sparkles", run: () => go("home") },
+  { id: "workflows", label: "All agents", hint: "Manage, tag, export", icon: "workflow", run: () => go("workflows") },
   { id: "knowledge", label: "Go to Knowledge", hint: "Documents & retrieval", icon: "book", run: () => go("knowledge") },
   { id: "skills", label: "Go to Skills", hint: "Markdown playbooks", icon: "scroll", run: () => go("skills") },
-  { id: "workflows", label: "Go to Agents", hint: "Your agents & teams", icon: "workflow", run: () => go("workflows") },
   { id: "insights", label: "Go to Insights", hint: "Usage, cost & reliability", icon: "chart", run: () => go("insights") },
   { id: "activity", label: "Go to Activity", hint: "Run logs & traces", icon: "activity", run: () => go("activity") },
   { id: "new", label: "Create an agent", hint: "Describe · Team · Manual", icon: "plus", run: () => store.openCreate() },

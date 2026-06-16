@@ -44,8 +44,8 @@ function grow(e: Event) {
   el.style.height = Math.min(el.scrollHeight, 160) + "px";
 }
 function openStudio() {
-  // Keep the loaded agent; drop back into the full app shell on the Studio view.
-  store.view = "studio";
+  // Keep the loaded agent; drop back into the app on its focused chat screen.
+  store.view = "chat";
   emit("exit");
 }
 async function copyLink() {
@@ -87,8 +87,8 @@ watch(
       <button v-if="store.spec" class="ghost sm" title="Edit workflow" @click="store.showBuilder = true">
         <Icon name="workflow" :size="15" /><span class="hide-xs">Builder</span>
       </button>
-      <button class="sm" title="Open in Studio" @click="openStudio">
-        <Icon name="sparkles" :size="15" /><span class="hide-xs">Studio</span>
+      <button class="sm" title="Open in the app" @click="openStudio">
+        <Icon name="sparkles" :size="15" /><span class="hide-xs">Open in app</span>
       </button>
     </header>
 
