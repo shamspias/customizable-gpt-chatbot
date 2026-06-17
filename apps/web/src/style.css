@@ -158,15 +158,38 @@ body { background: var(--bg); }
     border-color: var(--danger); filter: none; }
   button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
-  input[type="text"], input[type="number"], input:not([type]), textarea, select {
-    font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+  input[type="search"], input[type="url"], input:not([type]), textarea, select {
+    font: inherit; width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
     transition: border-color 0.14s ease, box-shadow 0.14s ease;
   }
   input::placeholder, textarea::placeholder { color: var(--faint); }
+  /* hover affordance so fields feel interactive before you click into them */
+  input:hover:not(:focus):not(:disabled), textarea:hover:not(:focus):not(:disabled),
+  select:hover:not(:focus):not(:disabled) { border-color: var(--border-strong); }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+  input:disabled, textarea:disabled, select:disabled {
+    background: var(--surface-2); color: var(--muted); cursor: not-allowed; opacity: 0.7; }
+
+  /* custom caret so native <select> looks identical across browsers + both themes */
+  select { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7589' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; }
+
+  /* keep autofilled fields on-theme (Chrome paints them white + square otherwise) */
+  input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    border-radius: var(--radius-sm); transition: background-color 9999s ease-in-out 0s; }
 
   a { color: var(--accent); }
+}
+
+/* 16px inputs on phones so iOS Safari doesn't zoom the viewport on focus */
+@media (max-width: 560px) {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+  input[type="search"], input[type="url"], input:not([type]), textarea, select { font-size: 16px; }
 }
 
 @keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }

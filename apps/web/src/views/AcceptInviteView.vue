@@ -74,15 +74,15 @@ async function accept() {
         <p class="sub">You were invited as <b>{{ invite.role }}</b> ({{ invite.email }}).</p>
         <form @submit.prevent="accept" class="form">
           <label>Your name</label>
-          <input v-model="name" placeholder="Ada Lovelace" autofocus />
+          <input v-model="name" placeholder="Ada Lovelace" autocomplete="name" autofocus />
           <div class="two">
             <div>
               <label>Password</label>
-              <input v-model="password" type="password" placeholder="8+ characters" />
+              <input v-model="password" type="password" placeholder="8+ characters" autocomplete="new-password" />
             </div>
             <div>
               <label>Confirm</label>
-              <input v-model="confirm" type="password" placeholder="Repeat" />
+              <input v-model="confirm" type="password" placeholder="Repeat" autocomplete="new-password" />
             </div>
           </div>
           <p v-if="password && password !== confirm" class="warn">Passwords must match.</p>
@@ -115,6 +115,7 @@ h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
 label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .two > div { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 400px) { .two { grid-template-columns: 1fr; } }
 .warn { color: var(--danger); font-size: 12.5px; margin: 2px 0; }
 .primary { margin-top: 10px; padding: 11px 18px; font-size: 14.5px; font-weight: 650; justify-content: center; }
 </style>

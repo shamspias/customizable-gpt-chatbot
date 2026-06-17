@@ -133,17 +133,17 @@ async function finish() {
       <!-- Step 2: admin -->
       <section v-else class="body">
         <label>Your name</label>
-        <input v-model="name" placeholder="Ada Lovelace" autofocus />
+        <input v-model="name" placeholder="Ada Lovelace" autocomplete="name" autofocus />
         <label>Email</label>
-        <input v-model="email" type="email" placeholder="you@company.com" />
+        <input v-model="email" type="email" placeholder="you@company.com" autocomplete="email" />
         <div class="two">
           <div>
             <label>Password</label>
-            <input v-model="password" type="password" placeholder="8+ characters" />
+            <input v-model="password" type="password" placeholder="8+ characters" autocomplete="new-password" />
           </div>
           <div>
             <label>Confirm</label>
-            <input v-model="confirm" type="password" placeholder="Repeat" @keyup.enter="finish" />
+            <input v-model="confirm" type="password" placeholder="Repeat" autocomplete="new-password" @keyup.enter="finish" />
           </div>
         </div>
         <p v-if="password && !passwordsMatch" class="warn">Passwords must match and be at least 8 characters.</p>
@@ -191,6 +191,7 @@ label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .warn { color: var(--danger); font-size: 12.5px; margin: 2px 0 0; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .two > div { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 400px) { .two { grid-template-columns: 1fr; } }
 .row { display: flex; gap: 10px; margin-top: 10px; }
 .row .ghost { flex: none; }
 .primary { flex: 1; padding: 11px 18px; font-size: 14.5px; font-weight: 650; }

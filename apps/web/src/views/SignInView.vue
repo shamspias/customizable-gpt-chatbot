@@ -7,6 +7,7 @@ import { useAgentStore } from "../stores/agent";
 const store = useAgentStore();
 const email = ref("");
 const password = ref("");
+const show = ref(false);
 const busy = ref(false);
 const error = ref("");
 
@@ -43,7 +44,14 @@ async function submit() {
         <label>Email</label>
         <input v-model="email" type="email" placeholder="you@company.com" autocomplete="username" autofocus />
         <label>Password</label>
-        <input v-model="password" type="password" placeholder="Your password" autocomplete="current-password" />
+        <div class="pw">
+          <input v-model="password" :type="show ? 'text' : 'password'" placeholder="Your password"
+                 autocomplete="current-password" />
+          <button type="button" class="reveal" :aria-label="show ? 'Hide password' : 'Show password'"
+                  :aria-pressed="show" @click="show = !show">
+            <Icon :name="show ? 'eye-off' : 'eye'" :size="16" />
+          </button>
+        </div>
         <p v-if="error" class="warn">{{ error }}</p>
         <button class="primary" type="submit" :disabled="!valid || busy">
           {{ busy ? "Signing in…" : "Sign in" }}<Icon name="send" :size="16" />
@@ -71,6 +79,11 @@ h1 { margin: 0; font-size: 23px; letter-spacing: -0.02em; }
 .sub { margin: 6px 0 22px; color: var(--muted); font-size: 14px; }
 .form { display: flex; flex-direction: column; gap: 8px; text-align: left; }
 label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.pw { position: relative; display: flex; }
+.pw input { padding-right: 42px; }
+.reveal { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none;
+  border: none; box-shadow: none; color: var(--faint); padding: 7px; border-radius: var(--radius-sm); }
+.reveal:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); filter: none; }
 .warn { color: var(--danger); font-size: 12.5px; margin: 2px 0; }
 .primary { margin-top: 10px; padding: 11px 18px; font-size: 14.5px; font-weight: 650; justify-content: center; }
 .foot { margin: 18px 0 0; color: var(--faint); font-size: 12px; }
