@@ -1,7 +1,44 @@
 // Minimal API client. SSE endpoints are POST (bodies), so native EventSource
 // can't be used — we read the fetch stream and parse SSE frames by hand.
+//
+// Auth: a bearer token (persisted in localStorage) is attached to every request.
+// A 401 *while a token is set* means the session expired — we clear it and emit a
+// `veldra:unauthorized` event so the shell can fall back to the sign-in screen.
 
 export type SseHandler = (event: string, data: any) => void;
+
+const TOKEN_KEY = "veldra.token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = getToken();
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+}
+
+function onUnauthorized(): void {
+  // Only a *had-a-token* 401 is a real expiry (a failed login has no token yet).
+  if (getToken()) {
+    clearToken();
+    window.dispatchEvent(new CustomEvent("veldra:unauthorized"));
+  }
+}
+
+/** fetch() with the auth header injected and global 401 handling. */
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = authHeaders((init.headers as Record<string, string>) || {});
+  const resp = await fetch(path, { ...init, headers });
+  if (resp.status === 401) onUnauthorized();
+  return resp;
+}
 
 export async function streamPost(
   path: string,
@@ -11,10 +48,11 @@ export async function streamPost(
 ): Promise<void> {
   const resp = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
     signal,
   });
+  if (resp.status === 401) onUnauthorized();
   if (!resp.ok || !resp.body) {
     throw new Error(`request failed: ${resp.status} ${await resp.text()}`);
   }
@@ -42,7 +80,7 @@ export async function streamPost(
 }
 
 export async function postJson<T = any>(path: string, body: unknown): Promise<T> {
-  const r = await fetch(path, {
+  const r = await apiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -52,7 +90,7 @@ export async function postJson<T = any>(path: string, body: unknown): Promise<T>
 }
 
 export async function getJson<T = any>(path: string): Promise<T> {
-  const r = await fetch(path);
+  const r = await apiFetch(path);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -60,7 +98,7 @@ export async function getJson<T = any>(path: string): Promise<T> {
 export async function uploadFile(file: File): Promise<any> {
   const fd = new FormData();
   fd.append("file", file);
-  const r = await fetch("/api/kb/upload", { method: "POST", body: fd });
+  const r = await apiFetch("/api/kb/upload", { method: "POST", body: fd });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

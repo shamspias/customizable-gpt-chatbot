@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from veldra_app.config import get_settings
-from veldra_app.edge import router
+from veldra_app.edge import auth_router, router
 from veldra_app.tracing import setup_tracing
 
 # Built Vue SPA (present in Docker / after `npm run build`); when absent (pure dev),
@@ -32,11 +32,14 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Veldra", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        # MVP: permissive for local dev (Vue on :5173). Tighten at v1 with real auth.
-        allow_origins=["*"] if settings.env == "local" else [],
+        # Explicit allow-list (app origin + the Vite dev server in local) — never the
+        # wildcard now that requests carry a bearer token.
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(auth_router)  # /api/auth/* + /api/setup/*
     app.include_router(router)  # /api/* — registered before the SPA mount so it wins
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

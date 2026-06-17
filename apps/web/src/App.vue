@@ -10,25 +10,34 @@ import SettingsPanel from "./components/SettingsPanel.vue";
 import WorkflowBuilder from "./components/WorkflowBuilder.vue";
 import { applyTheme, getMode, setMode } from "./theme";
 import { useAgentStore } from "./stores/agent";
+import AcceptInviteView from "./views/AcceptInviteView.vue";
 import AgentChatView from "./views/AgentChatView.vue";
 import ChatView from "./views/ChatView.vue";
 import HomeView from "./views/HomeView.vue";
 import InsightsView from "./views/InsightsView.vue";
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
+import SetupView from "./views/SetupView.vue";
+import SignInView from "./views/SignInView.vue";
 import SkillsView from "./views/SkillsView.vue";
 import WorkflowsView from "./views/WorkflowsView.vue";
 
 const store = useAgentStore();
 
-// Minimal hash router: #/agent/<id> = standalone shareable test page.
-function parseHash(): { name: "agent"; id: string } | { name: "app" } {
-  const m = (window.location.hash || "").match(/^#\/agent\/(.+)$/);
-  return m ? { name: "agent", id: decodeURIComponent(m[1]) } : { name: "app" };
+// Minimal hash router: #/agent/<id> = standalone test page, #/accept/<token> = invite.
+function parseHash(): { name: "agent" | "accept"; id: string } | { name: "app" } {
+  const h = window.location.hash || "";
+  let m = h.match(/^#\/agent\/(.+)$/);
+  if (m) return { name: "agent", id: decodeURIComponent(m[1]) };
+  m = h.match(/^#\/accept\/(.+)$/);
+  if (m) return { name: "accept", id: decodeURIComponent(m[1]) };
+  return { name: "app" };
 }
 const route = ref(parseHash());
 function onHash() { route.value = parseHash(); }
 function exitAgentChat() { window.location.hash = ""; }
+function exitAccept() { window.location.hash = ""; }
+function onUnauth() { store.onUnauthorized(); }
 
 const mode = ref(getMode());
 function toggleTheme() {
@@ -36,8 +45,22 @@ function toggleTheme() {
   setMode(mode.value);
 }
 
-onMounted(() => { applyTheme(); store.ensureConfig(); window.addEventListener("hashchange", onHash); });
-onUnmounted(() => window.removeEventListener("hashchange", onHash));
+async function doLogout() {
+  menuOpen.value = false;
+  await store.logout();
+}
+
+onMounted(async () => {
+  applyTheme();
+  window.addEventListener("hashchange", onHash);
+  window.addEventListener("veldra:unauthorized", onUnauth);
+  await store.boot();
+  if (store.me || !store.authEnabled) store.ensureConfig();
+});
+onUnmounted(() => {
+  window.removeEventListener("hashchange", onHash);
+  window.removeEventListener("veldra:unauthorized", onUnauth);
+});
 
 const menuOpen = ref(false);
 const MENU = [
@@ -60,6 +83,28 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 </script>
 
 <template>
+  <!-- boot splash while we decide install / sign-in / app -->
+  <div v-if="!store.authReady" class="bootsplash">
+    <span class="bmark">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="5" cy="7" r="2.4" fill="currentColor" />
+        <circle cx="19" cy="9" r="2.4" fill="currentColor" opacity="0.78" />
+        <circle cx="12" cy="18" r="2.4" fill="currentColor" opacity="0.58" />
+      </svg>
+    </span>
+  </div>
+
+  <!-- first-run install wizard -->
+  <SetupView v-else-if="store.setupNeeded" />
+
+  <!-- invite acceptance (#/accept/<token>) -->
+  <AcceptInviteView v-else-if="route.name === 'accept'" :token="route.id" @exit="exitAccept" />
+
+  <!-- sign-in gate -->
+  <SignInView v-else-if="store.authEnabled && !store.me" />
+
+  <!-- authenticated app -->
+  <template v-else>
   <!-- standalone, shareable per-agent test chat at #/agent/<id> -->
   <AgentChatView v-if="route.name === 'agent'" :agent-id="route.id" @exit="exitAgentChat" />
 
@@ -110,13 +155,18 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
           <div class="grow" />
           <button class="mlink" @click="store.faustOpen = true; menuOpen = false"><Icon name="bot" :size="18" /><span>Faust assistant</span></button>
           <button class="mlink" @click="store.openSettings(); menuOpen = false"><Icon name="settings" :size="18" /><span>Settings</span></button>
-          <div class="mfoot"><span class="dot" />{{ store.config?.llm_provider || "local-first" }} · grows with you</div>
+          <button v-if="store.me" class="mlink" @click="doLogout"><Icon name="x" :size="18" /><span>Sign out</span></button>
+          <div class="mfoot">
+            <span class="dot" />
+            <span v-if="store.me">{{ store.me.name || store.me.email }} · {{ store.workspace?.name || "Veldra" }}</span>
+            <span v-else>{{ store.config?.llm_provider || "local-first" }} · grows with you</span>
+          </div>
         </aside>
       </div>
     </transition>
   </div>
 
-  <!-- global overlays (work on every screen) -->
+  <!-- global overlays (only inside the authenticated app) -->
   <DiffModal />
   <WorkflowBuilder />
   <FaustBot />
@@ -124,9 +174,16 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
   <ConfirmDialog />
   <SettingsPanel />
   <CreateAgentModal />
+  </template>
 </template>
 
 <style scoped>
+.bootsplash { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); }
+.bmark { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 15px; color: var(--accent);
+  background: linear-gradient(150deg, var(--accent-soft), color-mix(in srgb, var(--accent-strong) 22%, transparent));
+  box-shadow: inset 0 0 0 1px var(--accent-ring); animation: veldra-pulse 1.3s ease-in-out infinite; }
+.bmark svg { width: 30px; height: 30px; }
+
 .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 .topbar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid var(--border);
   background: var(--bg-glass); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 20; }

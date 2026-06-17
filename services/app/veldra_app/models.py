@@ -328,8 +328,118 @@ class Lesson(Base):
     __table_args__ = (Index("lessons_agent_idx", "agent_id", "created_at"),)
 
 
+# ───────────────────────── identity / access (multi-user) ─────────────────────────
+class User(Base):
+    """A person who signs in. Global identity; workspace access is via Membership.
+    Passwords are stored as a salted PBKDF2-SHA256 digest (see veldra_app.auth)."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = _pk()
+    email: Mapped[str] = mapped_column(Text, nullable=False)  # stored lower-cased
+    name: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    password_hash: Mapped[str | None] = mapped_column(Text)  # null until an invite is accepted
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = _created_at()
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (UniqueConstraint("email", name="uq_users_email"),)
+
+
+class Membership(Base):
+    """Links a user to a workspace (tenant) with a role. One row per (user, tenant);
+    in the single-workspace product everyone joins the default tenant."""
+
+    __tablename__ = "memberships"
+
+    id: Mapped[str] = _pk()
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(  # admin | member | viewer
+        Text, nullable=False, server_default=text("'member'")
+    )
+    created_at: Mapped[datetime] = _created_at()
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "tenant_id", name="uq_memberships_user_id"),
+        Index("memberships_tenant_idx", "tenant_id"),
+    )
+
+
+class UserSession(Base):
+    """A login session — an opaque bearer token stored only as its SHA-256 hash, so a
+    DB leak can't be replayed. Revocable (delete the row) and expiring."""
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[str] = _pk()
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_user_sessions_token_hash"),
+        Index("user_sessions_user_idx", "user_id"),
+    )
+
+
+class Invite(Base):
+    """A pending workspace invitation. The admin shares the token; the invitee sets a
+    password to accept, which creates their User + Membership."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[str] = _pk()
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)  # stored lower-cased
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'member'"))
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    invited_by: Mapped[str | None] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_invites_token_hash"),
+        Index("invites_tenant_email_idx", "tenant_id", "email"),
+    )
+
+
+class SetupState(Base):
+    """First-run setup progress for a workspace. One row per tenant; `completed`
+    gates the install wizard so it never reappears once finished."""
+
+    __tablename__ = "setup_state"
+
+    id: Mapped[str] = _pk()
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    current_step: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'welcome'")
+    )
+    data: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (UniqueConstraint("tenant_id", name="uq_setup_state_tenant_id"),)
+
+
 __all__ = [
     "Base", "EMBED_DIM",
     "Tenant", "Agent", "SpecVersion", "KnowledgeBase", "Document",
     "PageIndex", "Chunk", "Run", "RunStep", "Audit", "Lesson", "Skill",
+    "User", "Membership", "UserSession", "Invite", "SetupState",
 ]

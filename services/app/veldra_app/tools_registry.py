@@ -22,3 +22,9 @@ def get_registry() -> ToolRegistry:
     for tool in builtins.build_tools():  # time / math / http.fetch / fs.*
         registry.register(tool)
     return registry
+
+
+async def get_catalog(tenant_id: str) -> list[dict]:
+    """The tool catalog visible to a workspace. Built-ins for now; the plugin phase
+    merges per-tenant plugin/MCP tools here (async so it can read the DB)."""
+    return get_registry().catalog()

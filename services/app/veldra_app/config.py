@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     default_tenant_slug: str = Field(default="default", alias="VELDRA_DEFAULT_TENANT")
     log_level: str = Field(default="INFO", alias="VELDRA_LOG_LEVEL")
 
+    # ── auth / access (multi-user, single workspace) ──
+    # When False, requests resolve to the default workspace as a system admin (no
+    # token needed) — used by the CLI, evals, and trusted local automation.
+    auth_enabled: bool = Field(default=True, alias="VELDRA_AUTH_ENABLED")
+    session_ttl_days: int = Field(default=30, alias="VELDRA_SESSION_TTL_DAYS")
+    invite_ttl_days: int = Field(default=7, alias="VELDRA_INVITE_TTL_DAYS")
+    # Comma-separated allowed browser origins (CORS). Empty => derive sensible
+    # defaults (api_base_url + the Vite dev server) instead of the wildcard.
+    cors_origins: str = Field(default="", alias="VELDRA_CORS_ORIGINS")
+    # Optional shared token the CLI can send (Authorization: Bearer <token>) to act
+    # as the system admin without an interactive login. Blank => disabled.
+    service_token: str = Field(default="", alias="VELDRA_SERVICE_TOKEN")
+
     # ── observability ──
     otel_service_name: str = Field(default="veldra", alias="OTEL_SERVICE_NAME")
     otel_exporter_otlp_endpoint: str = Field(default="", alias="OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -101,6 +114,17 @@ class Settings(BaseSettings):
         if url.startswith("postgresql+"):
             return url
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """Allowed browser origins. Explicit list wins; otherwise the app's own
+        base URL plus the local Vite dev server (so dev works out of the box)."""
+        if self.cors_origins.strip():
+            return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins = {self.api_base_url.rstrip("/")}
+        if self.env == "local":
+            origins.update({"http://localhost:5173", "http://127.0.0.1:5173"})
+        return sorted(origins)
 
 
 @lru_cache
