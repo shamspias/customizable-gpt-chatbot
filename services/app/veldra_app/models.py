@@ -416,6 +416,38 @@ class Invite(Base):
     )
 
 
+class Plugin(Base):
+    """An installed extension that contributes tools to a workspace. Today these are
+    MCP connectors (Streamable HTTP / SSE / stdio); the built-in tools live in code and
+    are always available. `config` is non-secret (returned to the UI); `secret` holds
+    credentials (header values, env) and is never returned."""
+
+    __tablename__ = "plugins"
+
+    id: Mapped[str] = _pk()
+    tenant_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    key: Mapped[str] = mapped_column(Text, nullable=False)  # slug, tool namespace e.g. 'shopify'
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    kind: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'mcp'"))
+    transport: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'http'"))
+    config: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    secret: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unknown'"))
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    n_tools: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "key", name="uq_plugins_tenant_id"),
+        Index("plugins_tenant_idx", "tenant_id"),
+    )
+
+
 class SetupState(Base):
     """First-run setup progress for a workspace. One row per tenant; `completed`
     gates the install wizard so it never reappears once finished."""
@@ -441,5 +473,5 @@ __all__ = [
     "Base", "EMBED_DIM",
     "Tenant", "Agent", "SpecVersion", "KnowledgeBase", "Document",
     "PageIndex", "Chunk", "Run", "RunStep", "Audit", "Lesson", "Skill",
-    "User", "Membership", "UserSession", "Invite", "SetupState",
+    "User", "Membership", "UserSession", "Invite", "SetupState", "Plugin",
 ]

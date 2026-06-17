@@ -46,6 +46,7 @@ const P: Record<string, string> = {
     '<path d="M12 5a3 3 0 1 0-5.9.6 3 3 0 0 0-1 5.4 3 3 0 0 0 .5 5.6A3 3 0 0 0 12 19z"/><path d="M12 5a3 3 0 1 1 5.9.6 3 3 0 0 1 1 5.4 3 3 0 0 1-.5 5.6A3 3 0 0 1 12 19z"/>',
   spark: '<path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/>',
   chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16v-4"/><path d="M12 16V8"/><path d="M17 16v-7"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>',
 };
 </script>
 

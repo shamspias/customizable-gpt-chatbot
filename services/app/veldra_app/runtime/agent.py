@@ -22,7 +22,7 @@ from veldra_app import repo
 from veldra_app.db import get_sessionmaker
 from veldra_app.events import ev
 from veldra_app.pricing import UsageMeter
-from veldra_app.tools_registry import get_registry
+from veldra_app.tools_registry import build_registry
 from veldra_app.tracing import get_tracer
 
 ANSWER_MAX_TOKENS = 8192
@@ -91,7 +91,7 @@ async def run_agent(
 ) -> AsyncIterator[dict]:
     """Drive one agent turn-to-completion, yielding SSE event dicts."""
     provider = get_provider()
-    registry = registry or get_registry()
+    registry = registry or await build_registry(tenant_id)
     tracer = get_tracer()
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}

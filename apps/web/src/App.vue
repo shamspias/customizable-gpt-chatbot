@@ -17,6 +17,7 @@ import HomeView from "./views/HomeView.vue";
 import InsightsView from "./views/InsightsView.vue";
 import KnowledgeView from "./views/KnowledgeView.vue";
 import LogsView from "./views/LogsView.vue";
+import PluginsView from "./views/PluginsView.vue";
 import SetupView from "./views/SetupView.vue";
 import SignInView from "./views/SignInView.vue";
 import SkillsView from "./views/SkillsView.vue";
@@ -68,6 +69,7 @@ const MENU = [
   { id: "workflows", label: "All agents", icon: "workflow" },
   { id: "knowledge", label: "Knowledge", icon: "book" },
   { id: "skills", label: "Skills", icon: "scroll" },
+  { id: "plugins", label: "Plugins", icon: "plug" },
   { id: "insights", label: "Insights", icon: "chart" },
   { id: "activity", label: "Activity", icon: "activity" },
 ] as const;
@@ -76,6 +78,7 @@ function navTo(id: string) { store.view = id as any; menuOpen.value = false; }
 const SHELL: Record<string, any> = {
   home: HomeView, knowledge: KnowledgeView, skills: SkillsView,
   workflows: WorkflowsView, insights: InsightsView, activity: LogsView,
+  plugins: PluginsView,
 };
 const current = computed(() => SHELL[store.view] || HomeView);
 const title = computed(() => MENU.find((m) => m.id === store.view)?.label ?? "Veldra");

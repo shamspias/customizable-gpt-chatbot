@@ -44,7 +44,7 @@ export const useAgentStore = defineStore("agent", () => {
   const phase = ref("");
   const showBuilder = ref(false);
   const view = ref<
-    "home" | "chat" | "knowledge" | "workflows" | "activity" | "skills" | "insights"
+    "home" | "chat" | "knowledge" | "workflows" | "activity" | "skills" | "insights" | "plugins"
   >("home");
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
@@ -90,6 +90,9 @@ export const useAgentStore = defineStore("agent", () => {
   const workspace = ref<{ id: string; name: string } | null>(null);
   const members = ref<any[]>([]);
   const invites = ref<any[]>([]);
+  // plugins (MCP connectors)
+  const plugins = ref<any[]>([]);
+  const pluginTemplates = ref<any[]>([]);
 
   async function upload(file: File) {
     busy.value = true;
@@ -270,8 +273,10 @@ export const useAgentStore = defineStore("agent", () => {
     if (config.value) return;
     try { config.value = await getJson("/api/config"); } catch { /* offline — chrome still works */ }
   }
-  async function ensureCatalog() {
-    try { if (!toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools"); } catch { /**/ }
+  async function ensureCatalog(force = false) {
+    try {
+      if (force || !toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools");
+    } catch { /**/ }
   }
 
   // ── create agent ──
@@ -632,6 +637,38 @@ export const useAgentStore = defineStore("agent", () => {
     await loadMembers();
   }
 
+  // ── plugins (MCP connectors) ──
+  async function listPlugins() {
+    plugins.value = await getJson("/api/plugins");
+  }
+  async function loadPluginTemplates() {
+    if (!pluginTemplates.value.length) pluginTemplates.value = await getJson("/api/plugins/templates");
+  }
+  async function installPlugin(body: Record<string, any>) {
+    const p = await postJson("/api/plugins", body);
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+    return p;
+  }
+  async function patchPlugin(id: string, body: Record<string, any>) {
+    const r = await apiFetch(`/api/plugins/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+    return r.json();
+  }
+  async function deletePlugin(id: string) {
+    await apiFetch(`/api/plugins/${id}`, { method: "DELETE" });
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+  }
+  async function testPlugin(id: string) {
+    return postJson(`/api/plugins/${id}/test`, {});
+  }
+  async function testPluginConfig(body: Record<string, any>) {
+    return postJson("/api/plugins/test", body);
+  }
+
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
@@ -650,5 +687,8 @@ export const useAgentStore = defineStore("agent", () => {
     authReady, authEnabled, setupNeeded, me, workspace, members, invites,
     boot, fetchMe, login, completeSetup, acceptInvite, logout, onUnauthorized,
     loadMembers, loadInvites, inviteMember, revokeInvite, setMemberRole, removeMember,
+    // plugins
+    plugins, pluginTemplates, listPlugins, loadPluginTemplates, installPlugin,
+    patchPlugin, deletePlugin, testPlugin, testPluginConfig,
   };
 });

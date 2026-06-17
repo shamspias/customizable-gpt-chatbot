@@ -26,7 +26,7 @@ from veldra_spec import AgentSpec
 from veldra_app.events import ev
 from veldra_app.pricing import UsageMeter
 from veldra_app.runtime.agent import MAX_TEAM_DEPTH, _log_step, _resolve_delegates, _wire
-from veldra_app.tools_registry import get_registry
+from veldra_app.tools_registry import build_registry
 
 DECISION_MAX_TOKENS = 1024
 FINAL_MAX_TOKENS = 8192
@@ -188,7 +188,7 @@ async def run_decision_agent(
     registry=None,
 ) -> AsyncIterator[dict]:
     provider = get_provider()
-    registry = registry or get_registry()
+    registry = registry or await build_registry(tenant_id)
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}
     delegate_tools = {_wire(n): sub for n, sub in delegates.items()}

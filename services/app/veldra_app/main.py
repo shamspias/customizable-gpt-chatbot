@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from veldra_app.config import get_settings
-from veldra_app.edge import auth_router, router
+from veldra_app.edge import auth_router, plugin_router, router
 from veldra_app.tracing import setup_tracing
 
 # Built Vue SPA (present in Docker / after `npm run build`); when absent (pure dev),
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(auth_router)  # /api/auth/* + /api/setup/*
+    app.include_router(plugin_router)  # /api/plugins/*
     app.include_router(router)  # /api/* — registered before the SPA mount so it wins
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
