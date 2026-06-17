@@ -15,8 +15,10 @@ help:
 quickstart:        ## One command from zero to a running app.
 	@bash scripts/quickstart.sh
 
+# Auto-create .env from example.env on first run (every target that needs it depends
+# on this, so `make up` / `make dev` / `make quickstart` just work with no .env present).
 .env:
-	cp example.env .env
+	@cp example.env .env && echo "→ created .env from example.env (edit it to set your provider / keys)"
 
 up: .env            ## Build + start the entire stack in one command.
 	$(COMPOSE) up --build -d

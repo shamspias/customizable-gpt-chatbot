@@ -71,7 +71,10 @@ services:
       context: ..
       dockerfile: Dockerfile
     env_file:
-      - ../.env
+      # Optional: `make up` / `make quickstart` create .env from example.env first; a
+      # bare `docker compose up` still works (the app falls back to built-in defaults).
+      - path: ../.env
+        required: false
     environment:
       # In-network service addresses (override whatever .env has for host-mode dev).
       DATABASE_URL: postgresql://veldra:veldra@postgres:5432/veldra
