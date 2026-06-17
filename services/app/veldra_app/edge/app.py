@@ -374,7 +374,8 @@ async def _ask_stream(agent_id: str, req: AskRequest, tenant: str) -> AsyncItera
     usage: dict | None = None
     try:
         async for event in execute(
-            spec, req.message, tenant_id=tenant, run_id=run_id, history=req.history
+            spec, req.message, tenant_id=tenant, run_id=run_id, history=req.history,
+            approved_tools=req.approved_tools,
         ):
             if event["event"] == "done":
                 answer = json.loads(event["data"]).get("answer")

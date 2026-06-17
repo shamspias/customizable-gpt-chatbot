@@ -28,16 +28,18 @@ def _use_decision_mode() -> bool:
 
 def execute(
     spec: AgentSpec, message: str, *, tenant_id: str, run_id: str,
-    history: list[dict] | None = None, registry=None,
+    history: list[dict] | None = None, registry=None, approved_tools: list[str] | None = None,
 ) -> AsyncIterator[dict]:
     if spec.workflow_graph and spec.workflow_graph.nodes:
         return run_workflow(spec, message, tenant_id=tenant_id, run_id=run_id)
     if _use_decision_mode():
         return run_decision_agent(
-            spec, message, tenant_id=tenant_id, run_id=run_id, history=history, registry=registry
+            spec, message, tenant_id=tenant_id, run_id=run_id, history=history,
+            registry=registry, approved_tools=approved_tools,
         )
     return run_agent(
-        spec, message, tenant_id=tenant_id, run_id=run_id, history=history, registry=registry
+        spec, message, tenant_id=tenant_id, run_id=run_id, history=history,
+        registry=registry, approved_tools=approved_tools,
     )
 
 

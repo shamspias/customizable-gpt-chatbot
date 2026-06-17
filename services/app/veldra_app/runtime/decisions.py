@@ -26,6 +26,11 @@ from veldra_spec import AgentSpec
 from veldra_app.events import ev
 from veldra_app.pricing import UsageMeter
 from veldra_app.runtime.agent import MAX_TEAM_DEPTH, _log_step, _resolve_delegates, _wire
+from veldra_app.runtime.permissions import (
+    approval_block_message,
+    exposed_tool_names,
+    is_allowed,
+)
 from veldra_app.tools_registry import build_registry
 
 DECISION_MAX_TOKENS = 1024
@@ -186,9 +191,11 @@ async def run_decision_agent(
     depth: int = 0,
     history: list[dict] | None = None,
     registry=None,
+    approved_tools: list[str] | None = None,
 ) -> AsyncIterator[dict]:
     provider = get_provider()
     registry = registry or await build_registry(tenant_id)
+    approved = set(approved_tools or [])
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}
     delegate_tools = {_wire(n): sub for n, sub in delegates.items()}
@@ -196,7 +203,7 @@ async def run_decision_agent(
 
     tool_descs: dict[str, str] = {}
     arg_schemas: dict[str, dict] = {}
-    for name in (n for n in perm if registry.has(n)):
+    for name in (n for n in exposed_tool_names(spec, approved) if registry.has(n)):
         wire = to_wire_name(name)
         tool = registry.get(name)
         tool_descs[wire] = tool.description
@@ -316,6 +323,9 @@ async def run_decision_agent(
                 yield ev("tool_result", name=logical, ok=True)
             elif perm.get(logical) == "deny":
                 content, is_error = "This tool is not permitted.", True
+                yield ev("tool_result", name=logical, ok=False)
+            elif not is_allowed(logical, perm, approved):
+                content, is_error = approval_block_message(logical), True
                 yield ev("tool_result", name=logical, ok=False)
             else:
                 result = await registry.call(logical, args, ctx)

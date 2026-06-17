@@ -20,6 +20,10 @@ class AskRequest(BaseModel):
         default_factory=list, max_length=200,
         description="Prior turns [{role, text}] for multi-turn chat.",
     )
+    approved_tools: list[str] = Field(
+        default_factory=list, max_length=128,
+        description="Connector tools the user approved for this turn (permission_mode=ask).",
+    )
 
 
 class SelfModProposeRequest(BaseModel):

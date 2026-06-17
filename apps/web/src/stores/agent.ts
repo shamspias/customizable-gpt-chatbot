@@ -93,6 +93,8 @@ export const useAgentStore = defineStore("agent", () => {
   // plugins (MCP connectors)
   const plugins = ref<any[]>([]);
   const pluginTemplates = ref<any[]>([]);
+  // connector tools approved for the current chat (permission_mode=ask)
+  const approvedTools = ref<string[]>([]);
 
   async function upload(file: File) {
     busy.value = true;
@@ -148,7 +150,7 @@ export const useAgentStore = defineStore("agent", () => {
     const assistant = reactive<ChatMsg>({ id: nextMsgId(), role: "assistant", text: "", thinking: "", citations: [] });
     messages.value.push(assistant);
     try {
-      await streamPost(`/api/agents/${agentId.value}/ask`, { message, history }, (ev, data) => {
+      await streamPost(`/api/agents/${agentId.value}/ask`, { message, history, approved_tools: approvedTools.value }, (ev, data) => {
         if (ev === "run") assistant.runId = data.run_id;
         else if (ev === "token") assistant.text += data.text;
         else if (ev === "thinking") assistant.thinking += data.text;
@@ -688,7 +690,7 @@ export const useAgentStore = defineStore("agent", () => {
     boot, fetchMe, login, completeSetup, acceptInvite, logout, onUnauthorized,
     loadMembers, loadInvites, inviteMember, revokeInvite, setMemberRole, removeMember,
     // plugins
-    plugins, pluginTemplates, listPlugins, loadPluginTemplates, installPlugin,
+    plugins, pluginTemplates, approvedTools, listPlugins, loadPluginTemplates, installPlugin,
     patchPlugin, deletePlugin, testPlugin, testPluginConfig,
   };
 });
