@@ -25,7 +25,9 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # 6380 on the host to avoid clashing with a local Redis on 6379. The app reaches
+      # Redis in-network at redis:6379 regardless, so this only affects host access.
+      - "6380:6379"
     volumes:
       - redisdata:/data
     healthcheck:
