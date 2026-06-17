@@ -236,6 +236,32 @@ def fallback_spec(request: str) -> AgentSpec:
     )
 
 
+# Phrases that clearly imply the agent should answer from the user's documents (RAG).
+# Kept specific to avoid false positives (e.g. no bare "rag", which hits "storage").
+_RAG_HINTS = (
+    "document", "docs", "pdf", "uploaded", "upload", "knowledge base", "knowledge-base",
+    "my files", "from the file", "from my notes", "citation", "cite the", "cite sources",
+    "cite the page", "answer from", "from my docs",
+)
+
+
+def _implies_rag(request: str) -> bool:
+    t = (request or "").lower()
+    return any(h in t for h in _RAG_HINTS)
+
+
+def _ensure_rag(spec: AgentSpec, request: str, catalog: dict) -> AgentSpec:
+    """If the request clearly implies answering from documents but the model forgot to
+    wire up retrieval (common on small models), attach the workspace KB — `normalize`
+    then auto-grants the kb.search tool. No-op when retrieval is already present."""
+    if not _implies_rag(request) or spec.knowledge_bases or "kb.search" in spec.tool_keys():
+        return spec
+    kb_id = catalog.get("kb_id")
+    if not kb_id:
+        return spec
+    return spec.model_copy(update={"knowledge_bases": [kb_id]})
+
+
 async def parse_spec(
     system: str, messages: list[dict], catalog: dict, request: str,
     include_workflow: bool = False, include_team: bool = False, include_skills: bool = False,
@@ -455,6 +481,9 @@ async def build_agent(
             # from the request so the user always gets something to chat with and refine.
             spec = normalize(fallback_spec(nl_request), catalog)
             spec = spec.model_copy(update={"model": get_provider().resolve(spec.model)})
+        # If the request implies "answer from my documents", make sure retrieval is wired
+        # even when a small model forgot to grant it (idempotent on richer specs).
+        spec = normalize(_ensure_rag(spec, nl_request, catalog), catalog)
 
         # Understand the task shape → assemble a proper, valid workflow graph (deterministic).
         if want_wf:
