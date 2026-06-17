@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { reactive, ref } from "vue";
-import { getJson, postJson, streamPost, uploadFile } from "../api";
+import { apiFetch, clearToken, getJson, getToken, postJson, setToken, streamPost, uploadFile } from "../api";
 
 export interface Citation {
   index: number;
@@ -43,9 +43,9 @@ export const useAgentStore = defineStore("agent", () => {
   const messages = ref<ChatMsg[]>([]);
   const phase = ref("");
   const showBuilder = ref(false);
-  const view = ref<"studio" | "knowledge" | "workflows" | "activity" | "skills" | "insights">(
-    "studio",
-  );
+  const view = ref<
+    "home" | "chat" | "knowledge" | "workflows" | "activity" | "skills" | "insights" | "plugins"
+  >("home");
   const agents = ref<any[]>([]);
   const kbs = ref<any[]>([]);
   const kbDocs = ref<any[]>([]);
@@ -82,6 +82,19 @@ export const useAgentStore = defineStore("agent", () => {
   const faustOpen = ref(false);
   const faustMsgs = ref<ChatMsg[]>([]);
   const faustBusy = ref(false);
+  // auth / workspace
+  const authReady = ref(false);
+  const authEnabled = ref(true);
+  const setupNeeded = ref(false);
+  const me = ref<any | null>(null);
+  const workspace = ref<{ id: string; name: string } | null>(null);
+  const members = ref<any[]>([]);
+  const invites = ref<any[]>([]);
+  // plugins (MCP connectors)
+  const plugins = ref<any[]>([]);
+  const pluginTemplates = ref<any[]>([]);
+  // connector tools approved for the current chat (permission_mode=ask)
+  const approvedTools = ref<string[]>([]);
 
   async function upload(file: File) {
     busy.value = true;
@@ -137,7 +150,7 @@ export const useAgentStore = defineStore("agent", () => {
     const assistant = reactive<ChatMsg>({ id: nextMsgId(), role: "assistant", text: "", thinking: "", citations: [] });
     messages.value.push(assistant);
     try {
-      await streamPost(`/api/agents/${agentId.value}/ask`, { message, history }, (ev, data) => {
+      await streamPost(`/api/agents/${agentId.value}/ask`, { message, history, approved_tools: approvedTools.value }, (ev, data) => {
         if (ev === "run") assistant.runId = data.run_id;
         else if (ev === "token") assistant.text += data.text;
         else if (ev === "thinking") assistant.thinking += data.text;
@@ -153,6 +166,38 @@ export const useAgentStore = defineStore("agent", () => {
     } finally {
       busy.value = false;
       phase.value = "";
+    }
+  }
+
+  // ── smart composer: route to the best agent, or build one from the prompt ──
+  async function routeMessage(message: string) {
+    return postJson("/api/agents/route", { message });
+  }
+
+  /** Type a prompt → auto-select the best agent and ask it, or build a new agent. */
+  async function smartSend(message: string, forceBuild = false) {
+    const text = message.trim();
+    if (!text) return;
+    if (forceBuild || !agents.value.length) {
+      resetChat();
+      view.value = "chat";
+      await build(text);
+      return;
+    }
+    let routed: any = null;
+    try {
+      busy.value = true;
+      routed = await routeMessage(text);
+    } catch { /* fall through to build */ } finally {
+      busy.value = false;
+    }
+    if (routed && routed.action === "route" && routed.agent_id) {
+      await loadAgent(routed.agent_id);   // → view = chat, fresh thread
+      await ask(text);
+    } else {
+      resetChat();
+      view.value = "chat";
+      await build(text);
     }
   }
 
@@ -205,7 +250,7 @@ export const useAgentStore = defineStore("agent", () => {
     busy.value = true;
     error.value = null;
     try {
-      const r = await fetch(`/api/agents/${agentId.value}/workflow`, {
+      const r = await apiFetch(`/api/agents/${agentId.value}/workflow`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ graph }),
@@ -230,7 +275,7 @@ export const useAgentStore = defineStore("agent", () => {
     agentTags.value = await getJson("/api/agent-tags");
   }
   async function setAgentTags(id: string, tags: string[]) {
-    await fetch(`/api/agents/${id}/tags`, {
+    await apiFetch(`/api/agents/${id}/tags`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tags }),
     });
@@ -262,8 +307,10 @@ export const useAgentStore = defineStore("agent", () => {
     if (config.value) return;
     try { config.value = await getJson("/api/config"); } catch { /* offline — chrome still works */ }
   }
-  async function ensureCatalog() {
-    try { if (!toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools"); } catch { /**/ }
+  async function ensureCatalog(force = false) {
+    try {
+      if (force || !toolCatalog.value.length) toolCatalog.value = await getJson("/api/tools");
+    } catch { /**/ }
   }
 
   // ── create agent ──
@@ -320,7 +367,7 @@ export const useAgentStore = defineStore("agent", () => {
     openSkill.value = s;
   }
   async function saveSkill(id: string, fields: Record<string, any>) {
-    const r = await fetch(`/api/skills/${id}`, {
+    const r = await apiFetch(`/api/skills/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fields),
     });
@@ -328,7 +375,7 @@ export const useAgentStore = defineStore("agent", () => {
     await listSkills();
   }
   async function deleteSkill(id: string) {
-    await fetch(`/api/skills/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/skills/${id}`, { method: "DELETE" });
     if (openSkill.value?.id === id) openSkill.value = null;
     await listSkills();
   }
@@ -369,7 +416,7 @@ export const useAgentStore = defineStore("agent", () => {
     agentId.value = id;
     spec.value = d.spec;
     messages.value = [];
-    view.value = "studio";
+    view.value = "chat";  // opening an agent → its focused chat screen
     await loadLessons();
   }
 
@@ -382,7 +429,7 @@ export const useAgentStore = defineStore("agent", () => {
     await listKbs();
   }
   async function updateKb(id: string, fields: Record<string, any>) {
-    const r = await fetch(`/api/kb/${id}`, {
+    const r = await apiFetch(`/api/kb/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fields),
@@ -391,7 +438,7 @@ export const useAgentStore = defineStore("agent", () => {
     await listKbs();
   }
   async function deleteKb(id: string) {
-    await fetch(`/api/kb/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/kb/${id}`, { method: "DELETE" });
     if (selectedKb.value === id) {
       selectedKb.value = null;
       kbDocs.value = [];
@@ -408,7 +455,7 @@ export const useAgentStore = defineStore("agent", () => {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const r = await fetch(`/api/kb/${id}/upload`, { method: "POST", body: fd });
+      const r = await apiFetch(`/api/kb/${id}/upload`, { method: "POST", body: fd });
       if (!r.ok) throw new Error(await r.text());
       await selectKb(id);
       await listKbs();
@@ -419,7 +466,7 @@ export const useAgentStore = defineStore("agent", () => {
     }
   }
   async function deleteDoc(kbId: string, docId: string) {
-    await fetch(`/api/kb/${kbId}/documents/${docId}`, { method: "DELETE" });
+    await apiFetch(`/api/kb/${kbId}/documents/${docId}`, { method: "DELETE" });
     if (openDoc.value?.document?.id === docId) openDoc.value = null;
     await selectKb(kbId);
     await listKbs();
@@ -434,7 +481,7 @@ export const useAgentStore = defineStore("agent", () => {
     busy.value = true;
     error.value = null;
     try {
-      const r = await fetch(`/api/kb/${kbId}/documents/${docId}`, {
+      const r = await apiFetch(`/api/kb/${kbId}/documents/${docId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -452,7 +499,7 @@ export const useAgentStore = defineStore("agent", () => {
     busy.value = true;
     error.value = null;
     try {
-      const r = await fetch(`/api/kb/${kbId}/ingest-url`, {
+      const r = await apiFetch(`/api/kb/${kbId}/ingest-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -478,7 +525,7 @@ export const useAgentStore = defineStore("agent", () => {
   }
   async function forgetLesson(lessonId: string) {
     if (!agentId.value) return;
-    await fetch(`/api/agents/${agentId.value}/lessons/${lessonId}`, { method: "DELETE" });
+    await apiFetch(`/api/agents/${agentId.value}/lessons/${lessonId}`, { method: "DELETE" });
     await loadLessons();
   }
   async function rate(msg: ChatMsg, reward: number) {
@@ -523,6 +570,139 @@ export const useAgentStore = defineStore("agent", () => {
     runSteps.value = null;
   }
 
+  // ── auth / workspace / team ──
+  async function boot() {
+    // Decide the first screen: install wizard → sign-in → app.
+    try {
+      const status = await getJson("/api/setup/status");
+      authEnabled.value = !!status.auth_enabled;
+      workspace.value = { id: "", name: status.workspace_name };
+      if (status.needs_setup) {
+        setupNeeded.value = true;
+        authReady.value = true;
+        return;
+      }
+    } catch { /* API unreachable — fall through to a sign-in attempt */ }
+    if (getToken() || !authEnabled.value) {
+      try {
+        await fetchMe();
+      } catch {
+        clearToken();
+        me.value = null;
+      }
+    }
+    authReady.value = true;
+  }
+
+  async function fetchMe() {
+    const r = await getJson("/api/auth/me");
+    me.value = r.user;
+    workspace.value = r.workspace;
+    authEnabled.value = !!r.auth_enabled;
+    return r;
+  }
+
+  async function login(email: string, password: string) {
+    const r = await postJson("/api/auth/login", { email, password });
+    setToken(r.token);
+    me.value = r.user;
+    await fetchMe().catch(() => {});
+    setupNeeded.value = false;
+  }
+
+  async function completeSetup(payload: {
+    workspace_name: string; name: string; email: string; password: string;
+  }) {
+    const r = await postJson("/api/setup/complete", payload);
+    setToken(r.token);
+    me.value = r.user;
+    workspace.value = { id: "", name: r.workspace_name };
+    setupNeeded.value = false;
+    await fetchMe().catch(() => {});
+  }
+
+  async function acceptInvite(token: string, name: string, password: string) {
+    const r = await postJson("/api/auth/accept", { token, name, password });
+    setToken(r.token);
+    me.value = r.user;
+    await fetchMe().catch(() => {});
+    setupNeeded.value = false;
+  }
+
+  async function logout() {
+    try { await postJson("/api/auth/logout", {}); } catch { /* best-effort */ }
+    clearToken();
+    me.value = null;
+    resetChat();
+    view.value = "home";
+  }
+
+  function onUnauthorized() {
+    // Triggered by api.ts when a token-bearing request 401s (session expired).
+    me.value = null;
+    view.value = "home";
+  }
+
+  // team management (admin)
+  async function loadMembers() {
+    members.value = await getJson("/api/auth/users");
+  }
+  async function loadInvites() {
+    invites.value = await getJson("/api/auth/invites");
+  }
+  async function inviteMember(email: string, role: string) {
+    const r = await postJson("/api/auth/invites", { email, role });
+    await loadInvites();
+    return r;  // { accept_url, token, ... }
+  }
+  async function revokeInvite(id: string) {
+    await apiFetch(`/api/auth/invites/${id}`, { method: "DELETE" });
+    await loadInvites();
+  }
+  async function setMemberRole(id: string, role: string) {
+    await apiFetch(`/api/auth/users/${id}/role`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    await loadMembers();
+  }
+  async function removeMember(id: string) {
+    await apiFetch(`/api/auth/users/${id}`, { method: "DELETE" });
+    await loadMembers();
+  }
+
+  // ── plugins (MCP connectors) ──
+  async function listPlugins() {
+    plugins.value = await getJson("/api/plugins");
+  }
+  async function loadPluginTemplates() {
+    if (!pluginTemplates.value.length) pluginTemplates.value = await getJson("/api/plugins/templates");
+  }
+  async function installPlugin(body: Record<string, any>) {
+    const p = await postJson("/api/plugins", body);
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+    return p;
+  }
+  async function patchPlugin(id: string, body: Record<string, any>) {
+    const r = await apiFetch(`/api/plugins/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+    return r.json();
+  }
+  async function deletePlugin(id: string) {
+    await apiFetch(`/api/plugins/${id}`, { method: "DELETE" });
+    await Promise.all([listPlugins(), ensureCatalog(true)]);
+  }
+  async function testPlugin(id: string) {
+    return postJson(`/api/plugins/${id}/test`, {});
+  }
+  async function testPluginConfig(body: Record<string, any>) {
+    return postJson("/api/plugins/test", body);
+  }
+
   return {
     docs, agentId, spec, messages, phase, busy, diff, error, showBuilder,
     view, agents, kbs, kbDocs, selectedKb, runs, runSteps, openDoc, lessons,
@@ -530,12 +710,19 @@ export const useAgentStore = defineStore("agent", () => {
     settingsOpen, config, toolCatalog, openSettings, ensureConfig, ensureCatalog, exportAgent,
     createOpen, openCreate, createAgentManual, resetChat,
     confirmAction, resolveConfirm,
-    upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
+    upload, build, ask, smartSend, routeMessage, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
     rate, setAutoImprove, reflectRun, loadLessons, teachLesson, forgetLesson,
     loadAgentTags, setAgentTags, deleteAgents, deleteRuns, deleteDocs, askFaust,
     listSkills, createSkill, saveSkill, deleteSkill,
     analytics, loadAnalytics,
+    // auth / workspace / team
+    authReady, authEnabled, setupNeeded, me, workspace, members, invites,
+    boot, fetchMe, login, completeSetup, acceptInvite, logout, onUnauthorized,
+    loadMembers, loadInvites, inviteMember, revokeInvite, setMemberRole, removeMember,
+    // plugins
+    plugins, pluginTemplates, approvedTools, listPlugins, loadPluginTemplates, installPlugin,
+    patchPlugin, deletePlugin, testPlugin, testPluginConfig,
   };
 });

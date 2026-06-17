@@ -9,7 +9,7 @@ const MODE_KEY = "veldra.theme";
 const ACCENT_KEY = "veldra.accent";
 
 export function getMode(): Mode {
-  // Default to the airy light design (aura-style). Users can switch to dark/system.
+  // Default to Veldra's airy light design. Users can switch to dark/system.
   return (localStorage.getItem(MODE_KEY) as Mode) || "light";
 }
 export function getAccent(): Accent {

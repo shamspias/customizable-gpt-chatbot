@@ -15,14 +15,19 @@ from collections.abc import AsyncIterator
 
 import veldra_thinking as thinking
 from veldra_llm import get_provider
-from veldra_mcp import ToolContext, from_wire_name
+from veldra_mcp import ToolContext
 from veldra_spec import AgentSpec
 
 from veldra_app import repo
 from veldra_app.db import get_sessionmaker
 from veldra_app.events import ev
 from veldra_app.pricing import UsageMeter
-from veldra_app.tools_registry import get_registry
+from veldra_app.runtime.permissions import (
+    approval_block_message,
+    exposed_tool_names,
+    is_allowed,
+)
+from veldra_app.tools_registry import build_registry
 from veldra_app.tracing import get_tracer
 
 ANSWER_MAX_TOKENS = 8192
@@ -88,10 +93,12 @@ async def run_agent(
     depth: int = 0,
     history: list[dict] | None = None,
     registry=None,
+    approved_tools: list[str] | None = None,
 ) -> AsyncIterator[dict]:
     """Drive one agent turn-to-completion, yielding SSE event dicts."""
     provider = get_provider()
-    registry = registry or get_registry()
+    registry = registry or await build_registry(tenant_id)
+    approved = set(approved_tools or [])
     tracer = get_tracer()
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}
@@ -101,7 +108,7 @@ async def run_agent(
 
     system = build_system_prompt(spec, delegates)
     perm = {t.name: t.permission_mode for t in spec.tools}
-    tool_names = [name for name in perm if registry.has(name)]
+    tool_names = [name for name in exposed_tool_names(spec, approved) if registry.has(name)]
     tool_defs = registry.anthropic_defs(tool_names)
     for wire, sub in delegate_tools.items():
         tool_defs.append(
@@ -185,11 +192,12 @@ async def run_agent(
                     continue
 
                 # ── first-party tool ──
-                logical = from_wire_name(call.name)
-                mode = perm.get(logical, "ask")
+                logical = registry.logical_for(call.name)
                 yield ev("tool_use", name=logical, input=call.arguments)
-                if mode == "deny":
+                if perm.get(logical, "ask") == "deny":
                     content, is_error, citations = "This tool is not permitted.", True, []
+                elif not is_allowed(logical, perm, approved):
+                    content, is_error, citations = approval_block_message(logical), True, []
                 else:
                     result = await registry.call(logical, call.arguments, ctx)
                     content, is_error = result.content, result.is_error

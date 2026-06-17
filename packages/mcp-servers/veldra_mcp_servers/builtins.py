@@ -13,8 +13,11 @@ import ast
 import datetime
 import itertools
 import json as _json
+import math
 import operator
 import re as _re
+from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 
 import regex as _rx  # engine-level match timeout (real ReDoS protection; via tiktoken dep)
@@ -23,6 +26,7 @@ from veldra_mcp import Tool, ToolContext, ToolResult, safe_request
 WORKSPACE_ROOT = Path("data/workspace")
 HTTP_CAP = 8000
 READ_CAP = 16000
+SCRAPE_CAP = 12000
 
 # ───────────────────────── time ─────────────────────────
 async def _time_now(args: dict, ctx: ToolContext) -> ToolResult:
@@ -56,6 +60,70 @@ async def _math_eval(args: dict, ctx: ToolContext) -> ToolResult:
         return ToolResult(content=f"Error: {exc}", is_error=True)
 
 
+# ───────────────────────── calculator (scientific) ─────────────────────────
+# A safe, names-and-functions calculator: arithmetic + a whitelist of math functions
+# and constants. No attribute access, no arbitrary names, no calls outside the list.
+_CALC_FUNCS = {
+    "sqrt": math.sqrt, "abs": abs, "round": round, "min": min, "max": max, "sum": sum,
+    "pow": pow, "log": math.log, "log10": math.log10, "log2": math.log2, "exp": math.exp,
+    "sin": math.sin, "cos": math.cos, "tan": math.tan, "asin": math.asin, "acos": math.acos,
+    "atan": math.atan, "atan2": math.atan2, "floor": math.floor, "ceil": math.ceil,
+    "factorial": math.factorial, "degrees": math.degrees, "radians": math.radians,
+    "hypot": math.hypot, "gcd": math.gcd, "fabs": math.fabs, "trunc": math.trunc,
+}
+_CALC_CONSTS = {"pi": math.pi, "e": math.e, "tau": math.tau, "inf": math.inf}
+
+# Compute bounds — keep calc.eval cheap so it can never block the event loop with a
+# giant synchronous big-int operation (e.g. 9**9e9 or factorial(1e7)).
+_MAX_POW_EXP = 4096
+_MAX_FACTORIAL = 10_000
+_MAX_BITS = 256_000  # ~32 KB result ceiling
+
+
+def _bounded(value):
+    if isinstance(value, int) and value.bit_length() > _MAX_BITS:
+        raise ValueError("result too large")
+    return value
+
+
+def _calc_node(node: ast.AST):
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.Name) and node.id in _CALC_CONSTS:
+        return _CALC_CONSTS[node.id]
+    if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
+        left, right = _calc_node(node.left), _calc_node(node.right)
+        if (isinstance(node.op, ast.Pow) and isinstance(right, (int, float))
+                and abs(right) > _MAX_POW_EXP):
+            raise ValueError("exponent too large")
+        return _bounded(_OPS[type(node.op)](left, right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
+        return _bounded(_OPS[type(node.op)](_calc_node(node.operand)))
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        fn = _CALC_FUNCS.get(node.func.id)
+        if fn is None:
+            raise ValueError(f"unknown function '{node.func.id}'")
+        if node.keywords:
+            raise ValueError("keyword arguments are not supported")
+        args = [_calc_node(a) for a in node.args]
+        if node.func.id == "factorial" and args and abs(int(args[0])) > _MAX_FACTORIAL:
+            raise ValueError("argument too large")
+        if node.func.id == "pow" and len(args) >= 2 and isinstance(args[1], (int, float)) \
+                and abs(args[1]) > _MAX_POW_EXP:
+            raise ValueError("exponent too large")
+        return _bounded(fn(*args))
+    raise ValueError("unsupported expression")
+
+
+async def _calc_eval(args: dict, ctx: ToolContext) -> ToolResult:
+    expr = str(args.get("expression", "")).strip()
+    try:
+        value = _calc_node(ast.parse(expr, mode="eval").body)
+        return ToolResult(content=str(value))
+    except Exception as exc:
+        return ToolResult(content=f"Error: {exc}", is_error=True)
+
+
 # ───────────────────────── http ─────────────────────────
 async def _http_fetch(args: dict, ctx: ToolContext) -> ToolResult:
     # SSRF-safe: rejects non-http(s) + private/internal hosts and re-validates every
@@ -66,6 +134,79 @@ async def _http_fetch(args: dict, ctx: ToolContext) -> ToolResult:
         return ToolResult(content=f"HTTP {r.status_code} {url}\n\n{r.text}")
     except Exception as exc:
         return ToolResult(content=f"Error fetching {url}: {exc}", is_error=True)
+
+
+# ───────────────────────── web scraper (readable text) ─────────────────────────
+_SKIP_TAGS = {"script", "style", "noscript", "template", "svg"}
+_BLOCK_TAGS = {"p", "div", "section", "article", "br", "li", "tr", "h1", "h2", "h3",
+               "h4", "h5", "h6", "header", "footer", "ul", "ol", "table", "blockquote"}
+
+
+class _TextExtractor(HTMLParser):
+    """Strip a page to readable text: drop script/style, newline block elements,
+    capture the <title>. Dependency-free (stdlib html.parser)."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.title = ""
+        self._skip: list[str] = []  # stack of open skip tags (recoverable, not monotonic)
+        self._in_title = False
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag in _SKIP_TAGS:
+            self._skip.append(tag)
+        elif tag == "title":
+            self._in_title = True
+        elif tag in _BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in ("body", "html"):
+            self._skip.clear()  # resync: never let an unclosed skip tag hide the page tail
+        if tag in _SKIP_TAGS and tag in self._skip:
+            # pop back to (and including) the matching open tag — tolerant of mismatches
+            while self._skip and self._skip.pop() != tag:
+                pass
+        elif tag == "title":
+            self._in_title = False
+        elif tag in _BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if self._skip:
+            return
+        if self._in_title:
+            self.title += data
+        text = data.strip()
+        if text:
+            self.parts.append(text + " ")
+
+    def text(self) -> str:
+        raw = "".join(self.parts)
+        return _re.sub(r"\n{3,}", "\n\n", _re.sub(r"[ \t]+", " ", raw)).strip()
+
+
+async def _web_scrape(args: dict, ctx: ToolContext) -> ToolResult:
+    """Fetch a web page and return its readable text (HTML stripped to plain text)."""
+    url = str(args.get("url", ""))
+    cap = min(int(args.get("max_chars") or SCRAPE_CAP), 40000)
+    try:
+        r = await safe_request("GET", url, timeout=20, cap=200_000)
+    except Exception as exc:
+        return ToolResult(content=f"Error fetching {url}: {exc}", is_error=True)
+    ctype = r.headers.get("content-type", "")
+    if "html" not in ctype and "<html" not in r.text[:2000].lower():
+        return ToolResult(content=f"{url} ({ctype or 'unknown type'})\n\n{r.text[:cap]}")
+    parser = _TextExtractor()
+    try:
+        parser.feed(r.text)
+    except Exception:  # malformed markup — return what we gathered
+        pass
+    title = unescape(parser.title.strip())
+    body = parser.text()[:cap]
+    head = f"# {title}\n{url}\n\n" if title else f"{url}\n\n"
+    return ToolResult(content=head + body, data={"title": title, "url": url})
 
 
 # ───────────────────────── workspace files ─────────────────────────
@@ -171,9 +312,20 @@ def build_tools() -> list[Tool]:
         Tool("math.eval", "Evaluate an arithmetic expression (e.g. '12*30 + 7').",
              {"type": "object", "additionalProperties": False,
               "properties": {"expression": _STR}, "required": ["expression"]}, _math_eval, True),
+        Tool("calc.eval",
+             "Scientific calculator: arithmetic plus functions (sqrt, log, sin, cos, "
+             "factorial, …) and constants (pi, e). E.g. 'sqrt(2) * sin(pi/4)'.",
+             {"type": "object", "additionalProperties": False,
+              "properties": {"expression": _STR}, "required": ["expression"]}, _calc_eval, True),
         Tool("http.fetch", "Fetch the text content of a URL (HTTP GET, truncated).",
              {"type": "object", "additionalProperties": False,
               "properties": {"url": _STR}, "required": ["url"]}, _http_fetch, True),
+        Tool("web.scrape",
+             "Fetch a web page and return its readable text (HTML stripped). Use for "
+             "reading articles/docs; pass `url` and optional `max_chars`.",
+             {"type": "object", "additionalProperties": False,
+              "properties": {"url": _STR, "max_chars": {"type": "integer"}}, "required": ["url"]},
+             _web_scrape, True),
         Tool("fs.write", "Create or overwrite a file in the agent's workspace.",
              {"type": "object", "additionalProperties": False,
               "properties": {"path": _STR, "content": _STR}, "required": ["path", "content"]},

@@ -1,14 +1,30 @@
 # Screenshots
 
-Add PNGs here to populate the gallery in the top-level `README.md`:
+Product screenshots used by the top-level `README.md`. Captured at 1440×900 (2×).
 
-| File | What to capture |
+| File | View |
 |---|---|
-| `studio.png` | The Studio view — empty state with the **Single agent / Company team** toggle, or a built agent's chat + spec panel. |
-| `builder.png` | The visual **Workflow builder** open on an agent with a multi-node graph. |
-| `knowledge.png` | The **Knowledge** view — a KB selected, showing the retrieval-mode / embedding / rerank / vector-store config and the document list. |
-| `activity.png` | The **Activity** view — the run list with a run's step trace expanded. |
+| `home.png` | Home dashboard — smart composer, KPI strip, agent board, recent activity |
+| `agents.png` | All agents — the gallery with tag filters, Chat / Builder per agent |
+| `plugins.png` | Plugins & connectors — installed MCP connectors + the template gallery |
+| `setup.png` | First-run install wizard — name the workspace, check providers, create the admin |
+| `signin.png` | Sign-in gate |
+| `knowledge.png` | Knowledge bases — KBs + retrieval config + documents |
+| `activity.png` | Activity — the durable run log |
+| `insights.png` | Insights — usage / cost / reliability rollups |
 
-How: `make up` → open <http://localhost:8000> → build an example agent (e.g. the
-"online store" company team) → screenshot each section at ~1440px wide for a crisp,
-consistent gallery.
+## Recapture
+
+```bash
+cd apps/web && npm run dev          # serves the SPA on :5173
+```
+
+Either point a browser at a real backend (`make up`), or use the **dev-only demo
+data** (no backend needed):
+
+- `http://localhost:5173/?demo` — Home, populated
+- `http://localhost:5173/?demo=plugins` — any shell view (`workflows`, `knowledge`, …)
+- `http://localhost:5173/?demo=setup` — the install wizard
+
+`?demo` stubs the API with fixtures and is **dev-only** — it is dead-stripped from
+production builds (`npm run build`).

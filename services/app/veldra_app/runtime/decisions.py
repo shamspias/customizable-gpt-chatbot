@@ -20,13 +20,18 @@ from collections.abc import AsyncIterator
 
 import veldra_thinking as thinking
 from veldra_llm import get_provider
-from veldra_mcp import ToolContext, from_wire_name, to_wire_name
+from veldra_mcp import ToolContext, to_wire_name
 from veldra_spec import AgentSpec
 
 from veldra_app.events import ev
 from veldra_app.pricing import UsageMeter
 from veldra_app.runtime.agent import MAX_TEAM_DEPTH, _log_step, _resolve_delegates, _wire
-from veldra_app.tools_registry import get_registry
+from veldra_app.runtime.permissions import (
+    approval_block_message,
+    exposed_tool_names,
+    is_allowed,
+)
+from veldra_app.tools_registry import build_registry
 
 DECISION_MAX_TOKENS = 1024
 FINAL_MAX_TOKENS = 8192
@@ -186,9 +191,11 @@ async def run_decision_agent(
     depth: int = 0,
     history: list[dict] | None = None,
     registry=None,
+    approved_tools: list[str] | None = None,
 ) -> AsyncIterator[dict]:
     provider = get_provider()
-    registry = registry or get_registry()
+    registry = registry or await build_registry(tenant_id)
+    approved = set(approved_tools or [])
 
     delegates = await _resolve_delegates(spec, tenant_id) if depth < MAX_TEAM_DEPTH else {}
     delegate_tools = {_wire(n): sub for n, sub in delegates.items()}
@@ -196,7 +203,7 @@ async def run_decision_agent(
 
     tool_descs: dict[str, str] = {}
     arg_schemas: dict[str, dict] = {}
-    for name in (n for n in perm if registry.has(n)):
+    for name in (n for n in exposed_tool_names(spec, approved) if registry.has(n)):
         wire = to_wire_name(name)
         tool = registry.get(name)
         tool_descs[wire] = tool.description
@@ -298,7 +305,7 @@ async def run_decision_agent(
                 continue
             seen[key] = seen.get(key, 0) + 1
 
-            logical = from_wire_name(action)
+            logical = registry.logical_for(action)
             yield ev("tool_use", name=logical, input=args)
             ordinal += 1
             if action in delegate_tools:
@@ -316,6 +323,9 @@ async def run_decision_agent(
                 yield ev("tool_result", name=logical, ok=True)
             elif perm.get(logical) == "deny":
                 content, is_error = "This tool is not permitted.", True
+                yield ev("tool_result", name=logical, ok=False)
+            elif not is_allowed(logical, perm, approved):
+                content, is_error = approval_block_message(logical), True
                 yield ev("tool_result", name=logical, ok=False)
             else:
                 result = await registry.call(logical, args, ctx)

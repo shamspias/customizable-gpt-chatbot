@@ -35,7 +35,7 @@ from veldra_app.pricing import UsageMeter
 from veldra_app.rag import search as rag_search
 from veldra_app.runtime.agent import _log_step
 from veldra_app.runtime.sandbox import SandboxError, safe_eval
-from veldra_app.tools_registry import get_registry
+from veldra_app.tools_registry import build_registry
 
 NODE_MAX_TOKENS = 8192
 MAX_STEPS = 96
@@ -126,7 +126,7 @@ async def run_workflow(
 ) -> AsyncIterator[dict]:
     graph = spec.workflow_graph
     provider = get_provider()
-    registry = get_registry()
+    registry = await build_registry(tenant_id)
     ctx = ToolContext(tenant_id=tenant_id, knowledge_bases=spec.knowledge_bases)
     node_by_id = {n.id: n for n in graph.nodes}
     edges_from: dict[str, list] = {}

@@ -25,7 +25,7 @@
   --radius-veldra-lg: var(--radius-lg);
 }
 
-/* ── Design language (inspired by aura-proto / Mevrik): airy cream + cool-slate ink +
+/* ── Veldra design language: airy cream + cool-slate ink +
    indigo, soft cool-tinted shadows, light-first. LIGHT is the default; dark is a deep
    indigo-slate variant. Every component reads these tokens, so this skins the whole app.
    soft/ring derive from the active accent, so a preset only sets accent + strong. ── */
@@ -42,12 +42,19 @@
   --muted: #6b7589;         /* ink-500 */
   --faint: #a7afc2;         /* ink-300 */
   --accent: #5246e6;        /* indigo, readable as text on white */
-  --accent-2: var(--accent);
   --accent-strong: #3a30b5; /* deep indigo — button fills */
   --accent-grad: var(--accent-strong);  /* user bubble fill — always deep, so #fff text stays legible */
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-ring: color-mix(in srgb, var(--accent) 32%, transparent);
   --accent-glow: none;
+  /* a second hue derived from the active accent → vibrant gradients that adapt to
+     any accent preset (and to dark mode, since they reference the live --accent). */
+  --accent-2: color-mix(in srgb, var(--accent) 62%, #ec4899);
+  --grad-brand: linear-gradient(135deg, var(--accent-strong), var(--accent-2));
+  --grad-soft: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 16%, transparent),
+    color-mix(in srgb, var(--accent-2) 14%, transparent));
+  --rail-bg: var(--bg-soft);
   --ok: #0f9f6e;            /* teal */
   --ok-soft: color-mix(in srgb, var(--ok) 13%, transparent);
   --warn: #c2740f;          /* peach */
@@ -151,15 +158,38 @@ body { background: var(--bg); }
     border-color: var(--danger); filter: none; }
   button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
 
-  input[type="text"], input[type="number"], input:not([type]), textarea, select {
-    font: inherit; padding: 10px 12px; border-radius: var(--radius-sm);
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+  input[type="search"], input[type="url"], input:not([type]), textarea, select {
+    font: inherit; width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--surface); color: var(--ink); outline: none;
     transition: border-color 0.14s ease, box-shadow 0.14s ease;
   }
   input::placeholder, textarea::placeholder { color: var(--faint); }
+  /* hover affordance so fields feel interactive before you click into them */
+  input:hover:not(:focus):not(:disabled), textarea:hover:not(:focus):not(:disabled),
+  select:hover:not(:focus):not(:disabled) { border-color: var(--border-strong); }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+  input:disabled, textarea:disabled, select:disabled {
+    background: var(--surface-2); color: var(--muted); cursor: not-allowed; opacity: 0.7; }
+
+  /* custom caret so native <select> looks identical across browsers + both themes */
+  select { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7589' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center; }
+
+  /* keep autofilled fields on-theme (Chrome paints them white + square otherwise) */
+  input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--ink); caret-color: var(--ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    border-radius: var(--radius-sm); transition: background-color 9999s ease-in-out 0s; }
 
   a { color: var(--accent); }
+}
+
+/* 16px inputs on phones so iOS Safari doesn't zoom the viewport on focus */
+@media (max-width: 560px) {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+  input[type="search"], input[type="url"], input:not([type]), textarea, select { font-size: 16px; }
 }
 
 @keyframes veldra-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }

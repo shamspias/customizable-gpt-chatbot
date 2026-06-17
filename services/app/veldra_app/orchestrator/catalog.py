@@ -12,11 +12,11 @@ from veldra_spec import AgentSpec, ToolBinding
 from veldra_app import repo
 from veldra_app.config import DEFAULT_TENANT_ID
 from veldra_app.db import get_sessionmaker
-from veldra_app.tools_registry import get_registry
+from veldra_app.tools_registry import build_registry
 
 
 async def build_catalog(tenant_id: str = DEFAULT_TENANT_ID) -> dict:
-    registry = get_registry()
+    registry = await build_registry(tenant_id)
     sm = get_sessionmaker()
     async with sm() as session:
         kb_id = await repo.get_or_create_kb(session, tenant_id, "default")

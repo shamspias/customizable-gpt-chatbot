@@ -1,9 +1,8 @@
 """Analytics rollups over the durable runs log.
 
-Where aura-proto's Reflex aggregates a bounded in-memory ring buffer, this queries
-the full persisted history (runs + result usage + feedback) — so totals, cost, and
-reward distributions are real, not a recent-window approximation. Pure functions over
-plain run dicts (from repo.analytics_rows) so they're trivially testable.
+This queries the full persisted history (runs + result usage + feedback) — so totals,
+cost, and reward distributions are real, not a recent-window approximation. Pure
+functions over plain run dicts (from repo.analytics_rows) so they're trivially testable.
 """
 
 from __future__ import annotations

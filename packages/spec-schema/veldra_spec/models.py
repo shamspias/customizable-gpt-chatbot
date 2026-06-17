@@ -182,7 +182,12 @@ class AgentSpec(BaseModel):
     description: str = Field(default="", description="One-line summary of what the agent does.")
 
     system_prompt: str = Field(
-        description="The agent's policy / persona / instructions (its system prompt)."
+        description="The agent's policy / instructions (its system prompt)."
+    )
+    persona: str = Field(
+        default="",
+        description="The agent's 'soul': a 1-2 sentence character/voice — temperament, "
+        "tone, quirks. Shapes HOW it talks (never its facts or safety). Grows via lessons.",
     )
 
     model: str = Field(default=DEFAULT_WORKER_MODEL, description="LLM model id for this agent.")

@@ -68,15 +68,23 @@ class Tool:
 class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, Tool] = {}
+        self._by_wire: dict[str, str] = {}  # wire name -> logical name (exact, lossless)
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.name] = tool
+        self._by_wire[to_wire_name(tool.name)] = tool.name
 
     def has(self, name: str) -> bool:
         return name in self._tools
 
     def get(self, name: str) -> Tool:
         return self._tools[name]
+
+    def logical_for(self, wire_or_logical: str) -> str:
+        """Resolve a wire name back to its logical name losslessly (so a '__' inside a
+        plugin key or remote tool name can't corrupt dispatch). Falls back to the
+        string decoding for names registered before the map existed."""
+        return self._by_wire.get(wire_or_logical) or from_wire_name(wire_or_logical)
 
     def keys(self) -> list[str]:
         return sorted(self._tools)
@@ -90,7 +98,7 @@ class ToolRegistry:
         return [self._tools[n].anthropic_def() for n in names if n in self._tools]
 
     async def call(self, wire_or_logical: str, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
-        logical = from_wire_name(wire_or_logical)
+        logical = self.logical_for(wire_or_logical)
         tool = self._tools.get(logical)
         if tool is None:
             return ToolResult(content=f"Error: unknown tool '{logical}'", is_error=True)

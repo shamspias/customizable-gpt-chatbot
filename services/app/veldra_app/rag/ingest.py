@@ -175,10 +175,10 @@ async def reingest_text(doc_id: str, text: str, tenant_id: str = DEFAULT_TENANT_
     """Replace a saved document's content with edited text and re-embed it (atomic)."""
     sm = get_sessionmaker()
     async with sm() as session:
-        doc = await repo.get_document(session, doc_id)
+        doc = await repo.get_document(session, doc_id, tenant_id)  # tenant-scoped ownership
         if not doc:
             raise ValueError("document not found")
-        kb = await repo.get_kb(session, doc["kb_id"]) or {}
+        kb = await repo.get_kb(session, doc["kb_id"], tenant_id) or {}
     try:
         n = await _embed_and_store(
             doc_id, doc["kb_id"], tenant_id, [(1, text)],
