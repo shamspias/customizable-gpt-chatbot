@@ -399,6 +399,19 @@ async def agents_ask(agent_id: str, req: AskRequest, ctx: Member):
     return EventSourceResponse(_ask_stream(agent_id, req, ctx.tenant_id))
 
 
+# ───────────────────────── routing (auto-select an agent) ─────────────────────────
+@router.post("/agents/route")
+async def route_agent(req: AskRequest, ctx: Member) -> dict:
+    """Pick the best existing agent for a free-text message, or {action: create} when
+    none fits — the backend half of the smart composer (type → route or build)."""
+    from veldra_app.orchestrator.route import route_message
+
+    sm = get_sessionmaker()
+    async with sm() as s:
+        roster = await repo.list_agents(s, ctx.tenant_id)
+    return await route_message(req.message, roster)
+
+
 # ───────────────────────── self-modification ─────────────────────────
 async def _selfmod_stream(
     agent_id: str, req: SelfModProposeRequest, tenant: str

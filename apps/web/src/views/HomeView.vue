@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import Icon from "../components/Icon.vue";
 import { useAgentStore } from "../stores/agent";
 
-// The friendly landing: welcome, one big Create action, your agents, recent activity.
+// The landing: a smart composer (route to an agent, or build one), your agent board,
+// recent activity, quick links.
 const store = useAgentStore();
 onMounted(() => {
   if (!store.agents.length) store.listAgents();
@@ -11,6 +12,22 @@ onMounted(() => {
 });
 
 const firstRun = computed(() => !store.agents.length);
+
+// smart composer
+const draft = ref("");
+const buildMode = ref(false);
+const routing = ref(false);
+async function send() {
+  const text = draft.value.trim();
+  if (!text || routing.value) return;
+  draft.value = "";
+  routing.value = true;
+  try {
+    await store.smartSend(text, buildMode.value);
+  } finally {
+    routing.value = false;
+  }
+}
 const recent = computed(() => (store.runs || []).filter((r: any) => r.kind === "ask").slice(0, 5));
 
 const HUES = ["--accent", "--ok", "--warn", "--danger"];
@@ -41,15 +58,35 @@ const QUICK = [
 <template>
   <div class="home">
     <div class="inner">
-      <!-- Hero -->
+      <!-- Hero + smart composer -->
       <section class="hero">
-        <h1>{{ firstRun ? "Welcome to Veldra 👋" : "Welcome back 👋" }}</h1>
+        <h1>{{ firstRun ? "Welcome to Veldra 👋" : "What do you need done?" }}</h1>
         <p>{{ firstRun
-          ? "Build an AI agent just by describing it — then chat with it and teach it to grow."
-          : "Pick an agent to chat with, or create a new one." }}</p>
-        <button class="cta" @click="store.openCreate()">
-          <Icon name="sparkles" :size="18" />Create an agent
-        </button>
+          ? "Describe what you need — Veldra builds an agent for it. Then chat and teach it to grow."
+          : "Type a task and we’ll route it to the right agent — or build a new one for it." }}</p>
+
+        <form class="composer" @submit.prevent="send">
+          <textarea
+            v-model="draft" rows="2" :disabled="routing"
+            :placeholder="buildMode
+              ? 'Describe an agent to build — e.g. “a support agent that answers from my docs and always cites the page”'
+              : 'Ask anything, or describe an agent — e.g. “summarize this PDF” or “build a SQL helper”'"
+            @keydown.enter.exact.prevent="send"
+          />
+          <div class="crow">
+            <label class="bmode" :class="{ on: buildMode }">
+              <input type="checkbox" v-model="buildMode" />
+              <Icon name="sparkles" :size="14" /> Build new agent
+            </label>
+            <div class="grow" />
+            <button type="button" class="ghost sm" @click="store.openCreate()">Advanced…</button>
+            <button class="send" :disabled="!draft.trim() || routing">
+              <Icon :name="routing ? 'refresh' : (buildMode ? 'sparkles' : 'send')" :size="16" />
+              {{ routing ? "Working…" : (buildMode ? "Build" : "Send") }}
+            </button>
+          </div>
+        </form>
+
         <div v-if="firstRun" class="steps">
           <span class="step"><b>1</b> Describe</span><span class="arr">→</span>
           <span class="step"><b>2</b> Chat &amp; test</span><span class="arr">→</span>
@@ -118,6 +155,23 @@ const QUICK = [
 .hero h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 .hero p { margin: 0 0 8px; color: var(--muted); font-size: 15px; max-width: 52ch; line-height: 1.55; }
 .cta { padding: 13px 24px; font-size: 15px; font-weight: 650; border-radius: var(--radius); }
+
+.composer { width: 100%; max-width: 640px; margin-top: 6px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  padding: 12px 12px 10px; text-align: left; transition: border-color 0.14s, box-shadow 0.14s; }
+.composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow); }
+.composer textarea { width: 100%; border: none; background: none; resize: none; padding: 4px 6px;
+  font-size: 15px; line-height: 1.5; color: var(--ink); box-shadow: none; }
+.composer textarea:focus { box-shadow: none; }
+.crow { display: flex; align-items: center; gap: 8px; padding-top: 6px; }
+.bmode { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 11px; cursor: pointer; user-select: none; }
+.bmode.on { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-ring); }
+.bmode input { display: none; }
+.send { padding: 8px 16px; font-weight: 600; }
+.crow .grow { flex: 1; }
+
 .steps { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; justify-content: center; }
 .steps .step b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; margin-right: 5px; }
 .steps .arr { color: var(--faint); }

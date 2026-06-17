@@ -169,6 +169,38 @@ export const useAgentStore = defineStore("agent", () => {
     }
   }
 
+  // ── smart composer: route to the best agent, or build one from the prompt ──
+  async function routeMessage(message: string) {
+    return postJson("/api/agents/route", { message });
+  }
+
+  /** Type a prompt → auto-select the best agent and ask it, or build a new agent. */
+  async function smartSend(message: string, forceBuild = false) {
+    const text = message.trim();
+    if (!text) return;
+    if (forceBuild || !agents.value.length) {
+      resetChat();
+      view.value = "chat";
+      await build(text);
+      return;
+    }
+    let routed: any = null;
+    try {
+      busy.value = true;
+      routed = await routeMessage(text);
+    } catch { /* fall through to build */ } finally {
+      busy.value = false;
+    }
+    if (routed && routed.action === "route" && routed.agent_id) {
+      await loadAgent(routed.agent_id);   // → view = chat, fresh thread
+      await ask(text);
+    } else {
+      resetChat();
+      view.value = "chat";
+      await build(text);
+    }
+  }
+
   async function proposeSelfMod(instruction: string) {
     if (!agentId.value) return;
     busy.value = true;
@@ -678,7 +710,7 @@ export const useAgentStore = defineStore("agent", () => {
     settingsOpen, config, toolCatalog, openSettings, ensureConfig, ensureCatalog, exportAgent,
     createOpen, openCreate, createAgentManual, resetChat,
     confirmAction, resolveConfirm,
-    upload, build, ask, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
+    upload, build, ask, smartSend, routeMessage, proposeSelfMod, applySelfMod, dismissDiff, saveWorkflow,
     listAgents, loadAgent, listKbs, createKb, updateKb, deleteKb, selectKb, uploadToKb, deleteDoc,
     viewDoc, closeDoc, saveDoc, ingestUrl, listRuns, openRun, closeRun,
     rate, setAutoImprove, reflectRun, loadLessons, teachLesson, forgetLesson,
