@@ -111,6 +111,12 @@ function openTestPage() {
           <p class="policy">{{ store.spec.system_prompt }}</p>
         </section>
 
+        <section class="card soul" v-if="store.spec.persona">
+          <h3>✦ Soul · persona</h3>
+          <p class="policy">{{ store.spec.persona }}</p>
+          <p class="soulnote">Its character + the lessons it has learned shape how it talks — and deepen over time.</p>
+        </section>
+
         <section class="card row">
           <div><span class="k">model</span><span class="v">{{ store.spec.model }}</span></div>
           <div><span class="k">effort</span><span class="v">{{ store.spec.effort }}</span></div>
@@ -186,7 +192,7 @@ function openTestPage() {
           <span class="switch" :class="{ on: store.spec.auto_improve }"><span class="knob" /></span>
           <span class="actext">
             <strong>Auto-improve</strong>
-            <small>When you rate an answer 👎, the agent reflects and learns a lesson automatically.</small>
+            <small>The agent reflects and learns a lesson on its own — from a 👎, and quietly from its own mistakes (a failed tool call or dead-end) — so it grows little by little.</small>
           </span>
         </button>
 
@@ -233,6 +239,9 @@ function openTestPage() {
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
 .card h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .policy { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+.card.soul { background: var(--grad-soft); border-color: var(--accent-ring); }
+.card.soul h3 { color: var(--accent); }
+.soulnote { margin: 8px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
 .card.row { display: flex; gap: 18px; }
 .card.row .k { display: block; font-size: 11px; color: var(--muted); }
 .card.row .v { font-size: 14px; }

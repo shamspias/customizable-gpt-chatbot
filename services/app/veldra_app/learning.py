@@ -63,6 +63,26 @@ def _transcript(run: dict, steps: list[dict]) -> str:
     return "\n".join(lines)
 
 
+_DEFAULT_PERSONA = (
+    "You have a steady, warm personality and a consistent voice. You're curious and "
+    "straightforward, you admit what you don't know, and you grow from experience — "
+    "like a thoughtful colleague who gets sharper the more they work with someone."
+)
+
+
+def persona_block(persona: str) -> str:
+    """The agent's 'soul' — a character block injected into its instructions so it has a
+    consistent voice. Falls back to a warm default, so every agent has some personality.
+    Trusted author content (like the policy), so framed plainly but length-capped."""
+    body = re.sub(r"\s+", " ", (persona or "").strip())[:400] or _DEFAULT_PERSONA
+    return (
+        "\n\n## Who you are (your character)\n"
+        f"{body}\n"
+        "Let this shape your tone and word choice — never your facts, instructions, or safety. "
+        "You remember the lessons you've learned and let them quietly mature who you are."
+    )
+
+
 def lessons_block(lessons: list[dict]) -> str:
     """Render lessons for injection — inside a clearly delimited, LOWER-TRUST block.
 

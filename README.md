@@ -51,8 +51,12 @@ anything later just by talking to it. Agents **learn from your feedback** and im
 - **A visual workflow builder.** start · end · llm · classifier · kb_search · if_else ·
   condition · code (sandboxed) · tool · http · template · aggregator — per-node inspector
   and typed variable passing.
-- **Self-improvement (Reflexion).** 👍/👎 any answer; on 👎 an auto-improving agent
-  reflects and stores a *lesson* it applies next time.
+- **Agents with a soul.** Every agent has a *persona* — a character and voice (its
+  "soul") that shapes how it talks, distinct from what it does. And it **grows little by
+  little**: with auto-improve on, it reflects and stores a *lesson* not only from a 👎
+  but quietly from its own mistakes (a failed tool call, a dead-end) — like a colleague
+  who gets sharper the more they work with you. Lessons + persona are injected on every
+  future run, so experience accumulates.
 - **Faust**, the floating admin bot: rename / tag / re-policy / delete agents, inspect &
   clear logs, manage documents — through audited admin tools.
 - **Insights & Activity** — usage / cost / reliability rollups and the full step trace

@@ -46,8 +46,10 @@ Skills you may give the agent (add the EXACT name to `skills`; its playbook is i
 {skill_lines}
 
 Agent design:
-- `system_prompt`: a production-quality policy/persona — what the agent does, its \
-tone, domain-specific rules, how it uses its tools, and how it cites sources.
+- `system_prompt`: a production-quality policy — what the agent does, its domain-specific \
+rules, how it uses its tools, and how it cites sources.
+- `persona`: a 1-2 sentence 'soul' — the agent's character and voice (warmth, tone, a quirk \
+or two). This is HOW it talks, distinct from what it does. Give it genuine personality.
 - Grant a tool with {{"name": "<exact catalog name>", "permission_mode": "auto"}} — copy \
 the name VERBATIM (e.g. "kb.search", "math.eval"). If answering depends on the user's \
 uploaded documents, grant "kb.search" and put "{kb_id}" in `knowledge_bases`. Never \

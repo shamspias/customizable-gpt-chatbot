@@ -12,6 +12,7 @@ second process exists.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Annotated
@@ -350,6 +351,7 @@ async def _ask_stream(agent_id: str, req: AskRequest, tenant: str) -> AsyncItera
         return
 
     spec = AgentSpec.model_validate(spec_dict)
+    learns = spec.auto_improve  # capture before the spec is augmented for this run
     async with sm() as s:
         run_id = await repo.create_run(
             s, tenant, "ask", {"message": req.message},
@@ -359,19 +361,20 @@ async def _ask_stream(agent_id: str, req: AskRequest, tenant: str) -> AsyncItera
         # Inject episodic memory + granted skills into the agent's instructions.
         lessons = await repo.list_lessons(s, agent_id, limit=10)
         skills = await repo.get_skills_by_names(s, tenant, spec.skills)
-    extra = ""
+    # The agent's "soul": its character (persona) + the experience it has accumulated.
+    extra = learning.persona_block(spec.persona)
     if skills:
         blocks = "\n\n".join(f"### Skill: {sk['name']}\n{sk['content']}" for sk in skills)
         extra += f"\n\n## Skills (follow these playbooks)\n{blocks}"
     if lessons:
         extra += learning.lessons_block(lessons)
-    if extra:
-        spec = spec.model_copy(update={"system_prompt": spec.system_prompt + extra})
+    spec = spec.model_copy(update={"system_prompt": spec.system_prompt + extra})
 
     # Tell the client which run this is, so it can attach 👍/👎 feedback.
     yield events.ev("run", run_id=run_id)
     answer: str | None = None
     usage: dict | None = None
+    struggled = False  # did the agent hit a tool error / dead-end / step limit this run?
     try:
         async for event in execute(
             spec, req.message, tenant_id=tenant, run_id=run_id, history=req.history,
@@ -381,17 +384,36 @@ async def _ask_stream(agent_id: str, req: AskRequest, tenant: str) -> AsyncItera
                 answer = json.loads(event["data"]).get("answer")
             elif event["event"] == "usage":
                 usage = json.loads(event["data"])
+            elif event["event"] == "tool_result" and not json.loads(event["data"]).get("ok", True):
+                struggled = True
+            elif event["event"] == "error":
+                struggled = True
             yield event
         async with sm() as s:
             await repo.finish_run(s, run_id, "done", result={"answer": answer, "usage": usage})
             await s.commit()
+        # Grow from experience: a self-improving agent quietly reflects on a rough run
+        # (a tool error / dead-end) and stores a lesson — learning from its own mistakes,
+        # not only from 👎. Fire-and-forget so it never delays the reply.
+        if learns and struggled:
+            asyncio.create_task(_learn_from_run(agent_id, run_id, tenant))
     except Exception as exc:
         yield events.error(str(exc))
         async with sm() as s:
             await repo.finish_run(s, run_id, "error", error=str(exc))
             await s.commit()
+        if learns:
+            asyncio.create_task(_learn_from_run(agent_id, run_id, tenant))
     finally:
         await _ensure_finished(run_id)
+
+
+async def _learn_from_run(agent_id: str, run_id: str, tenant: str) -> None:
+    """Background reflection — store one lesson from a rough run. Best-effort."""
+    try:
+        await learning.reflect(agent_id, run_id, tenant)
+    except Exception:  # learning is never allowed to break the chat path
+        pass
 
 
 @router.post("/agents/{agent_id}/ask")
