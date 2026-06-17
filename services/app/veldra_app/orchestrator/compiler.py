@@ -9,6 +9,7 @@ structured errors and never persist an invalid spec.
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
 
 from pydantic import ValidationError
@@ -174,9 +175,70 @@ short PascalCase names (e.g. SalesAgent, InfoDeskAgent)."""
 MAX_TEAM_MEMBERS = 4
 
 
+# ───────────────────────── lenient coercion (make weak/local models usable) ──────────
+_CORE_OPTIONAL = ["tools", "knowledge_bases", "skills", "memory", "guardrails",
+                  "workflow_graph", "sub_agents"]
+
+
+def _name_from(request: str) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", request or "")
+    return (" ".join(w.capitalize() for w in words[:4]).strip() or "Assistant")[:60]
+
+
+def _policy_from(request: str) -> str:
+    req = (request or "").strip()
+    return (
+        "You are a helpful, reliable assistant. Your job: "
+        f"{req or 'help the user with their request'}. "
+        "Answer clearly and accurately, and if you are unsure, say so."
+    )
+
+
+def _coerce_spec(data: dict | None, request: str, catalog: dict) -> AgentSpec | None:
+    """Turn a model's near-miss JSON into a valid AgentSpec. Small/local models routinely
+    ignore the schema — inventing fields, omitting `system_prompt`, or hallucinating tools.
+    We keep only known fields, fill required ones from the request, sanitize references to
+    the catalog, then shed any still-malformed optional field until it validates."""
+    if not isinstance(data, dict):
+        return None
+    known = set(AgentSpec.model_fields)
+    clean: dict = {k: v for k, v in data.items() if k in known}
+    clean["name"] = str(clean.get("name") or "").strip() or _name_from(request)
+    sp = str(clean.get("system_prompt") or "").strip()
+    desc = str(clean.get("description") or "").strip()
+    clean["system_prompt"] = sp or desc or _policy_from(request)
+    # Sanitize references so a hallucinated tool/KB/skill can't fail the linter.
+    allowed = {t["name"] for t in catalog.get("tools", [])}
+    if isinstance(clean.get("tools"), list):
+        clean["tools"] = [t for t in clean["tools"]
+                          if isinstance(t, dict) and t.get("name") in allowed]
+    valid_kbs = {catalog.get("kb_id")}
+    if isinstance(clean.get("knowledge_bases"), list):
+        clean["knowledge_bases"] = [k for k in clean["knowledge_bases"] if k in valid_kbs]
+    valid_skills = {s["name"] for s in catalog.get("skills", [])}
+    if isinstance(clean.get("skills"), list):
+        clean["skills"] = [s for s in clean["skills"] if s in valid_skills]
+    clean.pop("sub_agents", None)  # single-agent path; teams go via build_team
+    for drop in ([], ["tools"], ["tools", "knowledge_bases", "skills"], _CORE_OPTIONAL):
+        try:
+            return AgentSpec.model_validate({k: v for k, v in clean.items() if k not in drop})
+        except ValidationError:
+            continue
+    return None
+
+
+def fallback_spec(request: str) -> AgentSpec:
+    """A guaranteed-valid minimal agent — the harness never dead-ends a build."""
+    return AgentSpec(
+        name=_name_from(request),
+        system_prompt=_policy_from(request),
+        description=(request or "").strip()[:200],
+    )
+
+
 async def parse_spec(
-    system: str, messages: list[dict], include_workflow: bool = False,
-    include_team: bool = False, include_skills: bool = False,
+    system: str, messages: list[dict], catalog: dict, request: str,
+    include_workflow: bool = False, include_team: bool = False, include_skills: bool = False,
 ) -> tuple[AgentSpec | None, bool]:
     """Constrained-decode an AgentSpec via the active provider. Returns (spec, refused).
 
@@ -200,10 +262,8 @@ async def parse_spec(
     )
     if data is None:
         return None, False
-    try:
-        return AgentSpec.model_validate(data), False
-    except ValidationError:
-        return None, False
+    # Coerce rather than hard-reject: small/local models routinely return near-miss JSON.
+    return _coerce_spec(data, request, catalog), False
 
 
 async def compile_with_repair(
@@ -211,11 +271,12 @@ async def compile_with_repair(
     include_workflow: bool = False, include_team: bool = False
 ) -> tuple[AgentSpec | None, list[str]]:
     messages = list(seed_messages)
+    request = next((m["content"] for m in seed_messages if m.get("role") == "user"), "")
     include_skills = bool(catalog.get("skills"))
     last_errors: list[str] = ["the model did not return a usable spec"]
     for _ in range(MAX_REPAIR_ATTEMPTS):
         spec, refused = await parse_spec(
-            system, messages, include_workflow, include_team, include_skills
+            system, messages, catalog, request, include_workflow, include_team, include_skills
         )
         if refused:
             return None, ["the request was declined by the model's safety system"]
@@ -250,12 +311,17 @@ async def _compile_and_save(
 ) -> tuple[str, int, AgentSpec] | None:
     """Compile one agent from a seed request and persist it; returns (id, version, spec)."""
     system = _system_prompt(catalog, include_workflow=include_workflow)
-    spec, _errors = await compile_with_repair(
-        system, [{"role": "user", "content": seed}], catalog,
-        include_workflow=include_workflow, include_team=include_team,
-    )
+    try:
+        spec, _errors = await compile_with_repair(
+            system, [{"role": "user", "content": seed}], catalog,
+            include_workflow=include_workflow, include_team=include_team,
+        )
+    except Exception:  # noqa: BLE001 — never drop a team member on a provider hiccup
+        spec = None
     if spec is None:
-        return None
+        # Don't drop a team member when the model misfires — synthesize a working one.
+        spec = normalize(fallback_spec(seed), catalog)
+        spec = spec.model_copy(update={"model": get_provider().resolve(spec.model)})
     updates: dict = {}
     if name:
         updates["name"] = name
@@ -374,22 +440,21 @@ async def build_agent(
         system = _system_prompt(catalog, include_workflow=False)
 
         yield status("designing")
-        spec, errors = await compile_with_repair(
-            system, [{"role": "user", "content": nl_request}], catalog,
-            include_workflow=False,
-            # Teams are built via build_team (wants_team routed earlier); don't offer
-            # sub_agents in the single-agent path — a tiny model abuses it (self-reference
-            # / invented members), which fails lint and the whole build.
-            include_team=False,
-        )
-        if spec is None:
-            yield ev(
-                "error",
-                message="I couldn't design a valid agent for that. "
-                + "; ".join(errors)
-                + ". Could you clarify what the agent should do?",
+        try:
+            spec, _ = await compile_with_repair(
+                # Teams go via build_team (routed earlier); don't offer sub_agents here —
+                # a tiny model abuses it (self-reference / invented members) and fails lint.
+                system, [{"role": "user", "content": nl_request}], catalog,
+                include_workflow=False, include_team=False,
             )
-            return
+        except Exception:  # noqa: BLE001 — a provider timeout/hiccup must not dead-end a build
+            spec = None
+        if spec is None:
+            # The model couldn't produce a usable spec (bad content, or the provider
+            # errored). Never dead-end the build: synthesize a minimal, working agent
+            # from the request so the user always gets something to chat with and refine.
+            spec = normalize(fallback_spec(nl_request), catalog)
+            spec = spec.model_copy(update={"model": get_provider().resolve(spec.model)})
 
         # Understand the task shape → assemble a proper, valid workflow graph (deterministic).
         if want_wf:
