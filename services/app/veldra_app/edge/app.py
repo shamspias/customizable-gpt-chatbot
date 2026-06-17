@@ -336,7 +336,7 @@ async def _build_stream(req: BuildRequest, tenant: str) -> AsyncIterator[dict]:
 
 @router.post("/agents/build")
 async def agents_build(req: BuildRequest, ctx: Member):
-    return EventSourceResponse(_build_stream(req, ctx.tenant_id))
+    return EventSourceResponse(_build_stream(req, ctx.tenant_id), ping=15)
 
 
 # ───────────────────────── ask (run an agent) ─────────────────────────
@@ -396,7 +396,7 @@ async def _ask_stream(agent_id: str, req: AskRequest, tenant: str) -> AsyncItera
 
 @router.post("/agents/{agent_id}/ask")
 async def agents_ask(agent_id: str, req: AskRequest, ctx: Member):
-    return EventSourceResponse(_ask_stream(agent_id, req, ctx.tenant_id))
+    return EventSourceResponse(_ask_stream(agent_id, req, ctx.tenant_id), ping=15)
 
 
 # ───────────────────────── routing (auto-select an agent) ─────────────────────────
@@ -439,7 +439,7 @@ async def _selfmod_stream(
 
 @router.post("/agents/{agent_id}/selfmod/propose")
 async def selfmod_propose(agent_id: str, req: SelfModProposeRequest, ctx: Member):
-    return EventSourceResponse(_selfmod_stream(agent_id, req, ctx.tenant_id))
+    return EventSourceResponse(_selfmod_stream(agent_id, req, ctx.tenant_id), ping=15)
 
 
 @router.post("/agents/{agent_id}/selfmod/apply")
@@ -532,10 +532,12 @@ async def get_agent(agent_id: str, ctx: Ctx) -> AgentDetail:
 
 # ───────────────────────── activity / logs (runs + steps) ─────────────────────────
 @router.get("/runs")
-async def list_runs(ctx: Ctx) -> list[dict]:
+async def list_runs(ctx: Ctx, limit: int = 60, offset: int = 0) -> list[dict]:
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
     sm = get_sessionmaker()
     async with sm() as s:
-        return await repo.list_runs(s, ctx.tenant_id)
+        return await repo.list_runs(s, ctx.tenant_id, limit=limit, offset=offset)
 
 
 @router.get("/runs/{run_id}/steps")
@@ -663,4 +665,4 @@ async def _faust_stream(req: AskRequest, tenant: str) -> AsyncIterator[dict]:
 
 @router.post("/faust/ask")
 async def faust_ask(req: AskRequest, ctx: Annotated[Context, Depends(require_role("admin"))]):
-    return EventSourceResponse(_faust_stream(req, ctx.tenant_id))
+    return EventSourceResponse(_faust_stream(req, ctx.tenant_id), ping=15)

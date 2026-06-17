@@ -529,8 +529,10 @@ async def insert_audit(
 
 
 # ───────────────────────── observability (runs + steps) ─────────────────────────
-async def list_runs(session: AsyncSession, tenant_id: str, limit: int = 60) -> list[dict]:
-    """Recent runs (build/ask/selfmod) with the agent name, newest first."""
+async def list_runs(
+    session: AsyncSession, tenant_id: str, limit: int = 60, offset: int = 0
+) -> list[dict]:
+    """Recent runs (build/ask/selfmod) with the agent name, newest first (paginated)."""
     res = await session.execute(
         select(
             Run.id, Run.kind, Run.status, Run.agent_id, Run.agent_version,
@@ -540,6 +542,7 @@ async def list_runs(session: AsyncSession, tenant_id: str, limit: int = 60) -> l
         .where(Run.tenant_id == tenant_id)
         .order_by(Run.created_at.desc())
         .limit(limit)
+        .offset(offset)
     )
     return [dict(r) for r in res.mappings()]
 

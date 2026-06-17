@@ -40,42 +40,60 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   return resp;
 }
 
+// Abort a stream if no bytes arrive for this long. The server pings (SSE comments)
+// every ~15s, so a healthy run resets this continuously; only a truly stalled
+// connection trips it — surfacing an error instead of a frozen UI.
+const STREAM_IDLE_MS = 90_000;
+
 export async function streamPost(
   path: string,
   body: unknown,
   onEvent: SseHandler,
   signal?: AbortSignal,
 ): Promise<void> {
-  const resp = await fetch(path, {
-    method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (resp.status === 401) onUnauthorized();
-  if (!resp.ok || !resp.body) {
-    throw new Error(`request failed: ${resp.status} ${await resp.text()}`);
-  }
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf = (buf + decoder.decode(value, { stream: true })).replace(/\r/g, "");
-    let sep: number;
-    while ((sep = buf.indexOf("\n\n")) >= 0) {
-      const frame = buf.slice(0, sep);
-      buf = buf.slice(sep + 2);
-      let event = "message";
-      let data = "";
-      for (const line of frame.split("\n")) {
-        if (line.startsWith(":")) continue; // heartbeat / comment
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) data += line.slice(5).trim();
-      }
-      if (data) onEvent(event, JSON.parse(data));
+  const ctrl = new AbortController();
+  if (signal) signal.addEventListener("abort", () => ctrl.abort(), { once: true });
+  let idle: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    clearTimeout(idle);
+    idle = setTimeout(() => ctrl.abort(new DOMException("stream idle timeout", "TimeoutError")), STREAM_IDLE_MS);
+  };
+  arm();
+  try {
+    const resp = await fetch(path, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (resp.status === 401) onUnauthorized();
+    if (!resp.ok || !resp.body) {
+      throw new Error(`request failed: ${resp.status} ${await resp.text()}`);
     }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      arm(); // reset idle timer on every chunk (including heartbeats)
+      if (done) break;
+      buf = (buf + decoder.decode(value, { stream: true })).replace(/\r/g, "");
+      let sep: number;
+      while ((sep = buf.indexOf("\n\n")) >= 0) {
+        const frame = buf.slice(0, sep);
+        buf = buf.slice(sep + 2);
+        let event = "message";
+        let data = "";
+        for (const line of frame.split("\n")) {
+          if (line.startsWith(":")) continue; // heartbeat / comment
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (data) onEvent(event, JSON.parse(data));
+      }
+    }
+  } finally {
+    clearTimeout(idle);
   }
 }
 
