@@ -42,12 +42,19 @@
   --muted: #6b7589;         /* ink-500 */
   --faint: #a7afc2;         /* ink-300 */
   --accent: #5246e6;        /* indigo, readable as text on white */
-  --accent-2: var(--accent);
   --accent-strong: #3a30b5; /* deep indigo — button fills */
   --accent-grad: var(--accent-strong);  /* user bubble fill — always deep, so #fff text stays legible */
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-ring: color-mix(in srgb, var(--accent) 32%, transparent);
   --accent-glow: none;
+  /* a second hue derived from the active accent → vibrant gradients that adapt to
+     any accent preset (and to dark mode, since they reference the live --accent). */
+  --accent-2: color-mix(in srgb, var(--accent) 62%, #ec4899);
+  --grad-brand: linear-gradient(135deg, var(--accent-strong), var(--accent-2));
+  --grad-soft: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 16%, transparent),
+    color-mix(in srgb, var(--accent-2) 14%, transparent));
+  --rail-bg: var(--bg-soft);
   --ok: #0f9f6e;            /* teal */
   --ok-soft: color-mix(in srgb, var(--ok) 13%, transparent);
   --warn: #c2740f;          /* peach */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import Icon from "../components/Icon.vue";
+import { agentAvatar, initial } from "../colors";
 import { useAgentStore } from "../stores/agent";
 
 // The landing: a smart composer (route to an agent, or build one), your agent board,
@@ -28,16 +29,23 @@ async function send() {
     routing.value = false;
   }
 }
-const recent = computed(() => (store.runs || []).filter((r: any) => r.kind === "ask").slice(0, 5));
-
-const HUES = ["--accent", "--ok", "--warn", "--danger"];
-function hue(name: string) {
-  let h = 0;
-  for (const c of name || "·") h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return HUES[h % HUES.length];
-}
-function initial(n: string) { return (n || "·").trim().charAt(0).toUpperCase(); }
+const recent = computed(() => (store.runs || []).filter((r: any) => r.kind === "ask").slice(0, 6));
 function tierOf(m: string) { return (m || "").replace("claude-", "").replace(/-/g, " ") || "—"; }
+
+// KPI strip
+const kpis = computed(() => {
+  const runs = store.runs || [];
+  const asks = runs.filter((r: any) => r.kind === "ask");
+  const done = asks.filter((r: any) => r.status === "done").length;
+  const rate = asks.length ? Math.round((done / asks.length) * 100) : 100;
+  const improving = (store.agents || []).filter((a: any) => a.auto_improve).length;
+  return [
+    { label: "Agents", value: store.agents.length, icon: "workflow", view: "workflows" },
+    { label: "Conversations", value: asks.length, icon: "bot", view: "activity" },
+    { label: "Success", value: `${rate}%`, icon: "check", view: "insights" },
+    { label: "Self-improving", value: improving, icon: "sparkles", view: "insights" },
+  ];
+});
 
 function ago(iso: string) {
   if (!iso) return "";
@@ -94,12 +102,20 @@ const QUICK = [
         </div>
       </section>
 
+      <!-- KPI strip -->
+      <section v-if="!firstRun" class="kpis">
+        <button v-for="k in kpis" :key="k.label" class="kpi" @click="store.view = k.view as any">
+          <span class="kic"><Icon :name="k.icon" :size="16" /></span>
+          <span class="kbody"><strong>{{ k.value }}</strong><small>{{ k.label }}</small></span>
+        </button>
+      </section>
+
       <!-- Your agents -->
       <section v-if="store.agents.length" class="block">
         <div class="bhead"><h2>Your agents</h2><span class="count">{{ store.agents.length }}</span></div>
         <div class="grid">
           <button v-for="a in store.agents" :key="a.id" class="card" @click="openAgent(a.id)">
-            <span class="ava" :style="{ background: `color-mix(in srgb, var(${hue(a.name)}) 16%, transparent)`, color: `var(${hue(a.name)})` }">
+            <span class="ava" :style="agentAvatar(a.name)">
               <Icon v-if="a.n_sub_agents" name="workflow" :size="18" />
               <template v-else>{{ initial(a.name) }}</template>
             </span>
@@ -176,6 +192,17 @@ const QUICK = [
 .steps .step b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; margin-right: 5px; }
 .steps .arr { color: var(--faint); }
 
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpi { display: flex; align-items: center; gap: 11px; text-align: left; padding: 14px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; }
+.kpi:hover { border-color: var(--accent); filter: none; transform: translateY(-2px); transition: transform 0.12s, border-color 0.14s; }
+.kic { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px;
+  background: var(--grad-soft); color: var(--accent); }
+.kbody { display: flex; flex-direction: column; line-height: 1.15; }
+.kbody strong { font-size: 21px; font-weight: 750; letter-spacing: -0.02em; }
+.kbody small { font-size: 11.5px; color: var(--faint); }
+@media (max-width: 640px) { .kpis { grid-template-columns: 1fr 1fr; } }
+
 .block { display: flex; flex-direction: column; gap: 12px; }
 .bhead { display: flex; align-items: baseline; gap: 9px; }
 .bhead h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
@@ -209,7 +236,7 @@ const QUICK = [
 .rtime { margin-left: auto; color: var(--faint); font-size: 12px; }
 
 .quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.qcard { display: flex; align-items: center; gap: 11px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; box-shadow: none; }
+.qcard { display: flex; align-items: center; gap: 11px; text-align: left; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; box-shadow: none; }
 .qcard:hover { border-color: var(--accent); filter: none; }
 .qic { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
 .qbody { display: flex; flex-direction: column; line-height: 1.25; }

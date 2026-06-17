@@ -279,7 +279,7 @@ const tIcon = (p: any) => store.pluginTemplates.find((t: any) => t.key === p.key
 
 .tpls { margin-top: 28px; }
 .tpls h2, .form h2 { font-size: 15px; margin: 0 0 12px; }
-.tcard { display: flex; align-items: center; gap: 11px; text-align: left; background: var(--surface);
+.tcard { display: flex; align-items: center; gap: 11px; text-align: left; color: var(--ink); background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; box-shadow: none; }
 .tcard:hover { border-color: var(--accent); filter: none; }
 .tbody { display: flex; flex-direction: column; min-width: 0; }
