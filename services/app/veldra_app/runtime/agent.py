@@ -15,7 +15,7 @@ from collections.abc import AsyncIterator
 
 import veldra_thinking as thinking
 from veldra_llm import get_provider
-from veldra_mcp import ToolContext, from_wire_name
+from veldra_mcp import ToolContext
 from veldra_spec import AgentSpec
 
 from veldra_app import repo
@@ -192,7 +192,7 @@ async def run_agent(
                     continue
 
                 # ── first-party tool ──
-                logical = from_wire_name(call.name)
+                logical = registry.logical_for(call.name)
                 yield ev("tool_use", name=logical, input=call.arguments)
                 if perm.get(logical, "ask") == "deny":
                     content, is_error, citations = "This tool is not permitted.", True, []

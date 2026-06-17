@@ -58,7 +58,10 @@ async def route_message(message: str, roster: list[dict]) -> dict:
 
     ids = {c["id"] for c in candidates}
     agent_id = data.get("agent_id")
-    confidence = float(data.get("confidence") or 0.0)
+    try:
+        confidence = float(data.get("confidence"))
+    except (TypeError, ValueError):  # model returned null / a non-numeric like "high"
+        confidence = 0.0
     matched = agent_id in ids and confidence >= ROUTE_THRESHOLD
     return {
         "action": "route" if matched else "create",

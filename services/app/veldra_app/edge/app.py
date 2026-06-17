@@ -125,7 +125,7 @@ async def create_kb(req: KbCreateRequest, ctx: Member) -> dict:
     async with sm() as s:
         kb_id = await repo.create_kb(s, ctx.tenant_id, req.name, **cfg)
         await s.commit()
-        kb = await repo.get_kb(s, kb_id)
+        kb = await repo.get_kb(s, kb_id, ctx.tenant_id)
     return kb or {"id": kb_id, "name": req.name}
 
 
@@ -133,7 +133,7 @@ async def create_kb(req: KbCreateRequest, ctx: Member) -> dict:
 async def get_kb(kb_id: str, ctx: Ctx) -> dict:
     sm = get_sessionmaker()
     async with sm() as s:
-        kb = await repo.get_kb(s, kb_id)
+        kb = await repo.get_kb(s, kb_id, ctx.tenant_id)
     if kb is None:
         raise HTTPException(404, "knowledge base not found")
     return kb
@@ -144,18 +144,18 @@ async def get_kb(kb_id: str, ctx: Ctx) -> dict:
 async def update_kb(kb_id: str, req: KbUpdateRequest, ctx: Member) -> dict:
     sm = get_sessionmaker()
     async with sm() as s:
-        if await repo.get_kb(s, kb_id) is None:
+        if await repo.get_kb(s, kb_id, ctx.tenant_id) is None:
             raise HTTPException(404, "knowledge base not found")
-        await repo.update_kb(s, kb_id, **req.model_dump(exclude_none=True))
+        await repo.update_kb(s, kb_id, tenant_id=ctx.tenant_id, **req.model_dump(exclude_none=True))
         await s.commit()
-        return await repo.get_kb(s, kb_id)
+        return await repo.get_kb(s, kb_id, ctx.tenant_id)
 
 
 @router.delete("/kb/{kb_id}")
 async def delete_kb(kb_id: str, ctx: Member) -> dict:
     sm = get_sessionmaker()
     async with sm() as s:
-        await repo.delete_kb(s, kb_id)
+        await repo.delete_kb(s, kb_id, ctx.tenant_id)
         await s.commit()
     return {"deleted": kb_id}
 
@@ -164,7 +164,7 @@ async def delete_kb(kb_id: str, ctx: Member) -> dict:
 async def list_documents(kb_id: str, ctx: Ctx) -> list[dict]:
     sm = get_sessionmaker()
     async with sm() as s:
-        return await repo.list_documents(s, kb_id)
+        return await repo.list_documents(s, kb_id, ctx.tenant_id)
 
 
 @router.post("/kb/{kb_id}/upload", response_model=UploadResponse)
@@ -194,7 +194,7 @@ async def get_document(kb_id: str, doc_id: str, ctx: Ctx) -> dict:
     """Document detail + editable text + the page-index tree."""
     sm = get_sessionmaker()
     async with sm() as s:
-        doc = await repo.get_document(s, doc_id)
+        doc = await repo.get_document(s, doc_id, ctx.tenant_id)
         if doc is None:
             raise HTTPException(404, "document not found")
         text = await repo.get_document_text(s, doc_id)
@@ -218,7 +218,7 @@ async def edit_document(
 async def delete_documents(kb_id: str, req: IdsRequest, ctx: Member) -> dict:
     sm = get_sessionmaker()
     async with sm() as s:
-        n = await repo.delete_documents(s, kb_id, req.ids)
+        n = await repo.delete_documents(s, kb_id, req.ids, tenant_id=ctx.tenant_id)
         await s.commit()
     return {"deleted": n}
 
@@ -227,7 +227,7 @@ async def delete_documents(kb_id: str, req: IdsRequest, ctx: Member) -> dict:
 async def delete_document(kb_id: str, doc_id: str, ctx: Member) -> dict:
     sm = get_sessionmaker()
     async with sm() as s:
-        await repo.delete_document(s, doc_id)
+        await repo.delete_document(s, doc_id, ctx.tenant_id)
         await s.commit()
     return {"deleted": doc_id}
 

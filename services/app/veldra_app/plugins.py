@@ -65,7 +65,9 @@ def to_server_config(row: dict) -> McpServerConfig:
 
 
 def _sanitize(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_-]", "_", name)[:48] or "tool"
+    # Collapse runs of disallowed chars to a single "_" (never "__", which would be
+    # lossy against the wire separator) and bound length.
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", name)[:48] or "tool"
 
 
 def _make_handler(cfg: McpServerConfig, remote_name: str):
@@ -100,12 +102,20 @@ async def plugin_tools(row: dict) -> list[Tool]:
         return []
     key = row["key"]
     out: list[Tool] = []
+    seen: set[str] = set()
     for tm in meta:
         rname = tm["name"]
         if allow and rname not in allow:
             continue
         logical = f"{key}.{_sanitize(rname)}"
+        if logical in seen:  # two remote names sanitized to the same logical → disambiguate
+            i = 2
+            while f"{logical}_{i}" in seen:
+                i += 1
+            logical = f"{logical}_{i}"
+        seen.add(logical)
         desc = tm.get("description") or f"{key} · {rname}"
+        # the handler calls the *real* remote name, so a disambiguated logical is safe
         out.append(Tool(logical, desc, tm.get("input_schema") or {"type": "object"},
                         _make_handler(cfg, rname), parallel_safe=False))
     return out

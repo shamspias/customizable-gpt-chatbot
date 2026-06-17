@@ -20,7 +20,7 @@ from collections.abc import AsyncIterator
 
 import veldra_thinking as thinking
 from veldra_llm import get_provider
-from veldra_mcp import ToolContext, from_wire_name, to_wire_name
+from veldra_mcp import ToolContext, to_wire_name
 from veldra_spec import AgentSpec
 
 from veldra_app.events import ev
@@ -305,7 +305,7 @@ async def run_decision_agent(
                 continue
             seen[key] = seen.get(key, 0) + 1
 
-            logical = from_wire_name(action)
+            logical = registry.logical_for(action)
             yield ev("tool_use", name=logical, input=args)
             ordinal += 1
             if action in delegate_tools:

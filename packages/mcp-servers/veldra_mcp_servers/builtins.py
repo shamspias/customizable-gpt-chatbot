@@ -73,6 +73,18 @@ _CALC_FUNCS = {
 }
 _CALC_CONSTS = {"pi": math.pi, "e": math.e, "tau": math.tau, "inf": math.inf}
 
+# Compute bounds — keep calc.eval cheap so it can never block the event loop with a
+# giant synchronous big-int operation (e.g. 9**9e9 or factorial(1e7)).
+_MAX_POW_EXP = 4096
+_MAX_FACTORIAL = 10_000
+_MAX_BITS = 256_000  # ~32 KB result ceiling
+
+
+def _bounded(value):
+    if isinstance(value, int) and value.bit_length() > _MAX_BITS:
+        raise ValueError("result too large")
+    return value
+
 
 def _calc_node(node: ast.AST):
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
@@ -80,14 +92,26 @@ def _calc_node(node: ast.AST):
     if isinstance(node, ast.Name) and node.id in _CALC_CONSTS:
         return _CALC_CONSTS[node.id]
     if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
-        return _OPS[type(node.op)](_calc_node(node.left), _calc_node(node.right))
+        left, right = _calc_node(node.left), _calc_node(node.right)
+        if (isinstance(node.op, ast.Pow) and isinstance(right, (int, float))
+                and abs(right) > _MAX_POW_EXP):
+            raise ValueError("exponent too large")
+        return _bounded(_OPS[type(node.op)](left, right))
     if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
-        return _OPS[type(node.op)](_calc_node(node.operand))
+        return _bounded(_OPS[type(node.op)](_calc_node(node.operand)))
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
         fn = _CALC_FUNCS.get(node.func.id)
         if fn is None:
             raise ValueError(f"unknown function '{node.func.id}'")
-        return fn(*[_calc_node(a) for a in node.args])
+        if node.keywords:
+            raise ValueError("keyword arguments are not supported")
+        args = [_calc_node(a) for a in node.args]
+        if node.func.id == "factorial" and args and abs(int(args[0])) > _MAX_FACTORIAL:
+            raise ValueError("argument too large")
+        if node.func.id == "pow" and len(args) >= 2 and isinstance(args[1], (int, float)) \
+                and abs(args[1]) > _MAX_POW_EXP:
+            raise ValueError("exponent too large")
+        return _bounded(fn(*args))
     raise ValueError("unsupported expression")
 
 
@@ -126,20 +150,24 @@ class _TextExtractor(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
         self.title = ""
-        self._skip = 0
+        self._skip: list[str] = []  # stack of open skip tags (recoverable, not monotonic)
         self._in_title = False
 
     def handle_starttag(self, tag: str, attrs) -> None:
         if tag in _SKIP_TAGS:
-            self._skip += 1
+            self._skip.append(tag)
         elif tag == "title":
             self._in_title = True
         elif tag in _BLOCK_TAGS:
             self.parts.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in _SKIP_TAGS and self._skip:
-            self._skip -= 1
+        if tag in ("body", "html"):
+            self._skip.clear()  # resync: never let an unclosed skip tag hide the page tail
+        if tag in _SKIP_TAGS and tag in self._skip:
+            # pop back to (and including) the matching open tag — tolerant of mismatches
+            while self._skip and self._skip.pop() != tag:
+                pass
         elif tag == "title":
             self._in_title = False
         elif tag in _BLOCK_TAGS:

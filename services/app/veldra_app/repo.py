@@ -81,15 +81,22 @@ async def create_kb(
     )
 
 
-async def get_kb(session: AsyncSession, kb_id: str) -> dict | None:
+async def get_kb(
+    session: AsyncSession, kb_id: str, tenant_id: str | None = None
+) -> dict | None:
     if not is_uuid(kb_id):
         return None
-    res = await session.execute(select(*_KB_COLS).where(KnowledgeBase.id == kb_id))
+    stmt = select(*_KB_COLS).where(KnowledgeBase.id == kb_id)
+    if tenant_id is not None:  # API-boundary tenant isolation
+        stmt = stmt.where(KnowledgeBase.tenant_id == tenant_id)
+    res = await session.execute(stmt)
     row = res.mappings().first()
     return dict(row) if row else None
 
 
-async def update_kb(session: AsyncSession, kb_id: str, **fields: Any) -> None:
+async def update_kb(
+    session: AsyncSession, kb_id: str, tenant_id: str | None = None, **fields: Any
+) -> None:
     if not is_uuid(kb_id):
         return
     allowed = {
@@ -97,9 +104,10 @@ async def update_kb(session: AsyncSession, kb_id: str, **fields: Any) -> None:
         if k in (_KB_CONFIG_FIELDS | {"name"}) and v is not None
     }
     if allowed:
-        await session.execute(
-            update(KnowledgeBase).where(KnowledgeBase.id == kb_id).values(**allowed)
-        )
+        stmt = update(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+        if tenant_id is not None:
+            stmt = stmt.where(KnowledgeBase.tenant_id == tenant_id)
+        await session.execute(stmt.values(**allowed))
 
 
 async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
@@ -117,7 +125,9 @@ async def list_kbs(session: AsyncSession, tenant_id: str) -> list[dict]:
     return [dict(r) for r in res.mappings()]
 
 
-async def list_documents(session: AsyncSession, kb_id: str) -> list[dict]:
+async def list_documents(
+    session: AsyncSession, kb_id: str, tenant_id: str | None = None
+) -> list[dict]:
     if not is_uuid(kb_id):
         return []
     chunk_count = (
@@ -126,7 +136,7 @@ async def list_documents(session: AsyncSession, kb_id: str) -> list[dict]:
         .correlate(Document)
         .scalar_subquery()
     )
-    res = await session.execute(
+    stmt = (
         select(
             Document.id, Document.filename, Document.content_type, Document.num_pages,
             Document.status, Document.created_at, chunk_count.label("chunk_count"),
@@ -134,19 +144,32 @@ async def list_documents(session: AsyncSession, kb_id: str) -> list[dict]:
         .where(Document.kb_id == kb_id)
         .order_by(Document.created_at.desc())
     )
+    if tenant_id is not None:
+        stmt = stmt.where(Document.tenant_id == tenant_id)
+    res = await session.execute(stmt)
     return [dict(r) for r in res.mappings()]
 
 
-async def delete_document(session: AsyncSession, doc_id: str) -> None:
+async def delete_document(
+    session: AsyncSession, doc_id: str, tenant_id: str | None = None
+) -> None:
     if not is_uuid(doc_id):
         return
-    await session.execute(delete(Document).where(Document.id == doc_id))
+    stmt = delete(Document).where(Document.id == doc_id)
+    if tenant_id is not None:
+        stmt = stmt.where(Document.tenant_id == tenant_id)
+    await session.execute(stmt)
 
 
-async def delete_kb(session: AsyncSession, kb_id: str) -> None:
+async def delete_kb(
+    session: AsyncSession, kb_id: str, tenant_id: str | None = None
+) -> None:
     if not is_uuid(kb_id):
         return
-    await session.execute(delete(KnowledgeBase).where(KnowledgeBase.id == kb_id))
+    stmt = delete(KnowledgeBase).where(KnowledgeBase.id == kb_id)
+    if tenant_id is not None:
+        stmt = stmt.where(KnowledgeBase.tenant_id == tenant_id)
+    await session.execute(stmt)
 
 
 async def create_document(
@@ -444,14 +467,17 @@ async def delete_all_runs(
     return res.rowcount or 0
 
 
-async def delete_documents(session: AsyncSession, kb_id: str, ids: list[str]) -> int:
+async def delete_documents(
+    session: AsyncSession, kb_id: str, ids: list[str], tenant_id: str | None = None
+) -> int:
     """Bulk-delete documents in a KB (chunks/page_index cascade via FK)."""
     valid = [i for i in ids if is_uuid(i)]
     if not valid or not is_uuid(kb_id):
         return 0
-    res = await session.execute(
-        delete(Document).where(Document.kb_id == kb_id, Document.id.in_(valid))
-    )
+    stmt = delete(Document).where(Document.kb_id == kb_id, Document.id.in_(valid))
+    if tenant_id is not None:
+        stmt = stmt.where(Document.tenant_id == tenant_id)
+    res = await session.execute(stmt)
     return res.rowcount or 0
 
 
@@ -540,7 +566,7 @@ async def list_runs(
         )
         .join(Agent, Agent.id == Run.agent_id, isouter=True)
         .where(Run.tenant_id == tenant_id)
-        .order_by(Run.created_at.desc())
+        .order_by(Run.created_at.desc(), Run.id.desc())  # total order → stable pagination
         .limit(limit)
         .offset(offset)
     )
@@ -707,15 +733,18 @@ async def delete_lesson(session: AsyncSession, agent_id: str, lesson_id: str) ->
 
 
 # ───────────────────────── document content (view / edit / re-embed) ─────────────
-async def get_document(session: AsyncSession, doc_id: str) -> dict | None:
+async def get_document(
+    session: AsyncSession, doc_id: str, tenant_id: str | None = None
+) -> dict | None:
     if not is_uuid(doc_id):
         return None
-    res = await session.execute(
-        select(
-            Document.id, Document.kb_id, Document.filename, Document.content_type,
-            Document.num_pages, Document.status, Document.created_at,
-        ).where(Document.id == doc_id)
-    )
+    stmt = select(
+        Document.id, Document.kb_id, Document.filename, Document.content_type,
+        Document.num_pages, Document.status, Document.created_at,
+    ).where(Document.id == doc_id)
+    if tenant_id is not None:
+        stmt = stmt.where(Document.tenant_id == tenant_id)
+    res = await session.execute(stmt)
     row = res.mappings().first()
     return dict(row) if row else None
 
