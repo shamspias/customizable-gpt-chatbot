@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import Icon from "./Icon.vue";
 import { useAgentStore } from "../stores/agent";
 
-// A proper, guided "create an agent" experience (modeled on aura-proto's builder):
+// A proper, guided "create an agent" experience:
 //  • Describe — say what you want, Veldra designs the whole agent.
 //  • Team     — describe a company, get a coordinator + specialist agents.
 //  • Manual   — full control: name, policy, model, tools, knowledge, skills.

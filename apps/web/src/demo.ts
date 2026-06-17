@@ -69,13 +69,13 @@ const KBS = [
 
 const FIXTURES: Record<string, unknown> = {
   "/api/setup/status": { needs_setup: false, completed: true, auth_enabled: true,
-    workspace_name: "Mevrik AI", llm_provider: "anthropic", embed_provider: "auto", embed_dim: 1536 },
+    workspace_name: "Veldra", llm_provider: "anthropic", embed_provider: "auto", embed_dim: 1536 },
   "/api/auth/me": { authenticated: true, auth_enabled: true,
-    user: { id: "u1", email: "ada@mevrik.tech", name: "Ada Lovelace", role: "admin" },
-    workspace: { id: "w1", name: "Mevrik AI" } },
+    user: { id: "u1", email: "ada@veldra.app", name: "Ada Lovelace", role: "admin" },
+    workspace: { id: "w1", name: "Veldra" } },
   "/api/auth/users": [
-    { id: "u1", email: "ada@mevrik.tech", name: "Ada Lovelace", role: "admin", is_active: true },
-    { id: "u2", email: "grace@mevrik.tech", name: "Grace Hopper", role: "member", is_active: true },
+    { id: "u1", email: "ada@veldra.app", name: "Ada Lovelace", role: "admin", is_active: true },
+    { id: "u2", email: "grace@veldra.app", name: "Grace Hopper", role: "member", is_active: true },
   ],
   "/api/auth/invites": [],
   "/api/config": { llm_provider: "anthropic", orchestrator_model: "claude-opus-4-8",

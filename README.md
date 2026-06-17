@@ -91,18 +91,26 @@ SPA. An agent is a stable `agents` row + an append-only stack of immutable
 
 ## 🚀 Quick start — one command
 
-Prereqs: **Docker** + a running [Ollama](https://ollama.com). Pull a couple of models,
-then bring up the whole stack (Postgres+pgvector, Redis, MinIO, and the app):
+Prereqs: **Docker** (and, for the local-first default, [Ollama](https://ollama.com)).
+One command checks prereqs, pulls the local models, creates `.env`, brings up the whole
+stack (Postgres+pgvector, Redis, MinIO, and the app), and waits for it to be healthy:
+
+```bash
+make quickstart
+```
+
+Then open **http://localhost:8000** → the **install wizard** walks you through it: name
+your workspace, test the provider connection, and create your admin account. Sign in and
+start building. `make down` stops everything, `make logs` tails the app.
+
+<details><summary>Prefer to do it by hand?</summary>
 
 ```bash
 ollama pull qwen3.5:0.8b          # agent model (tools + thinking)
 ollama pull nomic-embed-text      # embeddings (768-dim)
-make up                           # = docker compose -f deploy/docker-compose.yml up --build
+make up                           # = docker compose -f deploy/docker-compose.yml up --build -d
 ```
-
-Open **http://localhost:8000**. On first run you'll get the **install wizard** — name
-your workspace, test the provider connection, and create the admin account. After that,
-sign in and start building. `make down` stops it, `make logs` tails the app.
+</details>
 
 ## 🧑‍💻 Quick start — dev (hot reload)
 

@@ -25,7 +25,7 @@
   --radius-veldra-lg: var(--radius-lg);
 }
 
-/* ── Design language (inspired by aura-proto / Mevrik): airy cream + cool-slate ink +
+/* ── Veldra design language: airy cream + cool-slate ink +
    indigo, soft cool-tinted shadows, light-first. LIGHT is the default; dark is a deep
    indigo-slate variant. Every component reads these tokens, so this skins the whole app.
    soft/ring derive from the active accent, so a preset only sets accent + strong. ── */

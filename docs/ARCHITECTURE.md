@@ -20,23 +20,28 @@ reviewable diff you approve.
 4. **RAG is just a tool** (`kb.search`), so retrieval composes with everything.
 5. **Forward-compatible, not pre-built.** The schema tolerates additive fields;
    we don't build validators/UI for node/agent types no phase executes yet.
+6. **Multi-user, single workspace.** Every request resolves a `Context`
+   (tenant + user + role: admin/member/viewer) via one dependency; there is no global
+   tenant. Tools come from built-ins + installable **MCP connectors** registered per
+   workspace, behind the same `Tool` contract — so the AgentSpec never changes when a
+   tool moves out-of-process.
 
 ## MVP shape (what's in this repo)
 
-One FastAPI process collapses edge + orchestrator + runtime + rag:
+One FastAPI process collapses edge + auth + orchestrator + runtime + rag:
 
 ```
 apps/web (Vue 3)  ──HTTP/SSE──▶  services/app (FastAPI)
-                                   ├─ edge/         REST + SSE, single-tenant stub
-                                   ├─ orchestrator/ NL→AgentSpec (messages.parse),
-                                   │                linter, 3-attempt repair, self-mod
-                                   ├─ runtime/      manual messages.stream loop, hooks,
-                                   │                tool dispatch, append-full-content
+                                   ├─ edge/         REST + SSE; per-request Context (auth)
+                                   ├─ auth/         users · roles · sessions · install wizard
+                                   ├─ orchestrator/ NL→AgentSpec · route · linter · repair · self-mod
+                                   ├─ runtime/      stream + decision loops · tool dispatch · permissions
+                                   ├─ plugins/      installable MCP connectors → per-tenant tools
                                    └─ rag/          ingest · page-index · hybrid+RRF · cite
-packages/  spec-schema · llm-providers · mcp-client · mcp-servers/kb_search · thinking-methods
+packages/  spec-schema · llm-providers · mcp-client (stdio/HTTP/SSE) · mcp-servers · thinking-methods
 cli/       thin Typer client over the same endpoints
-deploy/    docker-compose (postgres+pgvector, redis, minio) + SQL migrations
-evals/     NL→spec golden set + accuracy runner
+deploy/    docker-compose (postgres+pgvector, redis, minio) + Alembic migrations
+evals/     NL→spec golden set + decision-loop reliability suite
 ```
 
 Datastores: **Postgres** (system of record + `pgvector` HNSW + `tsvector`), **Redis**
