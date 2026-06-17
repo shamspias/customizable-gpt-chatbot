@@ -105,5 +105,5 @@ Embeddings are independently pluggable (`VELDRA_EMBED_PROVIDER`): local Ollama
   Firecracker; visual graph editing; Qdrant option.
 - **v3 (conditional)** — Temporal durable spine; k8s/Helm.
 
-See the design plan at `~/.claude/plans/tender-humming-tiger.md` for the full
-rationale and the adversarial critique that shaped this scope.
+See the top-level `README.md` for the product tour and the commit history for the
+rationale and adversarial critiques that shaped this scope.
