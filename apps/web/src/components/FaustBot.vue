@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { useAgentStore } from "../stores/agent";
 import FaustFace from "./FaustFace.vue";
 import Icon from "./Icon.vue";
@@ -23,10 +23,18 @@ async function send() {
   await store.askFaust(t);
 }
 
-watch(
-  () => [store.faustMsgs.length, store.faustBusy, store.faustMsgs.at(-1)?.text],
-  () => nextTick(() => scroller.value && (scroller.value.scrollTop = scroller.value.scrollHeight)),
-);
+// Coalesce stream-driven scrolls into one write per animation frame.
+let raf = 0;
+function scrollToBottom() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    const el = scroller.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+}
+watch(() => [store.faustMsgs.length, store.faustBusy, store.faustMsgs.at(-1)?.text], scrollToBottom);
+onUnmounted(() => raf && cancelAnimationFrame(raf));
 </script>
 
 <template>

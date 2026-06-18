@@ -33,6 +33,7 @@ function fmtCost(c: number): string | null {
 .chip {
   font-size: 11px; color: var(--faint); background: var(--surface-2);
   border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .chip.cost { color: var(--accent); font-weight: 600; }
 </style>

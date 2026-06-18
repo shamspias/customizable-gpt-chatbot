@@ -109,7 +109,7 @@ function newAgent() {
           </template>
           <template v-else>
             <span v-for="t in (a.tags || [])" :key="t" class="tag">{{ t }}</span>
-            <button class="addtag" @click="openTagEditor(a)">
+            <button class="addtag" aria-label="Add tag" title="Add tag" @click="openTagEditor(a)">
               <Icon name="plus" :size="12" />{{ (a.tags || []).length ? "" : "tag" }}
             </button>
           </template>
@@ -161,7 +161,7 @@ function newAgent() {
 .ver { font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; align-self: flex-start; }
 .tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 22px; }
 .tag { font-size: 11px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 1px 9px; }
-.addtag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: none; border: 1px dashed var(--border-strong); color: var(--faint); box-shadow: none; display: inline-flex; align-items: center; gap: 3px; }
+.addtag { font-size: 11px; padding: 4px 9px; border-radius: 999px; background: none; border: 1px dashed var(--border-strong); color: var(--faint); box-shadow: none; display: inline-flex; align-items: center; gap: 3px; }
 .addtag:hover { border-color: var(--accent); color: var(--accent); filter: none; }
 .taginput { flex: 1; padding: 5px 9px; font-size: 12.5px; }
 .iconbtn { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 5px; border-radius: 8px; box-shadow: none; }

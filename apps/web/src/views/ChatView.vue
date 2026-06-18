@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import CitationChips from "../components/CitationChips.vue";
 import Icon from "../components/Icon.vue";
 import SpecPanel from "../components/SpecPanel.vue";
@@ -30,10 +30,19 @@ function testPage() {
 }
 function tierOf(m: string) { return (m || "").replace("claude-", "").replace(/-/g, " "); }
 
-watch(
-  () => [store.messages.length, store.busy, store.messages.at(-1)?.text],
-  () => nextTick(() => scroller.value && (scroller.value.scrollTop = scroller.value.scrollHeight)),
-);
+// Coalesce stream-driven scrolls into one write per animation frame so a long
+// answer doesn't force a synchronous reflow on every streamed token.
+let raf = 0;
+function scrollToBottom() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    const el = scroller.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+}
+watch(() => [store.messages.length, store.busy, store.messages.at(-1)?.text], scrollToBottom);
+onUnmounted(() => raf && cancelAnimationFrame(raf));
 </script>
 
 <template>
@@ -147,7 +156,8 @@ watch(
 .typing span:nth-child(3) { animation-delay: 0.36s; }
 
 .composer-wrap { width: 100%; max-width: 800px; margin: 0 auto; padding: 0 18px 16px; }
-.composer { display: flex; gap: 10px; align-items: flex-end; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 8px 8px 8px 14px; box-shadow: var(--shadow-sm); }
+.composer { display: flex; gap: 10px; align-items: flex-end; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 8px 8px 8px 14px; box-shadow: var(--shadow-sm); transition: border-color 0.14s ease, box-shadow 0.14s ease; }
+.composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .composer textarea { flex: 1; resize: none; min-height: 26px; max-height: 180px; border: none; background: none; padding: 6px 0; box-shadow: none !important; }
 .send { width: 40px; height: 40px; padding: 0; border-radius: var(--radius-sm); flex: none; }
 .err { padding: 8px 4px 0; color: var(--danger); font-size: 13px; }

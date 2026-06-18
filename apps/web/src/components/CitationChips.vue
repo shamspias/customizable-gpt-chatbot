@@ -23,6 +23,6 @@ defineProps<{ citations: Citation[] }>();
 .chip {
   font-size: 12px; padding: 2px 8px; border-radius: 999px;
   background: var(--chip-bg); border: 1px solid var(--border); color: var(--ink);
-  cursor: default;
+  cursor: default; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 </style>

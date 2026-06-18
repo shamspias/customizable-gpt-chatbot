@@ -153,7 +153,7 @@ const tIcon = (p: any) => store.pluginTemplates.find((t: any) => t.key === p.key
                   <input type="checkbox" :checked="p.enabled" @change="toggle(p)" /><span /></label>
                 <button class="sm ghost" :disabled="p._testing" @click="testInstalled(p)">{{ p._testing ? "…" : "Test" }}</button>
                 <button class="sm ghost" @click="openEdit(p)">Edit</button>
-                <button class="sm danger" @click="remove(p)"><Icon name="trash" :size="14" /></button>
+                <button class="sm danger" title="Remove connector" aria-label="Remove connector" @click="remove(p)"><Icon name="trash" :size="14" /></button>
               </template>
             </div>
           </div>
@@ -253,7 +253,7 @@ const tIcon = (p: any) => store.pluginTemplates.find((t: any) => t.key === p.key
 .pic { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 11px;
   background: var(--surface-2); font-size: 20px; }
 .pmeta { display: flex; flex-direction: column; min-width: 0; }
-.pmeta strong { font-size: 14.5px; }
+.pmeta strong { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pmeta small { color: var(--faint); font-size: 11.5px; text-transform: capitalize; }
 .status { margin-left: auto; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
   padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
