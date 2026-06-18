@@ -306,4 +306,6 @@ function openTestPage() {
 .refine input { flex: 1; }
 .muted { color: var(--muted); }
 .link { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; padding: 0; }
+.link:hover { text-decoration: underline; filter: none; }
+.link:focus-visible { outline: none; text-decoration: underline; box-shadow: 0 0 0 3px var(--accent-ring); border-radius: 4px; }
 </style>
