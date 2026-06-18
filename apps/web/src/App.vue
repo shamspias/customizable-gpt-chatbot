@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import CreateAgentModal from "./components/CreateAgentModal.vue";
@@ -7,7 +7,9 @@ import DiffModal from "./components/DiffModal.vue";
 import FaustBot from "./components/FaustBot.vue";
 import Icon from "./components/Icon.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
-import WorkflowBuilder from "./components/WorkflowBuilder.vue";
+// Lazy: pulls in @vue-flow/core (large) — load it only when the builder opens,
+// keeping it out of the initial bundle.
+const WorkflowBuilder = defineAsyncComponent(() => import("./components/WorkflowBuilder.vue"));
 import { applyTheme, getMode, setMode } from "./theme";
 import { initial } from "./colors";
 import { useAgentStore } from "./stores/agent";
@@ -186,7 +188,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
         <button class="ib" aria-label="Toggle theme" title="Light / dark" @click="toggleTheme"><Icon name="sparkles" :size="19" /></button>
         <button class="newbtn only-mobile" @click="store.openCreate()"><Icon name="plus" :size="16" /></button>
       </header>
-      <main class="main"><component :is="current" /></main>
+      <main class="main"><KeepAlive><component :is="current" /></KeepAlive></main>
     </div>
 
     <!-- slide-in nav menu -->
@@ -220,7 +222,7 @@ const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
 
   <!-- global overlays (only inside the authenticated app) -->
   <DiffModal />
-  <WorkflowBuilder />
+  <WorkflowBuilder v-if="store.showBuilder" />
   <FaustBot />
   <CommandPalette ref="palette" />
   <ConfirmDialog />

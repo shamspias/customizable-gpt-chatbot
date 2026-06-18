@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import CitationChips from "../components/CitationChips.vue";
 import Icon from "../components/Icon.vue";
 import UsageFooter from "../components/UsageFooter.vue";
@@ -56,10 +56,18 @@ async function copyLink() {
   } catch { /* clipboard blocked — no-op */ }
 }
 
-watch(
-  () => [store.messages.length, store.busy, store.messages.at(-1)?.text],
-  () => nextTick(() => scroller.value && (scroller.value.scrollTop = scroller.value.scrollHeight)),
-);
+// Coalesce stream-driven scrolls into one write per animation frame.
+let raf = 0;
+function scrollToBottom() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => {
+    raf = 0;
+    const el = scroller.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+}
+watch(() => [store.messages.length, store.busy, store.messages.at(-1)?.text], scrollToBottom);
+onUnmounted(() => raf && cancelAnimationFrame(raf));
 </script>
 
 <template>
