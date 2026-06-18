@@ -144,9 +144,11 @@ function ms(n: number): string {
 
 .sug { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px; }
 .sug:first-of-type { border-top: none; }
-.sev { font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: .05em; border-radius: 999px; padding: 1px 8px; flex: none; }
+.sev { font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: .05em; border-radius: 999px; padding: 1px 8px; flex: none;
+  color: var(--muted); background: var(--surface-2); }
 .sug.high .sev { color: var(--danger); background: var(--danger-soft); }
 .sug.medium .sev { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.sug.low .sev { color: var(--ok); background: var(--ok-soft); }
 
 .tbl { display: flex; flex-direction: column; }
 .tr { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1.2fr; gap: 8px; padding: 8px 4px; border-top: 1px solid var(--border); font-size: 13px; align-items: center; }
@@ -165,5 +167,11 @@ function ms(n: number): string {
 .erow span { color: var(--muted); word-break: break-word; }
 .muted { color: var(--muted); }
 
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .ins { padding: 16px; } }
+@media (max-width: 760px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .ins { padding: 16px; }
+  /* keep the per-agent columns legible — scroll horizontally instead of crushing */
+  .tbl { overflow-x: auto; }
+  .tr { grid-template-columns: minmax(120px, 2fr) repeat(4, minmax(52px, 1fr)) minmax(64px, 1.2fr); min-width: 460px; }
+}
 </style>

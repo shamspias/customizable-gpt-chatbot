@@ -139,7 +139,10 @@ async function saveConfig() {
             {{ k.document_count }} doc{{ k.document_count === 1 ? "" : "s" }}
           </div>
         </div>
-        <button class="link danger" @click.stop="delKb(k.id, k.name)">delete</button>
+        <button class="iconbtn danger kbdel" title="Delete knowledge base"
+                aria-label="Delete knowledge base" @click.stop="delKb(k.id, k.name)">
+          <Icon name="trash" :size="15" />
+        </button>
       </div>
       <p v-if="!store.kbs.length" class="muted pad">No knowledge bases yet.</p>
     </aside>
@@ -285,7 +288,11 @@ button.sm { padding: 8px 12px; font-size: 13px; }
 .kbitem { display: flex; justify-content: space-between; align-items: center; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
 .kbitem:hover { border-color: var(--border-strong); }
 .kbitem.active { border-color: var(--accent); background: var(--accent-soft); }
-.kbinfo strong { display: block; }
+.kbinfo { min-width: 0; }
+.kbinfo strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kbdel { flex: none; opacity: 0; transition: opacity .14s ease; }
+.kbitem:hover .kbdel, .kbitem.active .kbdel, .kbitem:focus-within .kbdel { opacity: 1; }
+@media (hover: none) { .kbdel { opacity: 1; } }
 .pill { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); margin-right: 6px; text-transform: capitalize; }
 .detail { background: var(--bg); padding: 18px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
 .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); }
@@ -313,8 +320,6 @@ td { padding: 10px; border-bottom: 1px solid var(--border); }
 .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
 .status.ready { color: var(--ok); }
 .status.failed { color: var(--danger); }
-.link { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--accent); }
-.link.danger { color: var(--danger); }
 .primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; }
 .primary:disabled { opacity: .5; cursor: default; }
 .muted { color: var(--muted); }
